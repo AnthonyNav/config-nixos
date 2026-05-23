@@ -5,22 +5,20 @@
     ./modules/home/hyprland.nix
     ./modules/home/waybar.nix
     ./modules/home/hyprpaper.nix
+    ./modules/home/kitty.nix      # <-- Inyectamos tu nueva terminal optimizada
   ];
 
   home.username = "anthony";
   home.homeDirectory = "/home/anthony";
 
   home.packages = with pkgs; [
-    kitty
     rofi
     dunst
     libnotify
     firefox
-    # Tipografía indispensable para que se vean los iconos de la barra (, , etc.)
-    nerd-fonts.jetbrains-mono 
+    nerd-fonts.jetbrains-mono
   ];
 
-  # ACTIVACIÓN GLOBAL DE CATPPUCCIN
   catppuccin.flavor = "mocha";
   catppuccin.enable = true;
 
