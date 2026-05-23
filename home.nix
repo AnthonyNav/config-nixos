@@ -3,6 +3,8 @@
 {
   imports = [
     ./modules/home/hyprland.nix
+    ./modules/home/waybar.nix
+    ./modules/home/hyprpaper.nix
   ];
 
   home.username = "anthony";
@@ -10,15 +12,17 @@
 
   home.packages = with pkgs; [
     kitty
-    waybar
     rofi
     dunst
     libnotify
-    
-    # --- KIT DE SUPERVIVENCIA ---
-    firefox          # Tu navegador principal
-    hyprpaper        # Para gestionar tus fondos de pantalla
+    firefox
+    # Tipografía indispensable para que se vean los iconos de la barra (, , etc.)
+    nerd-fonts.jetbrains-mono 
   ];
+
+  # ACTIVACIÓN GLOBAL DE CATPPUCCIN
+  catppuccin.flavor = "mocha";
+  catppuccin.enable = true;
 
   programs.home-manager.enable = true;
   home.stateVersion = "24.11";

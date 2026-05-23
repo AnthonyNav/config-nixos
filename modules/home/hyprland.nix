@@ -3,17 +3,21 @@
 {
   wayland.windowManager.hyprland = {
     enable = true;
-    configType = "hyprlang"; # SOLUCIÓN A LA ADVERTENCIA: Mantiene el estándar clásico
+    configType = "hyprlang";
+    systemd.enable = true; # Elimina las alertas de inicio del TTY enlazando servicios nativos
     
     settings = {
       monitor = ", preferred, auto, 1";
 
+      "exec-once" = [
+        "waybar"
+        "hyprpaper"
+      ];
+
       env = [
-        "LIBVA_DRIVER_NAME,nvidia"
         "XDG_SESSION_TYPE,wayland"
-        "GBM_BACKEND,nvidia-drm"
-        "__GLX_VENDOR_LIBRARY_NAME,nvidia"
-        "NVD_BACKEND,direct"
+        "XDG_CURRENT_DESKTOP,Hyprland"
+        "XDG_SESSION_DESKTOP,Hyprland"
       ];
 
       general = {
