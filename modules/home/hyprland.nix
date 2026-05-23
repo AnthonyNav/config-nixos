@@ -4,7 +4,7 @@
   wayland.windowManager.hyprland = {
     enable = true;
     configType = "hyprlang";
-    systemd.enable = true; # Elimina las alertas de inicio del TTY enlazando servicios nativos
+    systemd.enable = true;
     
     settings = {
       monitor = ", preferred, auto, 1";
@@ -51,6 +51,19 @@
         "$mainMod, right, movefocus, r"
         "$mainMod, up, movefocus, u"
         "$mainMod, down, movefocus, d"
+      ];
+
+      # 🎧 BINDS MULTIMEDIA: Control de volumen y brillo físico de la Victus
+      bindl = [
+        ", XF86AudioMute, exec, wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"
+        ", XF86AudioMicMute, exec, wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle"
+      ];
+
+      bindle = [
+        ", XF86AudioRaiseVolume, exec, wpctl set-volume -l 1.5 @DEFAULT_AUDIO_SINK@ 5%+"
+        ", XF86AudioLowerVolume, exec, wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-"
+        ", XF86MonBrightnessUp, exec, brightnessctl set 5%+"
+        ", XF86MonBrightnessDown, exec, brightnessctl set 5%-"
       ];
     };
   };
