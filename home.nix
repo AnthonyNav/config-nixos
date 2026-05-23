@@ -5,17 +5,18 @@
     ./modules/home/hyprland.nix
     ./modules/home/waybar.nix
     ./modules/home/hyprpaper.nix
-    ./modules/home/kitty.nix      # <-- Inyectamos tu nueva terminal optimizada
+    ./modules/home/kitty.nix
+    ./modules/home/rofi.nix       # <-- Inyectamos tu nuevo Rofi Launcher
   ];
 
   home.username = "anthony";
   home.homeDirectory = "/home/anthony";
 
   home.packages = with pkgs; [
-    rofi
     dunst
     libnotify
     firefox
+    papirus-icon-theme          # Iconos facheros para el launcher
     nerd-fonts.jetbrains-mono
   ];
 
