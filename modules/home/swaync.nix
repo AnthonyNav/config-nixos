@@ -39,8 +39,10 @@
     style = ''
       * { font-family: "JetBrainsMono Nerd Font"; font-weight: bold; }
 
+      .control-center,
       .notification-center {
-        background: rgba(30, 30, 46, 0.15);
+        background: #1e1e2e;
+        background-color: #1e1e2e;
         border: 1px solid rgba(255, 255, 255, 0.15);
         border-radius: 16px;
         color: #cdd6f4;

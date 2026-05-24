@@ -47,6 +47,12 @@
     android-studio
     flutter
     nodejs_22            # 🛠️ Solución: Mantiene Node.js (que ya incluye corepack internamente)
+    go
+    kotlin
+    docker-compose
+    bruno
+    gotestsum
+    mockgen
 
     # Ciencia de Datos y Python
     python3
@@ -61,6 +67,8 @@
 
     # Ecosistema C# y Backend .NET
     dotnet-sdk_8
+    grpcurl
+    httpie
 
     # Utilidades Base
     unzip

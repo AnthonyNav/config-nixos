@@ -93,6 +93,8 @@
         "$mainMod, right, movefocus, r"
         "$mainMod, up, movefocus, u"
         "$mainMod, down, movefocus, d"
+        "$mainMod CTRL, right, workspace, e+1"
+        "$mainMod CTRL, left, workspace, e-1"
 
         # Intercambio Físico de Ventanas
         "$mainMod SHIFT, left, movewindow, l"
@@ -123,6 +125,8 @@
         "$mainMod SHIFT, 8, movetoworkspace, 8"
         "$mainMod SHIFT, 9, movetoworkspace, 9"
         "$mainMod SHIFT, 0, movetoworkspace, 10"
+        "$mainMod, mouse_down, workspace, e+1"
+        "$mainMod, mouse_up, workspace, e-1"
       ];
 
       bindl = [

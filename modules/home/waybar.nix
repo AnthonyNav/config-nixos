@@ -113,12 +113,23 @@
 
       #workspaces button.active { color: #cba6f7; }
 
-      /* 🌟 APLICACIÓN UNIFORME DE PÍLDORAS (Incluyendo Rendimiento y Campana) */
-      #clock, #cpu, #memory, #backlight, #pulseaudio, #battery, #custom\/performance, #network, #bluetooth, #custom\/notification {
+      /* Píldoras base para módulos regulares */
+      #clock, #cpu, #memory, #backlight, #pulseaudio, #battery, #network, #bluetooth {
         padding: 0 12px;
         margin: 4px 2px;
         background: rgba(255, 255, 255, 0.08);
         border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 8px;
+        color: #cdd6f4;
+      }
+
+      /* Burbujas independientes para rendimiento y notificaciones */
+      #custom-performance,
+      #custom-notification {
+        padding: 0 12px;
+        margin: 4px 6px;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.12);
         border-radius: 8px;
         color: #cdd6f4;
       }
@@ -132,8 +143,7 @@
       #network { color: #89dceb; }
       #bluetooth { color: #b4befe; }
       
-      /* 🛎️ Estilo de píldora unificada para la campana */
-      #custom\/notification { color: #f9e2af; }
+      #custom-notification { color: #f9e2af; }
 
       /* ⚡ Dinámica de Colores para las Clases del Perfil de Energía */
       #custom-performance.perf { color: #f38ba8; font-size: 15px; } /* Rayo Rojo Pastel */

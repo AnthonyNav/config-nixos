@@ -3,8 +3,11 @@
 {
   programs.nix-ld = {
     enable = true;
+    # Superset de runtime para agentes terminales y binarios autoactualizables
+    # como Codex, Antigravity, Claude Code, OpenCode y CLIs/AppImages afines.
     libraries = with pkgs; [
       alsa-lib
+      atk
       at-spi2-core
       cairo
       cups
@@ -20,10 +23,16 @@
       libnotify
       libsecret
       libuuid
+      libxcb
       libx11
+      libxcomposite
       libxcursor
+      libxdamage
+      libxext
+      libxfixes
       libxkbcommon
       libxrandr
+      libxrender
       libxi
       libxtst
       mesa
