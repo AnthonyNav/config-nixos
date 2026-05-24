@@ -62,25 +62,43 @@
       "$mainMod" = "SUPER";
 
       bind = [
-        "$mainMod, Q, exec, kitty"
+        # Gestión del Sistema y Terminal
+        "$mainMod, Return, exec, kitty"
+        "$mainMod, R, exec, rofi -show drun"
         "$mainMod, C, killactive,"
         "$mainMod, M, exit,"
+        "$mainMod, F, fullscreen, 0"
+
+        # Modos de Ordenamiento y Ventanas
         "$mainMod, E, togglefloating,"
-        "$mainMod, R, exec, rofi -show drun"
+        "$mainMod, G, togglegroup,"
+        "$mainMod, Tab, changegroupactive, f"
 
+        # Lanzadores Rápidos
+        "$mainMod, B, exec, firefox"
+
+        # Control de Notificaciones (SwayNC)
         "$mainMod, N, exec, swaync-client -t -sw"
+        "$mainMod SHIFT, N, exec, swaync-client -d"
+        "$mainMod ALT, N, exec, swaync-client -C"
 
-        # Productividad
+        # Herramientas de Productividad
         "$mainMod, V, exec, cliphist list | rofi -dmenu -p \"Portapapeles\" | cliphist decode | wl-copy"
         "$mainMod SHIFT, P, exec, hyprpicker -a && notify-send \"Color Picker\" \"Código copiado\""
         "$mainMod SHIFT, S, exec, grim -g \"$(slurp)\" - | wl-copy && notify-send \"Captura\" \"Área copiada\""
         ", Print, exec, grim ~/Pictures/Screenshots/Captura_$(date +'%Y%m%d_%H%M%S').png && notify-send \"Captura\" \"Guardada\""
 
-        # Navegación
+        # Navegación del Foco
         "$mainMod, left, movefocus, l"
         "$mainMod, right, movefocus, r"
         "$mainMod, up, movefocus, u"
         "$mainMod, down, movefocus, d"
+
+        # Intercambio Físico de Ventanas
+        "$mainMod SHIFT, left, movewindow, l"
+        "$mainMod SHIFT, right, movewindow, r"
+        "$mainMod SHIFT, up, movewindow, u"
+        "$mainMod SHIFT, down, movewindow, d"
       ];
 
       bindl = [
@@ -95,14 +113,5 @@
         ", XF86MonBrightnessDown, exec, brightnessctl set 5%-"
       ];
     };
-
-    # 🌟 NUEVA SINTAXIS DE BLOQUE PARA REGLAS DE VENTANA (Hyprland 0.53+)
-    extraConfig = ''
-      windowrule {
-          name = terminal-opacity
-          match:class = ^(kitty)$
-          opacity = 0.85
-      }
-    '';
   };
 }

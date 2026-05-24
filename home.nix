@@ -7,7 +7,7 @@
     ./modules/home/kitty.nix
     ./modules/home/rofi.nix
     ./modules/home/zsh.nix
-    ./modules/home/swaync.nix     # 🌟 Inyectamos el nuevo módulo de widgets avanzados
+    ./modules/home/swaync.nix
   ];
 
   home.username = "anthony";
@@ -19,19 +19,13 @@
     papirus-icon-theme
     nerd-fonts.jetbrains-mono
 
-    # --- CONECTIVIDAD MODERNA Y ESTÉTICA ---
+    # --- CONECTIVIDAD Y MULTIMEDIA ---
     networkmanager_dmenu
     overskride
     brightnessctl
-    
-    # --- MONITORES ---
     nvtopPackages.amd
     bottom
-
-    # --- CIENCIA DE DATOS & IA ---
     nvidia-vaapi-driver
-
-    # --- MULTIMEDIA ---
     imv
     mpv
     mpvpaper
@@ -42,6 +36,36 @@
     wl-clipboard
     cliphist
     hyprpicker
+
+    # --- ENTORNO DE DESARROLLO E INGENIERÍA ---
+    vscode
+    vim
+    nano
+    neovim
+
+    # Desarrollo Web, Móvil y Emuladores
+    android-studio
+    flutter
+    nodejs_22            # 🛠️ Solución: Mantiene Node.js (que ya incluye corepack internamente)
+
+    # Ciencia de Datos y Python
+    python3
+    python3Packages.pip
+    micromamba
+
+    # Ingeniería de Software C++
+    gcc
+    gnumake
+    cmake
+    gdb
+
+    # Ecosistema C# y Backend .NET
+    dotnet-sdk_8
+
+    # Utilidades Base
+    unzip
+    wget
+    curl
   ];
 
   home.pointerCursor = {
