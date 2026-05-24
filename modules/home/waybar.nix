@@ -7,50 +7,89 @@
       mainBar = {
         layer = "top";
         position = "top";
-        margin-top = 8;
-        margin-left = 10;
-        margin-right = 10;
+        height = 36;
         spacing = 4;
+        margin-top = 6;
+        margin-left = 8;
+        margin-right = 8;
 
         modules-left = [ "hyprland/workspaces" ];
         modules-center = [ "clock" ];
-        modules-right = [ "network" "cpu" "memory" "battery" "pulseaudio" ];
+        
+        # 🌟 ORDEN DE BLOQUE DERECHO COMPLETO Y RESTAURADO
+        modules-right = [ "cpu" "memory" "backlight" "pulseaudio" "battery" "network" "bluetooth" "custom/notification" ];
 
         "hyprland/workspaces" = {
           disable-scroll = true;
           all-outputs = true;
+          format = "{name}";
         };
 
         "clock" = {
-          format = "  {:%I:%M %p}";
+          format = "󰃭 {:%d %b | 󱑒 %H:%M}";
+          tooltip-format = "<big>{:%Y %B}</big>\n<tt><small>{calendar}</small></tt>";
         };
 
-        "cpu" = { format = " {usage}%"; };
-        "memory" = { format = " {used}GB"; };
+        "cpu" = { format = " {usage}%"; interval = 2; };
+        "memory" = { format = " {percentage}%"; interval = 2; };
 
+        # Módulo de Brillo
+        "backlight" = {
+          format = "{icon} {percent}%";
+          format-icons = [ "󰃞" "󰃟" "󰃠" ];
+        };
+
+        # Módulo de Audio
+        "pulseaudio" = {
+          format = "{icon} {volume}%";
+          format-muted = "󰝟 Mute";
+          format-icons = {
+            default = [ "󰕿" "󰖀" "󰕾" ];
+          };
+          on-click = "pwvucontrol";
+        };
+
+        # Módulo de Batería
         "battery" = {
-          states = { critical = 15; };
+          states = { "warning" = 30; "critical" = 15; };
           format = "{icon} {capacity}%";
-          format-icons = [ "" "" "" "" "" ];
+          format-charging = "󱐋 {capacity}%";
+          format-icons = [ "󰂎" "󰁺" "󰁻" "󰁼" "󰁽" "󰁾" "󰁿" "󰂀" "󰂁" "󰂂" "󰁹" ];
         };
 
         "network" = {
-          format-wifi = " {essid}";
-          format-ethernet = " {ipaddr}";
-          format-disconnected = "Disconnected";
+          format-wifi = "  {essid}";
+          format-ethernet = "󰈀 Wired";
+          format-disconnected = "󰖪 Down";
         };
 
-        "pulseaudio" = {
-          format = "{icon} {volume}%";
-          format-muted = " Muted";
-          format-icons = { default = [ "" "" "" ]; };
+        "bluetooth" = {
+          format = " On";
+          format-disabled = "󰂲 Off";
+          format-connected = "󰂱 {device_alias}";
+        };
+
+        "custom/notification" = {
+          tooltip = false;
+          format = "{icon}";
+          format-icons = {
+            notification = "󱅫 ";
+            none = "󰂚 ";
+            dnd-notification = "󱅫 ";
+            dnd-none = "󰂛 ";
+          };
+          return-type = "json";
+          exec-if = "which swaync-client";
+          exec = "swaync-client -swb";
+          on-click = "swaync-client -t -sw";
+          escape = true;
         };
       };
     };
 
     style = ''
       * {
-        font-family: "JetBrainsMono Nerd Font", sans-serif;
+        font-family: "JetBrainsMono Nerd Font";
         font-size: 13px;
         font-weight: bold;
         border: none;
@@ -58,32 +97,38 @@
       }
 
       window#waybar {
-        background-color: rgba(30, 30, 46, 0.85);
-        border: 2px solid rgba(203, 166, 247, 0.4);
+        background: rgba(30, 30, 46, 0.15);
+        border: 1px solid rgba(255, 255, 255, 0.15);
         border-radius: 12px;
         color: #cdd6f4;
       }
 
       #workspaces button {
-        padding: 0 8px;
-        color: #585b70;
+        padding: 0 10px;
+        color: #6c7086;
+        background: transparent;
       }
 
-      #workspaces button.active {
-        color: #cba6f7;
-      }
+      #workspaces button.active { color: #cba6f7; }
 
-      #clock, #network, #cpu, #memory, #battery, #pulseaudio {
+      #clock, #cpu, #memory, #backlight, #pulseaudio, #battery, #network, #bluetooth, #custom\/notification {
         padding: 0 12px;
         margin: 4px 2px;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.1);
         border-radius: 8px;
-        background-color: rgba(17, 17, 27, 0.6);
+        color: #cdd6f4;
       }
 
-      #clock { color: #b4befe; }
-      #battery { color: #a6e3a1; }
-      #network { color: #89b4fa; }
-      #pulseaudio { color: #f9e2af; }
+      #clock { color: #f5c2e7; }
+      #cpu { color: #89b4fa; }
+      #memory { color: #a6e3a1; }
+      #backlight { color: #f9e2af; }
+      #pulseaudio { color: #efa5e8; }
+      #battery { color: #e8a2af; }
+      #network { color: #89dceb; }
+      #bluetooth { color: #b4befe; }
+      #custom\/notification { color: #f9e2af; padding-right: 10px; }
     '';
   };
 }
