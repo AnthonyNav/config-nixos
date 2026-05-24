@@ -17,7 +17,6 @@
       tree = "eza --tree --icons=always";
 
       # Atajos maestros para NixOS y tu Flake
-      nix-switch = "cd ~/nixos-config && git add . && sudo nixos-rebuild switch --flake .#victus";
       nix-clean = "sudo nix-collect-garbage -d && nix-collect-garbage -d && nix-store --optimize";
 
       # Comodidad diaria
@@ -32,6 +31,48 @@
       save = 10000;
       share = true;
     };
+
+    initContent = ''
+      export PATH="$HOME/.local/bin:$HOME/.local/share/pnpm:$HOME/.npm-global/bin:$PATH"
+
+      nix-switch() {
+        sudo nixos-rebuild switch --flake "path:$HOME/nixos-config#$(hostnamectl --static)"
+      }
+
+      hm-switch() {
+        if command -v home-manager >/dev/null 2>&1; then
+          home-manager switch --flake "path:$HOME/nixos-config#$(id -un)"
+        else
+          nix run github:nix-community/home-manager -- switch --flake "path:$HOME/nixos-config#$(id -un)"
+        fi
+      }
+
+      claude() {
+        if [ -x "$HOME/.local/bin/claude" ]; then
+          command "$HOME/.local/bin/claude" "$@"
+          return
+        fi
+
+        local npm_root
+        npm_root="$(npm root -g 2>/dev/null)" || {
+          echo "Claude Code no está instalado todavía." >&2
+          return 127
+        }
+
+        if [ -f "$npm_root/@anthropic-ai/claude-code/cli.js" ]; then
+          command node "$npm_root/@anthropic-ai/claude-code/cli.js" "$@"
+        else
+          echo "Claude Code no está instalado todavía." >&2
+          return 127
+        fi
+      }
+    '';
+  };
+
+  programs.direnv = {
+    enable = true;
+    enableZshIntegration = true;
+    nix-direnv.enable = true;
   };
 
   # 🚀 PROMPT ESTÉTICO MINIMALISTA (STARSHIP)

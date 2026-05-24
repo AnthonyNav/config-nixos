@@ -1,4 +1,4 @@
-{ pkgs, ... }:
+{ lib, pkgs, username, ... }:
 
 {
   imports = [
@@ -10,8 +10,8 @@
     ./modules/home/swaync.nix
   ];
 
-  home.username = "anthony";
-  home.homeDirectory = "/home/anthony";
+  home.username = username;
+  home.homeDirectory = "/home/${username}";
 
   home.packages = with pkgs; [
     libnotify
@@ -86,6 +86,30 @@
 
   catppuccin.flavor = "mocha";
   catppuccin.enable = true;
+
+  home.activation.configureClaudeSettings = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+    claude_dir="$HOME/.claude"
+    settings_file="$claude_dir/settings.json"
+    mkdir -p "$claude_dir"
+
+    if [ -f "$settings_file" ] && ${pkgs.jq}/bin/jq -e . "$settings_file" >/dev/null 2>&1; then
+      tmp_file="$(mktemp)"
+      ${pkgs.jq}/bin/jq '. + {"forceLoginMethod":"claudeai"}' "$settings_file" > "$tmp_file"
+      install -m 600 "$tmp_file" "$settings_file"
+      rm -f "$tmp_file"
+    elif [ -f "$settings_file" ]; then
+      mv "$settings_file" "$settings_file.hm-backup-invalid"
+      cat > "$settings_file" <<'EOF'
+{"forceLoginMethod":"claudeai"}
+EOF
+      chmod 600 "$settings_file"
+    else
+      cat > "$settings_file" <<'EOF'
+{"forceLoginMethod":"claudeai"}
+EOF
+      chmod 600 "$settings_file"
+    fi
+  '';
 
   programs.home-manager.enable = true;
   home.stateVersion = "24.11";

@@ -15,9 +15,7 @@
 
         modules-left = [ "hyprland/workspaces" ];
         modules-center = [ "clock" ];
-        
-        # 🌟 ORDEN DE BLOQUE DERECHO COMPLETO Y RESTAURADO
-        modules-right = [ "cpu" "memory" "backlight" "pulseaudio" "battery" "network" "bluetooth" "custom/notification" ];
+        modules-right = [ "cpu" "memory" "backlight" "pulseaudio" "battery" "custom/performance" "network" "bluetooth" "custom/notification" ];
 
         "hyprland/workspaces" = {
           disable-scroll = true;
@@ -33,28 +31,32 @@
         "cpu" = { format = " {usage}%"; interval = 2; };
         "memory" = { format = " {percentage}%"; interval = 2; };
 
-        # Módulo de Brillo
         "backlight" = {
           format = "{icon} {percent}%";
           format-icons = [ "󰃞" "󰃟" "󰃠" ];
         };
 
-        # Módulo de Audio
         "pulseaudio" = {
           format = "{icon} {volume}%";
           format-muted = "󰝟 Mute";
-          format-icons = {
-            default = [ "󰕿" "󰖀" "󰕾" ];
-          };
+          format-icons = { default = [ "󰕿" "󰖀" "󰕾" ]; };
           on-click = "pwvucontrol";
         };
 
-        # Módulo de Batería
         "battery" = {
           states = { "warning" = 30; "critical" = 15; };
           format = "{icon} {capacity}%";
           format-charging = "󱐋 {capacity}%";
           format-icons = [ "󰂎" "󰁺" "󰁻" "󰁼" "󰁽" "󰁾" "󰁿" "󰂀" "󰂁" "󰂂" "󰁹" ];
+        };
+
+        # 🌟 MÓDULO EXCLUSIVO POR ICONOS (Balanza, Rayo, Hoja)
+        "custom/performance" = {
+          exec = "current=$(powerprofilesctl get); if [ \"$current\" = \"performance\" ]; then echo '{\"text\":\"󱐌\",\"class\":\"perf\",\"tooltip\":\"Modo: Rendimiento Extremo\"}'; elif [ \"$current\" = \"balanced\" ]; then echo '{\"text\":\"󰓅\",\"class\":\"bal\",\"tooltip\":\"Modo: Balanceado\"}'; else echo '{\"text\":\"󰌪\",\"class\":\"save\",\"tooltip\":\"Modo: Ahorro de Energía\"}'; fi";
+          interval = 1;
+          return-type = "json";
+          format = "{}";
+          on-click = "current=$(powerprofilesctl get); if [ \"$current\" = \"balanced\" ]; then powerprofilesctl set performance; elif [ \"$current\" = \"performance\" ]; then powerprofilesctl set power-saver; else powerprofilesctl set balanced; fi; notify-send 'Rendimiento' \"Modo cambiado a $(powerprofilesctl get)\"";
         };
 
         "network" = {
@@ -111,7 +113,8 @@
 
       #workspaces button.active { color: #cba6f7; }
 
-      #clock, #cpu, #memory, #backlight, #pulseaudio, #battery, #network, #bluetooth, #custom\/notification {
+      /* 🌟 APLICACIÓN UNIFORME DE PÍLDORAS (Incluyendo Rendimiento y Campana) */
+      #clock, #cpu, #memory, #backlight, #pulseaudio, #battery, #custom\/performance, #network, #bluetooth, #custom\/notification {
         padding: 0 12px;
         margin: 4px 2px;
         background: rgba(255, 255, 255, 0.08);
@@ -128,7 +131,14 @@
       #battery { color: #e8a2af; }
       #network { color: #89dceb; }
       #bluetooth { color: #b4befe; }
-      #custom\/notification { color: #f9e2af; padding-right: 10px; }
+      
+      /* 🛎️ Estilo de píldora unificada para la campana */
+      #custom\/notification { color: #f9e2af; }
+
+      /* ⚡ Dinámica de Colores para las Clases del Perfil de Energía */
+      #custom-performance.perf { color: #f38ba8; font-size: 15px; } /* Rayo Rojo Pastel */
+      #custom-performance.bal { color: #89b4fa; font-size: 15px; }  /* Balanza Azul */
+      #custom-performance.save { color: #a6e3a1; font-size: 15px; } /* Hoja Verde */
     '';
   };
 }
