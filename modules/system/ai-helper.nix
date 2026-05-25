@@ -18,6 +18,7 @@
       gtk3
       gnumake
       icu
+      libbsd
       libdrm
       libgbm
       libexif
