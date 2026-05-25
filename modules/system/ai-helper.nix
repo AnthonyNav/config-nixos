@@ -21,6 +21,7 @@
       libbsd
       libdrm
       libgbm
+      libglvnd
       libexif
       libjpeg
       libnotify
