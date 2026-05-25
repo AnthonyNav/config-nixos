@@ -16,11 +16,14 @@
       freetype
       glib
       gtk3
+      gnumake
       icu
       libdrm
       libgbm
       libexif
+      libjpeg
       libnotify
+      libpng
       libpulseaudio
       libsecret
       libuuid
