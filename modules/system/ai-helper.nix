@@ -21,6 +21,7 @@
       libgbm
       libexif
       libnotify
+      libpulseaudio
       libsecret
       libuuid
       libxcb
