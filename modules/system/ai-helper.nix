@@ -29,6 +29,7 @@
       libsecret
       libuuid
       libxcb
+      libxcb-cursor
       libx11
       libxcomposite
       libxcursor
