@@ -30,6 +30,8 @@
       libuuid
       libxcb
       libxcb-cursor
+      libice
+      libsm
       libx11
       libxcomposite
       libxcursor
