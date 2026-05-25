@@ -35,6 +35,7 @@
       libxext
       libxfixes
       libxkbcommon
+      libxkbfile
       libxrandr
       libxrender
       libxi
