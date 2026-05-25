@@ -38,7 +38,7 @@
     isNormalUser = true;
     description = username;
     shell = pkgs.zsh;
-    extraGroups = [ "networkmanager" "wheel" "video" "docker" ];
+    extraGroups = [ "networkmanager" "wheel" "video" "docker" "kvm" ];
     packages = with pkgs; [
       fastfetch
       neovim
