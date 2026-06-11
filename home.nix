@@ -8,6 +8,7 @@
     ./modules/home/rofi.nix
     ./modules/home/zsh.nix
     ./modules/home/swaync.nix
+    ./modules/home/night-light.nix
   ];
 
   home.username = username;
@@ -16,6 +17,7 @@
   home.packages = with pkgs; [
     libnotify
     firefox
+    google-chrome
     papirus-icon-theme
     nerd-fonts.jetbrains-mono
 
@@ -53,6 +55,11 @@
     bruno
     gotestsum
     mockgen
+    kiro
+    kiro-cli
+    opencode
+    codex
+    claude-code
 
     # Ciencia de Datos y Python
     python3
@@ -74,6 +81,7 @@
     unzip
     wget
     curl
+    wl-clipboard
   ];
 
   home.pointerCursor = {
@@ -89,6 +97,13 @@
     settings = {
       theme_background = false;
       truecolor = true;
+    };
+  };
+
+  programs.bat = {
+    enable = true;
+    config = {
+      style = "numbers,changes,header"; # Personaliza qué bordes o decoraciones mostrar
     };
   };
 
@@ -118,6 +133,53 @@ EOF
       chmod 600 "$settings_file"
     fi
   '';
+
+  programs.ssh = {
+    enable = true;
+    enableDefaultConfig = false;
+    settings = {
+      "*" = {
+        AddKeysToAgent = "yes";
+      };
+      "github.com" = {
+        HostName = "github.com";
+        IdentityFile = "/home/${username}/.ssh/id_work";
+        IdentitiesOnly = true;
+        User = "git";
+      };
+      "github.com-kigo" = {
+        HostName = "github.com";
+        IdentityFile = "/home/${username}/.ssh/id_work";
+        IdentitiesOnly = true;
+        User = "git";
+      };
+      "github.com-personal" = {
+        HostName = "github.com";
+        IdentityFile = "/home/${username}/.ssh/id_personal";
+        IdentitiesOnly = true;
+        User = "git";
+      };
+    };
+  };
+
+  programs.git = {
+    enable = true;
+    settings.user = {
+      name = "Antonio Zempoaltecatl";
+      email = "antonio.zempoaltecatl@cargomovil.com";
+    };
+    includes = [
+      {
+        condition = "gitdir:/home/${username}/personal/";
+        contents = {
+          user = {
+            name = "Antonio Zempoaltecatl";
+            email = "anthonydevxp@gmail.com";
+          };
+        };
+      }
+    ];
+  };
 
   programs.home-manager.enable = true;
   home.stateVersion = "24.11";

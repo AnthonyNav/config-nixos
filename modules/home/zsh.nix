@@ -47,6 +47,25 @@
         fi
       }
 
+      night-soft() {
+        pkill wlsunset 2>/dev/null || true
+        wlsunset -S 00:00 -s 23:59 -T 6500 -t 4200 >/dev/null 2>&1 &
+      }
+
+      night-warm() {
+        pkill wlsunset 2>/dev/null || true
+        wlsunset -S 00:00 -s 23:59 -T 6500 -t 3200 >/dev/null 2>&1 &
+      }
+
+      night-off() {
+        pkill wlsunset 2>/dev/null || true
+      }
+
+      night-auto() {
+        pkill wlsunset 2>/dev/null || true
+        systemctl --user restart wlsunset.service
+      }
+
       claude() {
         if [ -x "$HOME/.local/bin/claude" ]; then
           command "$HOME/.local/bin/claude" "$@"

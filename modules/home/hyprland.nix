@@ -14,7 +14,6 @@
         "mpvpaper -o \"no-audio --loop --keepaspect=no --vf=scale=1920:1080\" eDP-1 /home/${username}/Pictures/Wallpapers/fondo.gif"
         "nm-applet --indicator"
         "blueman-applet"
-        "swaync"
         "mkdir -p ~/Pictures/Screenshots"
         "wl-paste --type text --watch cliphist store"
         "wl-paste --type image --watch cliphist store"
