@@ -51,6 +51,8 @@
     nodejs_22            # 🛠️ Solución: Mantiene Node.js (que ya incluye corepack internamente)
     go
     kotlin
+    fvm
+    android-tools
     docker-compose
     bruno
     gotestsum
