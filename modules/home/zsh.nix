@@ -66,6 +66,16 @@
         systemctl --user restart wlsunset.service
       }
 
+      pritunl() {
+        local appimage="$HOME/.local/bin/pritunl-client.AppImage"
+        if [ ! -f "$appimage" ]; then
+          echo "Pritunl Client no está instalado. Descárgalo con:" >&2
+          echo "  curl -fsSL https://github.com/pritunl/pritunl-client-electron/releases/latest/download/Pritunl.AppImage -o $appimage && chmod +x $appimage" >&2
+          return 127
+        fi
+        appimage-run "$appimage" "$@" &
+      }
+
       claude() {
         if [ -x "$HOME/.local/bin/claude" ]; then
           command "$HOME/.local/bin/claude" "$@"

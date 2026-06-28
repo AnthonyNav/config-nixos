@@ -12,6 +12,15 @@
   boot.loader.systemd-boot.configurationLimit = 5;
   boot.loader.efi.canTouchEfiVariables = true;
 
+  # Workaround para cuelgue del motor de display en idle (HawkPoint RDNA3 + PSR).
+  # 0x10 = DC_DISABLE_PSR  /  0x800 = DC_DISABLE_IPS
+  # El panel eDP-1 tiene PSR activo; la transición a idle dispara un deadlock en
+  # amdgpu_dm_atomic_commit_tail que escala a tormenta de errores DMCUB.
+  boot.kernelParams = [ "amdgpu.dcdebugmask=0x810" ];
+
+  # sysrq siempre habilitado para poder hacer REISUB sin habilitar a mano vía SSH.
+  boot.kernel.sysctl."kernel.sysrq" = 1;
+
   networking.hostName = "victus";
 
   services.xserver.enable = true;

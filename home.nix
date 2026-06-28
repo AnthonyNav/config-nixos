@@ -55,6 +55,8 @@
     android-tools
     docker-compose
     bruno
+    postman
+    insomnia
     gotestsum
     mockgen
     kiro
@@ -80,7 +82,16 @@
     httpie
 
     # Utilidades Base
-    unzip
+    # Compresión / descompresión
+    zip unzip   # .zip
+    p7zip       # .7z (también descomprime .zip, .tar, .gz, .rar, .iso)
+    gzip        # .gz
+    bzip2       # .bz2
+    xz          # .xz / .lzma
+    zstd        # .zst (moderno, muy rápido)
+    lz4         # .lz4
+    rar         # .rar (pack + unpack, requiere allowUnfree)
+
     wget
     curl
     wl-clipboard
@@ -166,9 +177,16 @@ EOF
 
   programs.git = {
     enable = true;
-    settings.user = {
-      name = "Antonio Zempoaltecatl";
-      email = "antonio.zempoaltecatl@cargomovil.com";
+    settings = {
+      user = {
+        name = "Antonio Zempoaltecatl";
+        email = "antonio.zempoaltecatl@cargomovil.com";
+      };
+      url = {
+        "git@github.com:" = {
+          insteadOf = "https://github.com/";
+        };
+      };
     };
     includes = [
       {
