@@ -1,271 +1,244 @@
 # NixOS Multi-Host Dev Environment
 
-Configuracion modular de NixOS + Flakes + Home Manager orientada a desarrollo diario, escritorios Wayland con Hyprland y herramientas modernas de IA.
+Configuración modular de NixOS + Flakes + Home Manager orientada a desarrollo diario con escritorio Wayland (Hyprland), herramientas modernas de IA y soporte multi-máquina.
 
-Este repositorio esta pensado para compartir el 90% de la configuracion entre varias maquinas y dejar las diferencias de hardware dentro de `hosts/`.
+---
 
-## 🚀 Requisitos Previos E Instalacion Rapida
+## Índice
 
-### 1. Clonar el repositorio en `~/nixos-config`
+- [Máquinas soportadas](#máquinas-soportadas)
+- [Despliegue rápido](#despliegue-rápido)
+- [Atajos de teclado](#atajos-de-teclado)
+- [Para qué está preparado este entorno](#para-qué-está-preparado-este-entorno)
+- [Trabajar con Flakes en proyectos](#trabajar-con-flakes-en-proyectos)
+- [Agregar una nueva máquina](#agregar-una-nueva-máquina)
+- [Comandos de mantenimiento](#comandos-de-mantenimiento)
+
+---
+
+## Máquinas soportadas
+
+| Host | Estado | Hardware |
+|---|---|---|
+| `victus` | Activo | HP Victus — AMD HawkPoint + NVIDIA RTX 4050 |
+| `thinkpad` | Listo (falta hardware-configuration.nix) | ThinkPad |
+| `desktop` | Listo (falta hardware-configuration.nix) | Desktop |
+
+---
+
+## Despliegue rápido
+
+### Clonar en una máquina nueva
 
 ```bash
-git clone <TU-URL-DEL-REPO> ~/nixos-config
+git clone <repo> ~/nixos-config
 cd ~/nixos-config
 ```
 
-### 2. Ajustar el usuario si no vas a usar `anthony`
-
-La configuracion centraliza el usuario principal en una sola linea dentro de [`flake.nix`](./flake.nix):
-
-```nix
-username = "anthony";
-```
-
-Si tu usuario local es otro, cambia ese valor antes del primer despliegue. Ese cambio alimenta:
-
-- El usuario de NixOS
-- La configuracion de Home Manager
-- El `homeDirectory`
-- El wrapper de Hyprland para el wallpaper
-- La salida standalone de Home Manager
-
-### 3. Flujo para una maquina nueva
-
-Cada host vive en su propia carpeta dentro de `hosts/`:
-
-- `hosts/victus/`
-- `hosts/thinkpad/`
-- `hosts/desktop/`
-
-`victus` ya incluye su `hardware-configuration.nix`. `thinkpad` y `desktop` quedan listos en cuanto agregues el suyo.
-
-#### Opcion A: ya arrancaste la maquina con un NixOS base
-
-Clona el repo y genera el hardware file del host correcto:
+### Generar configuración de hardware
 
 ```bash
-cd ~/nixos-config
-sudo nixos-generate-config --show-hardware-config > hosts/thinkpad/hardware-configuration.nix
+sudo nixos-generate-config --show-hardware-config > hosts/<nombre>/hardware-configuration.nix
 ```
 
-O para la desktop:
+### Reconstruir el sistema
 
 ```bash
-cd ~/nixos-config
-sudo nixos-generate-config --show-hardware-config > hosts/desktop/hardware-configuration.nix
-```
-
-#### Opcion B: estas en el instalador y tu sistema raiz esta montado en `/mnt`
-
-```bash
-sudo nixos-generate-config --root /mnt
-cp /mnt/etc/nixos/hardware-configuration.nix ~/nixos-config/hosts/thinkpad/hardware-configuration.nix
-```
-
-### 4. Desplegar el sistema con Flakes
-
-Desde la raiz del repo:
-
-```bash
-cd ~/nixos-config
-sudo nixos-rebuild switch --flake .#victus
-```
-
-Para otras maquinas:
-
-```bash
-sudo nixos-rebuild switch --flake .#thinkpad
-sudo nixos-rebuild switch --flake .#desktop
-```
-
-### 5. Alias y comandos rapidos ya incluidos
-
-La shell Zsh define estas funciones:
-
-```bash
+# Detecta el hostname automáticamente (requiere que coincida con la carpeta del host)
 nix-switch
+
+# O explícitamente
+sudo nixos-rebuild switch --flake .#victus
+
+# Con archivos nuevos aún sin git add
+sudo nixos-rebuild switch --flake "path:$PWD#victus"
+```
+
+### Solo perfil de usuario (sin cambios de sistema)
+
+```bash
 hm-switch
 ```
 
-#### `nix-switch`
+> `nix-switch` y `hm-switch` son funciones Zsh definidas en `modules/home/zsh.nix`.  
+> Usan siempre `path:` internamente para soportar archivos sin rastrear por git.
 
-- Detecta el hostname actual con `hostnamectl --static`
-- Ejecuta `sudo nixos-rebuild switch --flake "path:$HOME/nixos-config#<hostname>"`
-- No depende de que los archivos nuevos ya esten rastreados por Git
+---
 
-Funciona perfecto si el hostname de la maquina coincide con la carpeta del host, por ejemplo `victus`, `thinkpad` o `desktop`.
+## Atajos de teclado
 
-#### `hm-switch`
+La tecla modificadora principal es `Super` (tecla Windows).
 
-- Ejecuta `home-manager switch --flake "path:$HOME/nixos-config#$(id -un)"`
-- Si `home-manager` todavia no existe en el `PATH`, usa `nix run github:nix-community/home-manager -- switch --flake ...`
-- Funciona aunque tengas archivos nuevos sin `git add`
+### Terminal y lanzadores
 
-### 6. Root y Home Manager: flujo recomendado
+| Atajo | Acción |
+|---|---|
+| `Super + Enter` | Abrir Kitty (terminal) |
+| `Super + R` | Lanzador de apps (Rofi) |
+| `Super + B` | Firefox |
+| `Super + T` | Thunar (gestor de archivos) |
 
-En este repo, Home Manager esta integrado dentro de cada `nixosConfiguration`. Eso significa que el comando principal recomendado es:
+### Ventanas
 
-```bash
-sudo nixos-rebuild switch --flake .#victus
-```
+| Atajo | Acción |
+|---|---|
+| `Super + Q` / `Super + C` | Cerrar ventana activa |
+| `Super + F` | Pantalla completa |
+| `Super + E` | Flotante / Tiled |
+| `Super + G` | Agrupar ventanas |
+| `Super + Tab` | Cambiar en el grupo activo |
+| `Super + ←↑↓→` | Mover foco entre ventanas |
+| `Super + Shift + ←↑↓→` | Mover ventana físicamente |
+| `Super + S` | **Modo resize** (flechas redimensionan, Escape/Enter salen) |
 
-Ese rebuild aplica:
+### Workspaces (escritorios virtuales)
 
-- Configuracion del sistema
-- Paquetes globales
-- Servicios
-- Tu perfil de Home Manager
+| Atajo | Acción |
+|---|---|
+| `Super + 1…9` / `Super + 0` | Ir al workspace 1–10 |
+| `Super + Shift + 1…9` / `Super + Shift + 0` | Mover ventana al workspace 1–10 |
+| `Super + Ctrl + ←` / `→` | Workspace anterior / siguiente |
+| `Super + scroll` | Navegar workspaces con el mouse |
 
-Si acabas de crear un archivo nuevo, por ejemplo `hosts/thinkpad/hardware-configuration.nix`, usa la variante `path:` o la funcion `nix-switch` para evitar la limitacion de los flakes basados en Git con archivos no rastreados:
+### Sesión y energía
 
-```bash
-sudo nixos-rebuild switch --flake "path:$PWD#thinkpad"
-```
+| Atajo | Acción |
+|---|---|
+| `Super + L` | Bloquear pantalla (hyprlock) |
+| `Super + Escape` | Menú de energía (wlogout) — apagar, reiniciar, suspender, cerrar sesión |
+| `Super + M` | Salir de Hyprland sin menú (emergencia) |
 
-Ademas, el flake expone una salida standalone para Home Manager. Si ya tienes el sistema desplegado y solo quieres refrescar el entorno de usuario:
+### Notificaciones
 
-```bash
-home-manager switch --flake .#anthony
-```
+| Atajo | Acción |
+|---|---|
+| `Super + N` | Abrir/cerrar panel de notificaciones (SwayNC) |
+| `Super + Shift + N` | Activar / desactivar No molestar |
+| `Super + Alt + N` | Limpiar todas las notificaciones |
 
-O de forma generica:
+### Productividad
 
-```bash
-home-manager switch --flake ".#$(id -un)"
-```
+| Atajo | Acción |
+|---|---|
+| `Super + V` | Historial del portapapeles (cliphist → Rofi) |
+| `Super + Shift + S` | Captura de área → portapapeles |
+| `Print` | Captura completa → `~/Pictures/Screenshots/` |
+| `Super + Shift + P` | Selector de color (hyprpicker) |
+| `Super + Shift + K` | Cheatsheet de todos los atajos activos (Rofi) |
 
-Si el binario `home-manager` todavia no esta disponible en tu shell:
+### Teclado
 
-```bash
-nix run github:nix-community/home-manager -- switch --flake "path:$PWD#$(id -un)"
-```
+| Atajo | Acción |
+|---|---|
+| `Shift izq + Shift der` | Alternar entre teclado inglés (us) y español latinoamericano |
 
-## 🤖 Integracion De Inteligencia Artificial
+> El LED de Scroll Lock indica qué layout está activo.
 
-### `nix-ld` habilitado globalmente
+### Waybar — módulo de rendimiento
 
-El modulo [`modules/system/ai-helper.nix`](./modules/system/ai-helper.nix) activa `programs.nix-ld.enable = true`, lo cual permite ejecutar binarios Linux genericos dinamicamente enlazados sin caer en errores tipicos de NixOS como:
+Clic izquierdo sobre el icono en la barra cicla entre tres perfiles de energía:
 
-```text
-Could not start dynamically linked executable
-```
+| Icono | Perfil |
+|---|---|
+| `󰓅` | Balanceado |
+| `󱐌` | Máximo rendimiento |
+| `󰌪` | Ahorro de energía |
 
-Esto es especialmente util para:
-
-- Claude Code
-- Codex
-- Kiro CLI
-- OpenCode
-- Instaladores nativos de herramientas de IA
-- SDKs externos que no estan empaquetados de forma nativa para NixOS
-
-Ademas, el entorno incluye utilidades de soporte para este tipo de software, como `appimage-run`, `patchelf`, `jq`, `file` y una coleccion mas amplia de librerias de runtime para binarios tipo Electron/AppImage.
-
-### Compatibilidad con Kiro y OpenCode
-
-El entorno ya queda razonablemente listo para estas herramientas:
-
-- `Kiro IDE`: tu sistema actual usa glibc moderna, suficiente para los requisitos actuales de Kiro en Linux.
-- `Kiro CLI`: funciona bien con binarios en `~/.local/bin` y autenticacion por navegador.
-- `OpenCode`: se integra bien con terminales modernas como Kitty y con instalaciones via script o npm.
-
-Instalaciones tipicas:
-
-```bash
-curl -fsSL https://opencode.ai/install | bash
-curl -fsSL https://desktop-release.q.us-east-1.amazonaws.com/latest/kiro-cli.appimage -o ~/Downloads/kiro-cli.appimage
-chmod +x ~/Downloads/kiro-cli.appimage
-~/Downloads/kiro-cli.appimage
-```
-
-### Claude Code: suscripcion OAuth, no API keys
-
-Este repo garantiza que `~/.claude/settings.json` contenga `forceLoginMethod = "claudeai"` sin destruir otras preferencias locales que ya existan en ese archivo.
-
-Eso fuerza el flujo de autenticacion por cuenta de `claude.ai` y evita que el entorno quede orientado a facturacion por API Keys o Anthropic Console.
-
-En otras palabras:
-
-- El flujo esperado es suscripcion de Claude App
-- La autenticacion es por navegador
-- No necesitas exportar `ANTHROPIC_API_KEY` para uso interactivo
-
-### Instalacion recomendada de Claude Code
-
-Tienes dos rutas validas:
-
-#### Opcion A: instalador nativo recomendado
+### Luz nocturna (terminal)
 
 ```bash
-curl -fsSL https://claude.ai/install.sh | bash
-claude --version
-claude doctor
+night-soft   # 4200K suave
+night-warm   # 3200K cálido
+night-off    # desactivar
+night-auto   # restaurar el servicio automático (wlsunset)
 ```
 
-#### Opcion B: instalacion via npm
+---
+
+## Para qué está preparado este entorno
+
+### Stacks de desarrollo incluidos
+
+| Stack | Herramientas |
+|---|---|
+| **Mobile / Flutter** | Flutter, Dart (vía Flutter), Android Studio, Android Tools, FVM (versiones de Flutter), Kotlin |
+| **Web / Node** | Node.js 22, npm, pnpm (vía corepack), Go, Python 3 |
+| **Backend** | Go, .NET 8 SDK, gRPC (grpcurl), httpie, Bruno, Postman, Insomnia |
+| **C / C++** | GCC, Make, CMake, GDB |
+| **Data / Python** | Python 3, pip, Micromamba |
+| **DevOps** | Docker + Compose, GitHub CLI (`gh`) |
+| **IA / Agentes** | Claude Code, Codex (OpenAI CLI), Kiro, Kiro CLI, OpenCode |
+
+### Herramientas de terminal
+
+| Herramienta | Uso |
+|---|---|
+| `bat` | `cat` con syntax highlight |
+| `eza` | `ls` con iconos (`ll`, `la`, `lla`, `tree`) |
+| `fzf` | Búsqueda fuzzy interactiva |
+| `btop` | Monitor de sistema |
+| `fastfetch` (`ff`) | Info del sistema |
+| `ripgrep` | Búsqueda en código (más rápida que grep) |
+| `jq` | Procesar JSON |
+| `7z`, `zip`, `zstd`, `rar` | Compresión/descompresión de múltiples formatos |
+
+### Aliases útiles
 
 ```bash
-npm config set prefix ~/.npm-global
-npm install -g @anthropic-ai/claude-code
-claude --version
-claude doctor
+ls / ll / la / lla / tree   # eza con iconos
+v                            # neovim
+c                            # clear
+ff                           # fastfetch
+nix-switch                   # reconstruir sistema
+hm-switch                    # reconstruir solo perfil de usuario
+nix-clean                    # liberar espacio (garbage collect + optimize)
+pritunl                      # VPN Pritunl (AppImage)
 ```
 
-### Inicio de sesion paso a paso
+### VPN Pritunl
 
-La CLI actual de Claude Code usa `claude auth login`. Si vienes de guias antiguas que mencionan `claude login`, usa este comando actualizado:
+El cliente Pritunl se instala como AppImage (una sola vez):
 
 ```bash
-claude auth login
+curl -fsSL https://github.com/pritunl/pritunl-client-electron/releases/latest/download/Pritunl.AppImage \
+  -o ~/.local/bin/pritunl-client.AppImage && chmod +x ~/.local/bin/pritunl-client.AppImage
 ```
 
-Flujo esperado:
-
-1. La CLI abre el flujo OAuth para tu cuenta de `claude.ai`.
-2. Se lanza tu navegador predeterminado. En esta configuracion Firefox ya viene instalado, asi que puedes validar la sesion ahi.
-3. Inicias sesion con tu cuenta de suscripcion.
-4. Claude Code recibe el callback OAuth o, si estas en SSH/WSL/contenedor, te pedira pegar el codigo de autorizacion manualmente.
-5. El token queda gestionado por Claude Code en el espacio de usuario y fuera del repositorio, de forma que no terminas guardando secretos dentro de Git.
-
-Comandos utiles:
+Luego, cada vez que se necesite:
 
 ```bash
-claude auth status
-claude auth logout
-claude doctor
+pritunl
 ```
 
-### Wrapper nativo de Zsh para `claude`
+### Claude Code
 
-La configuracion de Zsh define una funcion `claude()` con este comportamiento:
-
-- Si existe `~/.local/bin/claude`, usa la instalacion nativa
-- Si no existe, intenta ejecutar el `cli.js` del paquete npm global usando `node`
-- Esto evita depender de wrappers conflictivos y ayuda a sortear problemas de PATH o lanzadores con extensiones no deseadas en entornos Node.js modernos
-
-Para el usuario final, el comando siempre es el mismo:
+El sistema fuerza el login por cuenta `claude.ai` (sin API key):
 
 ```bash
-claude
+claude auth login   # primera vez
+claude              # usar normalmente
+claude doctor       # diagnóstico
 ```
 
-## 💼 Entornos De Desarrollo Ultra-Rapidos Con Direnv
+---
 
-`direnv` y `nix-direnv` ya estan habilitados declarativamente. Eso significa que cada proyecto puede tener su propio stack aislado sin ensuciar el sistema global.
+## Trabajar con Flakes en proyectos
 
-### Como funciona
+### ¿Por qué usar Flakes por proyecto?
 
-1. Entras a una carpeta de proyecto
-2. `direnv` detecta el archivo `.envrc`
-3. `nix-direnv` construye o reutiliza el `devShell`
-4. Tu terminal recibe automaticamente Node, Python, Flutter, .NET y cualquier otra herramienta declarada ahi
-5. Sales de la carpeta y el entorno desaparece
+`direnv` + `nix-direnv` están habilitados globalmente. Cada proyecto puede tener
+su propio entorno de herramientas aislado: al entrar a la carpeta, las herramientas
+aparecen; al salir, desaparecen. Sin contaminar el sistema global.
 
-### Plantilla rapida de `flake.nix` para un proyecto
+### Setup en un proyecto existente
 
-```nix
+```bash
+cd ~/mi-proyecto
+
+# 1. Crear el flake del proyecto
+cat > flake.nix << 'EOF'
 {
-  description = "DevShell poliglota";
+  description = "Dev shell del proyecto";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -275,93 +248,146 @@ claude
   outputs = { self, nixpkgs, flake-utils }:
     flake-utils.lib.eachDefaultSystem (system:
       let
-        pkgs = import nixpkgs {
-          inherit system;
-          config.allowUnfree = true;
-        };
+        pkgs = import nixpkgs { inherit system; config.allowUnfree = true; };
       in {
         devShells.default = pkgs.mkShell {
           packages = with pkgs; [
+            # Agrega aquí las herramientas específicas del proyecto
             nodejs_22
-            corepack
-            python3
-            flutter
-            dotnet-sdk_8
-            git
+            go
+            # python3
+            # flutter
           ];
-
           shellHook = ''
             echo "Entorno listo"
-            echo "Node: $(node --version)"
-            echo "Python: $(python --version)"
-            echo ".NET: $(dotnet --version)"
           '';
         };
       });
 }
-```
+EOF
 
-### Activacion instantanea
-
-Dentro del proyecto:
-
-```bash
-printf 'use flake\n' > .envrc
+# 2. Activar direnv
+echo "use flake" > .envrc
 direnv allow
 ```
 
-Cada vez que vuelvas a entrar en esa carpeta, el entorno se cargara automaticamente.
+A partir de ahí, cada vez que entres a la carpeta el entorno se activa solo.
 
-## 🎨 Entorno Grafico: Hyprland + Waybar Liquid Glass
+### Plantillas por stack
 
-La interfaz de escritorio se construye sobre Hyprland, Waybar, Rofi y SwayNC con una estetica translucidada tipo liquid glass y tema Catppuccin.
+**Go + gRPC:**
+```nix
+packages = with pkgs; [ go protobuf grpc-tools mockgen gotestsum ];
+```
 
-### Atajos esenciales de Hyprland
+**Flutter / Android:**
+```nix
+packages = with pkgs; [ flutter android-tools ];
+shellHook = ''
+  export ANDROID_HOME="$HOME/Android/Sdk"
+  export PATH="$ANDROID_HOME/emulator:$ANDROID_HOME/platform-tools:$PATH"
+'';
+```
 
-| Accion | Atajo | Resultado |
-| --- | --- | --- |
-| Terminal | `Super + Enter` | Abre Kitty |
-| Navegador | `Super + B` | Abre Firefox |
-| Lanzador | `Super + R` | Abre Rofi en modo `drun` |
-| Panel de notificaciones | `Super + N` | Alterna SwayNC |
-| No molestar | `Super + Shift + N` | Activa o desactiva DND |
-| Limpiar notificaciones | `Super + Alt + N` | Vacia el centro de notificaciones |
-| Historial del portapapeles | `Super + V` | Abre `cliphist` via Rofi |
-| Selector de color | `Super + Shift + P` | Copia el color seleccionado |
-| Captura de area al portapapeles | `Super + Shift + S` | Selecciona un area y la copia |
-| Captura completa a archivo | `Print` | Guarda en `~/Pictures/Screenshots/` |
+**Node / TypeScript:**
+```nix
+packages = with pkgs; [ nodejs_22 ];
+shellHook = "corepack enable";
+```
 
-### Workspaces dinamicos del 1 al 10
+**Python:**
+```nix
+packages = with pkgs; [ python3 python3Packages.pip python3Packages.virtualenv ];
+shellHook = ''
+  [ -d .venv ] || python -m venv .venv
+  source .venv/bin/activate
+'';
+```
 
-La navegacion de escritorios virtuales es directa:
+### Comandos útiles de Flakes
 
-- `Super + 1` a `Super + 9`: cambia al workspace 1 al 9
-- `Super + 0`: cambia al workspace 10
-- `Super + Shift + 1` a `Super + Shift + 9`: mueve la ventana activa al workspace 1 al 9
-- `Super + Shift + 0`: mueve la ventana activa al workspace 10
+```bash
+nix flake show          # ver outputs del flake actual
+nix flake update        # actualizar todas las dependencias (actualiza flake.lock)
+nix flake metadata      # info de entradas y revisiones
+nix develop             # entrar al devShell manualmente (sin direnv)
+nix build               # construir el output por defecto
+```
 
-Esto permite trabajar por contextos, por ejemplo:
+### Actualizar las dependencias del sistema
 
-- Workspace 1: terminales y shell
-- Workspace 2: navegador
-- Workspace 3: editor
-- Workspace 4: documentacion
-- Workspace 5+: pruebas, multimedia o sesiones efimeras
+```bash
+cd ~/nixos-config
+nix flake update        # actualiza nixpkgs, home-manager, catppuccin
+nix-switch              # aplica las actualizaciones
+```
 
-### Modulo de rendimiento por iconos en Waybar
+---
 
-La barra Waybar incluye un modulo `custom/performance` conectado a `power-profiles-daemon`.
+## Agregar una nueva máquina
 
-Al hacer clic izquierdo sobre el icono, el perfil cicla asi:
+1. Crear `hosts/<nombre>/default.nix`:
 
-1. `󰓅` Balanza: modo equilibrado
-2. `󱐌` Rayo: maxima potencia
-3. `󰌪` Hoja: ahorro de energia
+```nix
+{ ... }:
+{
+  imports = [
+    ./hardware-configuration.nix
+    ../../modules/system/core.nix
+    ../../modules/system/ai-helper.nix
+    ../../modules/system/display-manager.nix
+  ];
 
-Internamente, el widget ejecuta `powerprofilesctl` y muestra una notificacion con el modo nuevo. Es una forma rapida de pasar de bateria a rendimiento sin abrir paneles extra.
+  networking.hostName = "<nombre>";
 
-## Referencias Oficiales Recomendadas
+  boot.loader.systemd-boot.enable = true;
+  boot.loader.systemd-boot.configurationLimit = 5;
+  boot.loader.efi.canTouchEfiVariables = true;
 
-- Claude Code setup: <https://docs.anthropic.com/en/docs/claude-code/setup>
-- Claude Code CLI reference: <https://code.claude.com/docs/en/cli-usage>
-- Claude Code troubleshoot install/login: <https://code.claude.com/docs/en/troubleshoot-install>
+  hardware.graphics.enable = true;
+
+  system.stateVersion = "24.11";
+}
+```
+
+2. Generar el hardware file:
+
+```bash
+sudo nixos-generate-config --show-hardware-config > hosts/<nombre>/hardware-configuration.nix
+```
+
+3. El host aparece automáticamente en `nixosConfigurations` (via `hostIfReady` en `flake.nix`).
+
+4. Desplegar:
+
+```bash
+sudo nixos-rebuild switch --flake .#<nombre>
+```
+
+---
+
+## Comandos de mantenimiento
+
+```bash
+# Liberar generaciones viejas y optimizar el store
+nix-clean
+
+# Ver cuánto ocupa el store de Nix
+du -sh /nix/store
+
+# Actualizar firmware (BIOS, controladores)
+fwupdmgr refresh
+fwupdmgr update
+
+# Ver estado del audio
+wpctl status
+
+# Ver estado del zram swap
+zramctl
+
+# Actualizaciones de firmware del sistema
+fwupdmgr get-updates
+
+# SSH a victus desde otra máquina (solo vía Tailscale, solo por llave)
+ssh anthony@<ip-tailscale-de-victus>
+```

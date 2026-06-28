@@ -24,15 +24,15 @@
 
     # Fuentes — cobertura completa (emoji, CJK, idiomas)
     noto-fonts
-    noto-fonts-emoji
+    noto-fonts-color-emoji
     noto-fonts-cjk-sans
 
     # Menú de energía (apagar / reiniciar / suspender / bloquear / cerrar sesión)
     wlogout
 
     # Gestor de archivos gráfico
-    xfce.thunar
-    xfce.tumbler          # miniaturas de imágenes/video en thunar
+    thunar
+    tumbler               # miniaturas de imágenes/video en thunar
 
     # --- CONECTIVIDAD Y MULTIMEDIA ---
     networkmanager_dmenu

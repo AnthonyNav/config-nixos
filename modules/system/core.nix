@@ -64,17 +64,16 @@
     # Después de verificar que el login por llave funciona, activa Fase B
     # (PasswordAuthentication = false) en services.openssh abajo.
     openssh.authorizedKeys.keys = [
-      # "ssh-ed25519 AAAA... llave-de-tu-otro-dispositivo"
+      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMSZBAoRb/gxevgsIFbtcg/hPx+gvv0tfj25KtubL0xd anthonydevxp@gmail.com"
     ];
   };
 
-  # SSH solo escucha en la interfaz Tailscale; PasswordAuthentication queda
-  # activo (Fase A) hasta confirmar acceso por llave desde cliente externo.
+  # SSH solo escucha en la interfaz Tailscale; acceso únicamente por llave.
   services.openssh = {
     enable = true;
     openFirewall = false;   # No abre el puerto en internet; solo vía tailscale0
     settings = {
-      PasswordAuthentication = true;   # Cambiar a false en Fase B
+      PasswordAuthentication = false;
     };
   };
 
