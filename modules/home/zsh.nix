@@ -39,6 +39,9 @@
     };
 
     initContent = ''
+      # Inicializar starship explícitamente usando la ruta del store de Nix
+      eval "$(${pkgs.starship}/bin/starship init zsh)"
+
       export PATH="$HOME/.local/bin:$HOME/.local/share/pnpm:$HOME/.npm-global/bin:$PATH"
 
       nix-switch() {
@@ -113,6 +116,7 @@
   # Prompt Starship — Catppuccin Mocha + indicadores de contexto
   programs.starship = {
     enable = true;
+    enableZshIntegration = false;  # Se inicializa manualmente en initContent con ruta Nix
     settings = {
       add_newline = true;
 
