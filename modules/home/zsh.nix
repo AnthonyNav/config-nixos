@@ -110,38 +110,92 @@
     nix-direnv.enable = true;
   };
 
-  # 🚀 PROMPT ESTÉTICO MINIMALISTA (STARSHIP)
+  # Prompt Starship — Catppuccin Mocha + indicadores de contexto
   programs.starship = {
     enable = true;
     settings = {
-      add_newline = false;
-      
-      # Estilo de la línea de comandos principal
-      format = "$directory$git_branch$git_status$nix_shell$character";
-      
+      add_newline = true;
+
+      # Línea 1: contexto completo  /  Línea 2: cursor
+      format = "$directory$git_branch$git_status$python$conda$nodejs$golang$nix_shell$cmd_duration$line_break$character";
+
       directory = {
-        style = "bold cyan";
+        style = "bold #89b4fa";       # blue
         truncate_to_repo = true;
+        read_only = " 󰌾";
       };
 
       git_branch = {
-        symbol = " ";
-        style = "bold purple";
+        symbol = " ";
+        style = "bold #cba6f7";       # mauve
+        format = "on [$symbol$branch]($style) ";
       };
 
       git_status = {
-        style = "bold red";
+        style = "bold #f38ba8";       # red
+        ahead = "⇡$count";
+        behind = "⇣$count";
+        diverged = "⇕⇡$ahead_count⇣$behind_count";
+        modified = "!$count";
+        staged = "+$count";
+        untracked = "?$count";
+        deleted = "✘$count";
       };
 
+      # Entorno virtual Python — aparece solo cuando hay un .venv activo
+      python = {
+        symbol = " ";
+        style = "bold #f9e2af";       # yellow
+        format = "[$symbol($virtualenv )]($style)";
+        detect_extensions = ["py"];
+        detect_files = [".python-version" "requirements.txt" "pyproject.toml" "setup.py" "Pipfile"];
+      };
+
+      # Micromamba / Conda — aparece cuando hay un env activado
+      conda = {
+        symbol = "󱔎 ";
+        style = "bold #a6e3a1";       # green
+        format = "[$symbol$environment ]($style)";
+        ignore_base = false;
+      };
+
+      # Node.js — aparece solo dentro de proyectos JS/TS
+      nodejs = {
+        symbol = " ";
+        style = "bold #a6e3a1";       # green
+        format = "[$symbol$version ]($style)";
+        detect_extensions = ["js" "ts" "mjs" "cjs"];
+        detect_files = ["package.json" ".nvmrc" ".node-version"];
+      };
+
+      # Go — aparece solo dentro de proyectos Go
+      golang = {
+        symbol = " ";
+        style = "bold #89dceb";       # sky
+        format = "[$symbol$version ]($style)";
+        detect_extensions = ["go"];
+        detect_files = ["go.mod" "go.sum"];
+      };
+
+      # Nix devshell — muestra nombre del shell al hacer `nix develop` o con direnv
       nix_shell = {
-        symbol = " ";
-        style = "bold blue";
-        format = "via [$symbol\\($name\\)]($style) ";
+        symbol = " ";
+        style = "bold #74c7ec";       # sapphire
+        format = "[$symbol$name ]($style)";
+        impure_msg = "[impure](#fab387)";
+        pure_msg = "[pure](#a6e3a1)";
+      };
+
+      # Duración del último comando — solo si tardó más de 2 s
+      cmd_duration = {
+        min_time = 2000;
+        style = "bold #fab387";       # peach
+        format = "[⏱ $duration ]($style)";
       };
 
       character = {
-        success_symbol = "[ ➜ ](bold magenta)";
-        error_symbol = "[ ➜ ](bold red)";
+        success_symbol = "[❯](bold #a6e3a1)";   # green
+        error_symbol = "[❯](bold #f38ba8)";     # red
       };
     };
   };
