@@ -7,6 +7,12 @@
     autosuggestion.enable = true;       # Sugerencias tipo Fish shell en gris claro
     syntaxHighlighting.enable = true;   # Comandos correctos en Verde, errores en Rojo
 
+    # Autocompletado case-insensitive + menú navegable
+    completionInit = ''
+      zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}' 'r:|=*' 'l:|=* r:|=*'
+      zstyle ':completion:*' menu select
+    '';
+
     # 🚀 ALIASES INDISPENSABLES PARA TU PRODUCTIVIDAD
     shellAliases = {
       # Reemplazo estético de listado con iconos usando eza

@@ -9,6 +9,7 @@
     ./modules/home/zsh.nix
     ./modules/home/swaync.nix
     ./modules/home/night-light.nix
+    ./modules/home/lock-idle.nix
   ];
 
   home.username = username;
@@ -20,6 +21,18 @@
     google-chrome
     papirus-icon-theme
     nerd-fonts.jetbrains-mono
+
+    # Fuentes — cobertura completa (emoji, CJK, idiomas)
+    noto-fonts
+    noto-fonts-emoji
+    noto-fonts-cjk-sans
+
+    # Menú de energía (apagar / reiniciar / suspender / bloquear / cerrar sesión)
+    wlogout
+
+    # Gestor de archivos gráfico
+    xfce.thunar
+    xfce.tumbler          # miniaturas de imágenes/video en thunar
 
     # --- CONECTIVIDAD Y MULTIMEDIA ---
     networkmanager_dmenu

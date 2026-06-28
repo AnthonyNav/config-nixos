@@ -65,8 +65,13 @@
         "$mainMod, Return, exec, kitty"
         "$mainMod, R, exec, rofi -show drun"
         "$mainMod, C, killactive,"
-        "$mainMod, M, exit,"
+        "$mainMod, Q, killactive,"          # alias estándar de i3/sway
         "$mainMod, F, fullscreen, 0"
+
+        # Sesión y Energía
+        "$mainMod, L, exec, pidof hyprlock || hyprlock"            # bloquear pantalla
+        "$mainMod, Escape, exec, wlogout"                          # menú apagar/reiniciar/cerrar sesión
+        "$mainMod, M, exit,"                                       # salida de emergencia (sin menú)
 
         # Modos de Ordenamiento y Ventanas
         "$mainMod, E, togglefloating,"
@@ -75,6 +80,10 @@
 
         # Lanzadores Rápidos
         "$mainMod, B, exec, firefox"
+        "$mainMod, T, exec, thunar"         # gestor de archivos
+
+        # Cheatsheet de atajos (muestra los binds activos de Hyprland via rofi)
+        "$mainMod SHIFT, K, exec, hyprctl binds -j | jq -r '.[] | \"\\(.modmask)\\t\\(.key)\\t→\\t\\(.dispatcher) \\(.arg)\"' | column -t | rofi -dmenu -i -p \"Atajos de teclado\""
 
         # Control de Notificaciones (SwayNC)
         "$mainMod, N, exec, swaync-client -t -sw"
@@ -139,6 +148,21 @@
         ", XF86MonBrightnessUp, exec, brightnessctl set 5%+"
         ", XF86MonBrightnessDown, exec, brightnessctl set 5%-"
       ];
+
     };
+
+    # Submap de resize: Super+S activa el modo; flechas redimensionan la
+    # ventana activa; Escape o Enter vuelven al modo normal.
+    extraConfig = ''
+      bind = $mainMod, S, submap, resize
+      submap = resize
+      binde = , right, resizeactive,  20 0
+      binde = , left,  resizeactive, -20 0
+      binde = , up,    resizeactive,  0 -20
+      binde = , down,  resizeactive,  0  20
+      bind  = , Escape, submap, reset
+      bind  = , Return, submap, reset
+      submap = reset
+    '';
   };
 }
