@@ -118,7 +118,7 @@
     enable = true;
     enableZshIntegration = false;  # Se inicializa manualmente en initContent con ruta Nix
     settings = {
-      add_newline = true;
+      add_newline = false;
 
       # Línea 1: contexto completo  /  Línea 2: cursor
       format = "$directory$git_branch$git_status$python$conda$nodejs$golang$nix_shell$cmd_duration$line_break$character";

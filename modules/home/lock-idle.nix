@@ -65,15 +65,15 @@
           on-resume   = "brightnessctl -r";
         }
         {
-          # 5 min → apagar pantalla (DPMS off)
+          # 5 min → bloquear sesión (hyprlock debe estar corriendo ANTES del dpms off)
           timeout = 300;
-          on-timeout = "hyprctl dispatch dpms off";
-          on-resume   = "hyprctl dispatch dpms on";
+          on-timeout = "loginctl lock-session";
         }
         {
-          # 6 min → bloquear sesión
-          timeout = 360;
-          on-timeout = "loginctl lock-session";
+          # 5 min 30 s → apagar pantalla; hyprlock ya está renderizando y puede despertar limpiamente
+          timeout = 330;
+          on-timeout = "hyprctl dispatch dpms off";
+          on-resume   = "hyprctl dispatch dpms on";
         }
         {
           # 30 min sin actividad → suspender el sistema

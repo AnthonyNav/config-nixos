@@ -13,7 +13,7 @@
       
       # Tipografía limpia (Nerd Font para iconos en terminal)
       font_family = "JetBrainsMono Nerd Font";
-      font_size = "11.0";
+      font_size = "13.0";
       
       # Configuración del cursor
       cursor_shape = "beam";
