@@ -1,4 +1,4 @@
-{ config, lib, pkgs, username, ... }:
+{ lib, pkgs, username, ... }:
 
 {
   imports = [
@@ -111,14 +111,24 @@
     wl-clipboard
   ];
 
-  # Tema GTK — sin esto, Thunar (y cualquier app GTK3/4) hereda fondo oscuro
-  # (por preferencia dark) pero texto del stylesheet claro por defecto →
-  # ilegible. catppuccin.enable ya NO tematiza GTK (catppuccin/gtk fue
-  # archivado upstream), solo cubre íconos vía catppuccin.gtk.icon.
+  # Tema GTK — Thunar es GTK3 (no GTK4), así que solo necesita `gtk.theme`
+  # (adw-gtk3-dark instalado + fijado) para dejar de verse con fondo oscuro y
+  # texto negro ilegible. catppuccin.enable ya NO tematiza GTK (catppuccin/gtk
+  # fue archivado upstream), solo cubre íconos vía catppuccin.gtk.icon.
   # iconTheme NO se declara aquí: catppuccin.enable ya fija gtk.iconTheme
   # (papirus-folders con acento catppuccin) — declararlo de nuevo choca
-  # ("defined multiple times"). Solo faltaba el tema de ventana/widgets, que
-  # catppuccin/nix ya no provee (catppuccin/gtk fue archivado upstream).
+  # ("defined multiple times").
+  #
+  # gtk4.theme = null: ese submódulo de home-manager gestiona
+  # ~/.config/gtk-4.0/gtk.css como symlink al store, pero Caelestia YA posee
+  # ese archivo (y gtk-3.0/gtk.css, con un thunar.css dedicado) — su propio
+  # motor de theming (`caelestia scheme set` → apply_gtk()) lo regenera en
+  # cada cambio de esquema y fija el tema real vía dconf. Con
+  # home.stateVersion < 26.05, el default legado de gtk4.theme sigue siendo
+  # config.gtk.theme (NO null) aunque no se declare explícitamente, así que
+  # hay que forzar null; de lo contrario choca contra ese archivo
+  # (home-manager-anthony.service falla: "gtk.css.hm-backup would be
+  # clobbered") sin aportar nada que Caelestia no cubra ya dinámicamente.
   gtk = {
     enable = true;
     theme = {
@@ -126,7 +136,7 @@
       package = pkgs.adw-gtk3;
     };
     gtk3.extraConfig."gtk-application-prefer-dark-theme" = 1;
-    gtk4.theme = config.gtk.theme; # silencia el warning de compat (stateVersion < 26.05)
+    gtk4.theme = null;
     gtk4.extraConfig."gtk-application-prefer-dark-theme" = 1;
   };
 
