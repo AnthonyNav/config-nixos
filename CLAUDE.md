@@ -57,3 +57,76 @@ modules/system/    # NixOS system sub-modules (core services, nix-ld/AI helpers,
 ### Git identity
 
 Work repos inside `~/personal/` use `anthonydevxp@gmail.com`; everything else uses `antonio.zempoaltecatl@cargomovil.com`. This is wired via `git.includes` in `home.nix`.
+
+## Troubleshooting / known issues
+
+Real incidents hit while building the Caelestia integration, kept here so the
+same root cause doesn't get re-diagnosed from scratch next time.
+
+### `home-manager-anthony.service` fails: "existing file ... would be clobbered"
+
+**Symptom:** `nix-switch` builds and switches the system generation fine, but
+prints `warning: the following units failed: home-manager-anthony.service`,
+with a log line like:
+```
+Existing file '/home/anthony/.config/gtk-4.0/gtk.css.hm-backup' would be clobbered by backing up '/home/anthony/.config/gtk-4.0/gtk.css'
+```
+
+**Cause:** two independent systems were both trying to own
+`~/.config/gtk-4.0/gtk.css`: Home Manager's `gtk.gtk4.theme` option (which
+symlinks that file to an immutable store path) and Caelestia's own bundled GTK
+theming (`caelestia scheme set` → `apply_gtk()` in `caelestia-cli`, which
+dynamically rewrites `gtk-3.0/gtk.css` **and** `gtk-4.0/gtk.css`, plus a
+dedicated `thunar.css`, on every scheme change). Whichever ran second failed
+because a `.hm-backup` from a previous partial run already existed. Also:
+with `home.stateVersion` below `26.05`, `gtk.gtk4.theme` **defaults to**
+`config.gtk.theme` (legacy behavior) even if never declared explicitly — just
+deleting the line does not stop Home Manager from managing that file.
+
+**Fix (`home.nix`):** set `gtk.gtk4.theme = null;` explicitly. Thunar is a
+GTK3 app, so it never needed `gtk4.theme` for the original dark-bg/black-text
+fix anyway — `gtk.theme = { name = "adw-gtk3-dark"; ... }` (GTK3-only) plus
+Caelestia's own `apply_gtk()` already cover it.
+
+**Prevention rule:** before adding a Home Manager option that manages a
+dotfile under a path Caelestia also templates/writes to (GTK theme files,
+kitty colors, anything under `~/.config/caelestia/templates/` targets), check
+whether Caelestia's CLI (`src/caelestia/data/templates/`,
+`src/caelestia/utils/theme.py` in the `caelestia-cli` source) already owns
+that exact path. If it does, let Caelestia own it and keep Home Manager out
+(same principle already applied to Kitty's colors in `theme-sync.nix`).
+
+### Hyprland shows a config error banner: "windowrule ... invalid field ..."
+
+**Symptom:** After adding window rules, `nix-switch`/`hm-switch` succeed with
+no build errors, but Hyprland displays a persistent on-screen banner like:
+```
+Config error in file .../hyprhyprland.conf at line N: invalid field float: missing a value
+```
+(An earlier attempt at fixing this by renaming `windowrulev2` → `windowrule`
+only changed the error from `"is deprecated"` to `"invalid field ..."` — it
+did not actually fix anything.)
+
+**Cause:** since Hyprland 0.55, window/layer rules are Lua-only
+(`hl.window_rule({ match = {...}, ... })`); the old hyprlang string syntax
+(`windowrule = rule, criteria:value`, `windowrulev2 = ...`) has no working
+equivalent anymore, regardless of which of the two keyword names is used.
+Home Manager's `wayland.windowManager.hyprland.configType` is all-or-nothing
+per file (`"hyprlang"` → `hyprland.conf`, `"lua"` → `hyprland.lua`), so there
+is no way to keep the rest of the config in hyprlang and only move window
+rules to Lua without a full rewrite.
+
+**Fix:** removed the `windowrule` block entirely from
+`modules/home/hyprland.nix` rather than chase a bleeding-edge, still-shifting
+Lua migration for a handful of cosmetic dialog rules. Window *navigation*
+(`bindm` mouse drag/resize, `ALT, Tab` cyclenext + `bringactivetotop`,
+`centerwindow`, `pin`, `togglespecialworkspace`) is unaffected — those are
+plain `bind`/`bindm` keywords, still fully supported in hyprlang.
+
+**Prevention rule:** before adding any `windowrule`/`windowrulev2`/`layerrule`
+to this config, check the installed Hyprland version
+(`hyprland --version` / `hyprctl version`) against the
+[hyprland-wiki](https://github.com/hyprwm/hyprland-wiki) `Window-Rules.md` —
+if it only shows Lua examples (`hl.window_rule(...)`), hyprlang string rules
+are not a real option; either use `hyprctl configerrors` to confirm a rule
+actually applies cleanly before committing it, or skip the rule.
