@@ -3,13 +3,14 @@
 {
   imports = [
     ./modules/home/hyprland.nix
-    ./modules/home/waybar.nix
+    # ./modules/home/waybar.nix    # sustituido por Caelestia Shell (rama de prueba)
     ./modules/home/kitty.nix
-    ./modules/home/rofi.nix
+    ./modules/home/rofi.nix        # se conserva solo como backend dmenu (cliphist, cheatsheet)
     ./modules/home/zsh.nix
-    ./modules/home/swaync.nix
+    # ./modules/home/swaync.nix   # sustituido por Caelestia Shell (rama de prueba)
     ./modules/home/night-light.nix
     ./modules/home/lock-idle.nix
+    ./modules/home/caelestia.nix
   ];
 
   home.username = username;
@@ -26,6 +27,12 @@
     noto-fonts
     noto-fonts-color-emoji
     noto-fonts-cjk-sans
+
+    # Fuentes/herramientas requeridas por Caelestia Shell (rama de prueba)
+    material-symbols          # iconografía del launcher/bar/dashboard
+    nerd-fonts.caskaydia-cove # fuente mono usada por la shell
+    rubik                     # fuente del reloj/workspaces
+    swappy                    # anotar capturas (usado por el area picker)
 
     # Menú de energía (apagar / reiniciar / suspender / bloquear / cerrar sesión)
     wlogout

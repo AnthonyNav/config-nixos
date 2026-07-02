@@ -10,7 +10,9 @@
       monitor = ", preferred, auto, 1";
 
       "exec-once" = [
-        "waybar"
+        # Caelestia Shell se autoarranca vía su propio servicio systemd --user
+        # (programs.caelestia.systemd.enable, ver modules/home/caelestia.nix);
+        # no necesita exec-once aquí.
         "mpvpaper -o \"no-audio --loop --keepaspect=no --vf=scale=1920:1080\" eDP-1 /home/${username}/Pictures/Wallpapers/fondo.gif"
         "nm-applet --indicator"
         "blueman-applet"
@@ -63,7 +65,7 @@
       bind = [
         # Gestión del Sistema y Terminal
         "$mainMod, Return, exec, kitty"
-        "$mainMod, R, exec, rofi -show drun"
+        "$mainMod, R, exec, caelestia shell drawers toggle launcher"   # launcher nativo de Caelestia (antes rofi -show drun)
         "$mainMod, C, killactive,"
         "$mainMod, Q, killactive,"          # alias estándar de i3/sway
         "$mainMod, F, fullscreen, 0"
@@ -85,10 +87,9 @@
         # Cheatsheet de atajos (muestra los binds activos de Hyprland via rofi)
         "$mainMod SHIFT, K, exec, hyprctl binds -j | jq -r '.[] | \"\\(.modmask)\\t\\(.key)\\t→\\t\\(.dispatcher) \\(.arg)\"' | column -t | rofi -dmenu -i -p \"Atajos de teclado\""
 
-        # Control de Notificaciones (SwayNC)
-        "$mainMod, N, exec, swaync-client -t -sw"
-        "$mainMod SHIFT, N, exec, swaync-client -d"
-        "$mainMod ALT, N, exec, swaync-client -C"
+        # Control de Notificaciones (Caelestia Shell, antes SwayNC)
+        "$mainMod, N, exec, caelestia shell drawers toggle sidebar"    # panel de notifs + quick toggles
+        "$mainMod ALT, N, exec, caelestia shell notifs clear"          # limpiar todas las notificaciones
 
         # Herramientas de Productividad
         "$mainMod, V, exec, cliphist list | rofi -dmenu -p \"Portapapeles\" | cliphist decode | wl-copy"
