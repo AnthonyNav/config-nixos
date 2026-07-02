@@ -66,13 +66,14 @@
         # Gestión del Sistema y Terminal
         "$mainMod, Return, exec, kitty"
         "$mainMod, R, exec, caelestia shell drawers toggle launcher"   # launcher nativo de Caelestia (antes rofi -show drun)
+        "$mainMod, D, global, caelestia:dashboard"                     # dashboard (media, clima, info del sistema)
         "$mainMod, C, killactive,"
         "$mainMod, Q, killactive,"          # alias estándar de i3/sway
         "$mainMod, F, fullscreen, 0"
 
         # Sesión y Energía
         "$mainMod, L, exec, pidof hyprlock || hyprlock"            # bloquear pantalla
-        "$mainMod, Escape, exec, wlogout"                          # menú apagar/reiniciar/cerrar sesión
+        "$mainMod, Escape, global, caelestia:session"              # menú de sesión nativo de Caelestia (antes wlogout)
         "$mainMod, M, exit,"                                       # salida de emergencia (sin menú)
 
         # Modos de Ordenamiento y Ventanas
@@ -94,8 +95,10 @@
         # Herramientas de Productividad
         "$mainMod, V, exec, cliphist list | rofi -dmenu -p \"Portapapeles\" | cliphist decode | wl-copy"
         "$mainMod SHIFT, P, exec, hyprpicker -a && notify-send \"Color Picker\" \"Código copiado\""
+        "$mainMod SHIFT, C, exec, caelestia shell picker open"           # color picker nativo de Caelestia (alternativa a hyprpicker)
         "$mainMod SHIFT, S, exec, grim -g \"$(slurp)\" - | wl-copy && notify-send \"Captura\" \"Área copiada\""
         ", Print, exec, grim ~/Pictures/Screenshots/Captura_$(date +'%Y%m%d_%H%M%S').png && notify-send \"Captura\" \"Guardada\""
+        "$mainMod SHIFT ALT, S, global, caelestia:screenshotFreeze"      # captura con freeze + anotación (swappy)
 
         # Navegación del Foco
         "$mainMod, left, movefocus, l"
@@ -141,13 +144,21 @@
       bindl = [
         ", XF86AudioMute, exec, wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"
         ", XF86AudioMicMute, exec, wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle"
+
+        # Controles de medios (antes sin usar) — atajos globales de Caelestia
+        ", XF86AudioPlay, global, caelestia:mediaToggle"
+        ", XF86AudioNext, global, caelestia:mediaNext"
+        ", XF86AudioPrev, global, caelestia:mediaPrev"
+        ", XF86AudioStop, global, caelestia:mediaStop"
       ];
 
       bindle = [
         ", XF86AudioRaiseVolume, exec, wpctl set-volume -l 1.5 @DEFAULT_AUDIO_SINK@ 5%+"
         ", XF86AudioLowerVolume, exec, wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-"
-        ", XF86MonBrightnessUp, exec, brightnessctl set 5%+"
-        ", XF86MonBrightnessDown, exec, brightnessctl set 5%-"
+
+        # Brillo vía Caelestia: mismo brightnessctl por debajo, pero con OSD visual
+        ", XF86MonBrightnessUp, global, caelestia:brightnessUp"
+        ", XF86MonBrightnessDown, global, caelestia:brightnessDown"
       ];
 
     };
