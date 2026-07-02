@@ -193,7 +193,9 @@
 
       # Reglas de ventana — conservadoras, para diálogos comunes que deben
       # abrir flotantes y centrados. Extender esta lista según haga falta.
-      windowrulev2 = [
+      # (Hyprland 0.45+ unificó las reglas: se usa `windowrule`, no
+      # `windowrulev2` — este último quedó deprecado.)
+      windowrule = [
         "suppressevent maximize, class:.*"
         "float, class:^(pavucontrol|nm-connection-editor|blueman-manager)$"
         "center, floating:1, class:^(pavucontrol|nm-connection-editor|blueman-manager)$"
