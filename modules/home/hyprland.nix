@@ -191,16 +191,12 @@
         "$mainMod, mouse:273, resizewindow"
       ];
 
-      # Reglas de ventana — conservadoras, para diálogos comunes que deben
-      # abrir flotantes y centrados. Extender esta lista según haga falta.
-      # (Hyprland 0.45+ unificó las reglas: se usa `windowrule`, no
-      # `windowrulev2` — este último quedó deprecado.)
-      windowrule = [
-        "suppressevent maximize, class:.*"
-        "float, class:^(pavucontrol|nm-connection-editor|blueman-manager)$"
-        "center, floating:1, class:^(pavucontrol|nm-connection-editor|blueman-manager)$"
-        "size 55% 60%, floating:1, class:^(pavucontrol|nm-connection-editor)$"
-      ];
+      # Nota: no hay bloque de reglas de ventana (windowrule/windowrulev2).
+      # Desde Hyprland 0.55 esa sintaxis hyprlang quedó deprecada a favor de
+      # Lua (hl.window_rule({...})), y configType acá es "hyprlang" para todo
+      # el archivo — migrar solo esto a Lua obligaría a reescribir el resto
+      # de la config (binds, general, decoration...) a ese formato nuevo y
+      # aún inestable. Se deja pendiente como proyecto aparte si hace falta.
     };
 
     # Submap de resize: Super+S activa el modo; flechas redimensionan la
