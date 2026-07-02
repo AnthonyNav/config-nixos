@@ -9,6 +9,7 @@ Configuración modular de NixOS + Flakes + Home Manager orientada a desarrollo d
 - [Máquinas soportadas](#máquinas-soportadas)
 - [Despliegue rápido](#despliegue-rápido)
 - [Atajos de teclado](#atajos-de-teclado)
+- [Escritorio (Caelestia Shell)](#escritorio-caelestia-shell)
 - [Para qué está preparado este entorno](#para-qué-está-preparado-este-entorno)
 - [Trabajar con Flakes en proyectos](#trabajar-con-flakes-en-proyectos)
 - [Agregar una nueva máquina](#agregar-una-nueva-máquina)
@@ -74,7 +75,8 @@ La tecla modificadora principal es `Super` (tecla Windows).
 | Atajo | Acción |
 |---|---|
 | `Super + Enter` | Abrir Kitty (terminal) |
-| `Super + R` | Lanzador de apps (Rofi) |
+| `Super + R` | Lanzador de apps (Caelestia) |
+| `Super + D` | Dashboard de Caelestia (media, clima, info del sistema) |
 | `Super + B` | Firefox |
 | `Super + T` | Thunar (gestor de archivos) |
 
@@ -105,15 +107,14 @@ La tecla modificadora principal es `Super` (tecla Windows).
 | Atajo | Acción |
 |---|---|
 | `Super + L` | Bloquear pantalla (hyprlock) |
-| `Super + Escape` | Menú de energía (wlogout) — apagar, reiniciar, suspender, cerrar sesión |
+| `Super + Escape` | Menú de sesión (Caelestia) — apagar, reiniciar, suspender, cerrar sesión |
 | `Super + M` | Salir de Hyprland sin menú (emergencia) |
 
 ### Notificaciones
 
 | Atajo | Acción |
 |---|---|
-| `Super + N` | Abrir/cerrar panel de notificaciones (SwayNC) |
-| `Super + Shift + N` | Activar / desactivar No molestar |
+| `Super + N` | Abrir/cerrar sidebar de notificaciones + quick toggles (Caelestia) |
 | `Super + Alt + N` | Limpiar todas las notificaciones |
 
 ### Productividad
@@ -124,7 +125,17 @@ La tecla modificadora principal es `Super` (tecla Windows).
 | `Super + Shift + S` | Captura de área → portapapeles |
 | `Print` | Captura completa → `~/Pictures/Screenshots/` |
 | `Super + Shift + P` | Selector de color (hyprpicker) |
+| `Super + Shift + C` | Selector de color nativo de Caelestia (alternativa a hyprpicker) |
+| `Super + Shift + Alt + S` | Captura con freeze + anotación (swappy) |
 | `Super + Shift + K` | Cheatsheet de todos los atajos activos (Rofi) |
+
+### Pantalla y multimedia
+
+| Atajo | Acción |
+|---|---|
+| `Super + Shift + W` | Alternar luz cálida / filtro de luz azul (`wlsunset`) — equivalente gráfico de `night-auto` / `night-off` |
+| `XF86MonBrightnessUp` / `Down` | Brillo de pantalla, con OSD visual de Caelestia |
+| `XF86AudioPlay` / `Next` / `Prev` / `Stop` | Control de medios (reproductor activo), vía Caelestia |
 
 ### Teclado
 
@@ -134,15 +145,12 @@ La tecla modificadora principal es `Super` (tecla Windows).
 
 > El LED de Scroll Lock indica qué layout está activo.
 
-### Waybar — módulo de rendimiento
+### Barra lateral (Caelestia)
 
-Clic izquierdo sobre el icono en la barra cicla entre tres perfiles de energía:
-
-| Icono | Perfil |
-|---|---|
-| `󰓅` | Balanceado |
-| `󱐌` | Máximo rendimiento |
-| `󰌪` | Ahorro de energía |
+La barra ya no es Waybar: es la barra vertical/sidebar de Caelestia Shell,
+con el contenedor `statusIcons` mostrando batería/rendimiento, red y
+bluetooth en un solo lugar. El perfil de energía (balanceado / máximo
+rendimiento / ahorro) se cicla desde ese mismo icono, igual que antes.
 
 ### Luz nocturna (terminal)
 
@@ -152,6 +160,53 @@ night-warm   # 3200K cálido
 night-off    # desactivar
 night-auto   # restaurar el servicio automático (wlsunset)
 ```
+
+> `Super + Shift + W` hace lo mismo que `night-off` / `night-auto`, pero
+> como atajo gráfico (con notificación) en vez de comandos de terminal.
+
+---
+
+## Escritorio (Caelestia Shell)
+
+El escritorio corre sobre [Caelestia Shell](https://github.com/caelestia-dots/shell)
+(quickshell / Qt6), que reemplaza Waybar + SwayNC + wlogout, y una parte de
+Rofi/hyprpicker (barra, launcher, dashboard, notificaciones, selector de
+color, menú de sesión). Se integra vía el módulo oficial de home-manager del
+proyecto (`inputs.caelestia-shell`, ver `modules/home/caelestia.nix`).
+
+### Cambiar de esquema de color
+
+```bash
+caelestia scheme list --names                          # ver esquemas disponibles
+caelestia scheme set --name dracula --mode dark
+caelestia scheme set --name catppuccin --flavour mocha  # esquema por defecto
+```
+
+Kitty hereda el esquema activo automáticamente: no tiene una paleta fija
+propia, sino que Caelestia renderiza sus colores en caliente cada vez que
+corres `caelestia scheme set` (o eliges "Scheme"/"Variant" desde el
+launcher). El motor vive en `modules/home/theme-sync.nix` (plantilla tipo
+pywal + `postHook` que recarga kitty vía socket de control remoto). Nota:
+hyprlock, Rofi y Starship siguen fijos en Catppuccin Mocha real —
+sincronizarlos requeriría más trabajo y queda pendiente como mejora futura.
+
+### Wallpapers
+
+`~/Pictures/Wallpapers/` contiene `fondo.gif` (el fondo animado actual, vía
+`mpvpaper`) más subcarpetas por tema (`catppuccin/`, `nord/`, `dracula/`,
+`gruvbox/`, `tokyo-dark/moon/storm/`, `solarized/`, `onedark/`) que combinan
+con los esquemas de color de arriba. Se descargan solas la primera vez desde
+[`yukazakiri/themed-wallpapers`](https://github.com/yukazakiri/themed-wallpapers)
+(ver `modules/home/wallpapers.nix`) sin tocar `fondo.gif`. El selector de
+wallpapers del launcher de Caelestia las lista directamente.
+
+### Plugins de Caelestia
+
+La carpeta `plugin/` del proyecto es un módulo nativo Qt6/C++ que el propio
+shell compila para registrar sus tipos internos de QML (config, efectos de
+blur, detección de beat del visualizador) — **no es un sistema de
+extensiones para el usuario**. No hay marketplace ni carpeta "drop-in"; para
+agregar algo ahí habría que parchar el QML del shell directamente.
 
 ---
 
