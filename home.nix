@@ -1,15 +1,16 @@
-{ lib, pkgs, username, ... }:
+{ config, lib, pkgs, username, ... }:
 
 {
   imports = [
     ./modules/home/hyprland.nix
-    ./modules/home/waybar.nix
     ./modules/home/kitty.nix
-    ./modules/home/rofi.nix
+    ./modules/home/rofi.nix        # se conserva solo como backend dmenu (cliphist, cheatsheet)
     ./modules/home/zsh.nix
-    ./modules/home/swaync.nix
     ./modules/home/night-light.nix
     ./modules/home/lock-idle.nix
+    ./modules/home/caelestia.nix
+    ./modules/home/theme-sync.nix
+    ./modules/home/wallpapers.nix
   ];
 
   home.username = username;
@@ -19,7 +20,6 @@
     libnotify
     firefox
     google-chrome
-    papirus-icon-theme
     nerd-fonts.jetbrains-mono
 
     # Fuentes — cobertura completa (emoji, CJK, idiomas)
@@ -27,16 +27,17 @@
     noto-fonts-color-emoji
     noto-fonts-cjk-sans
 
-    # Menú de energía (apagar / reiniciar / suspender / bloquear / cerrar sesión)
-    wlogout
+    # Fuentes/herramientas requeridas por Caelestia Shell (rama de prueba)
+    material-symbols          # iconografía del launcher/bar/dashboard
+    nerd-fonts.caskaydia-cove # fuente mono usada por la shell
+    rubik                     # fuente del reloj/workspaces
+    swappy                    # anotar capturas (usado por el area picker)
 
     # Gestor de archivos gráfico
     thunar
     tumbler               # miniaturas de imágenes/video en thunar
 
     # --- CONECTIVIDAD Y MULTIMEDIA ---
-    networkmanager_dmenu
-    overskride
     brightnessctl
     nvtopPackages.amd
     bottom
@@ -109,6 +110,25 @@
     curl
     wl-clipboard
   ];
+
+  # Tema GTK — sin esto, Thunar (y cualquier app GTK3/4) hereda fondo oscuro
+  # (por preferencia dark) pero texto del stylesheet claro por defecto →
+  # ilegible. catppuccin.enable ya NO tematiza GTK (catppuccin/gtk fue
+  # archivado upstream), solo cubre íconos vía catppuccin.gtk.icon.
+  # iconTheme NO se declara aquí: catppuccin.enable ya fija gtk.iconTheme
+  # (papirus-folders con acento catppuccin) — declararlo de nuevo choca
+  # ("defined multiple times"). Solo faltaba el tema de ventana/widgets, que
+  # catppuccin/nix ya no provee (catppuccin/gtk fue archivado upstream).
+  gtk = {
+    enable = true;
+    theme = {
+      name = "adw-gtk3-dark";
+      package = pkgs.adw-gtk3;
+    };
+    gtk3.extraConfig."gtk-application-prefer-dark-theme" = 1;
+    gtk4.theme = config.gtk.theme; # silencia el warning de compat (stateVersion < 26.05)
+    gtk4.extraConfig."gtk-application-prefer-dark-theme" = 1;
+  };
 
   home.pointerCursor = {
     gtk.enable = true;

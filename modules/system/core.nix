@@ -89,7 +89,11 @@
   };
 
   hardware.bluetooth.enable = true;
-  services.blueman.enable = true;
+  # services.blueman.enable: desactivado (rama caelestia). Instalaba blueman-applet
+  # como autostart XDG + servicio systemd activado por D-Bus, independiente de
+  # Hyprland exec-once — por eso quitarlo de ahi no bastaba. Caelestia ya trae
+  # su propio control nativo de bluetooth (statusIcons + sidebar quick toggles).
+  services.blueman.enable = false;
   services.power-profiles-daemon.enable = true;
   virtualisation.docker.enable = true;
 
