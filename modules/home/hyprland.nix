@@ -79,8 +79,24 @@
 
         # Modos de Ordenamiento y Ventanas
         "$mainMod, E, togglefloating,"
+        "$mainMod SHIFT, E, centerwindow,"  # centrar la ventana flotante activa
+        "$mainMod, P, pin,"                 # fijar/desfijar en todos los workspaces
         "$mainMod, G, togglegroup,"
         "$mainMod, Tab, changegroupactive, f"
+
+        # Alt-Tab real: ciclar entre ventanas (incluidas las flotantes) y
+        # traer la enfocada al frente — Caelestia no trae esto (solo un
+        # popout con acciones sobre la ventana ya activa), así que se resuelve
+        # nativamente en Hyprland. $mainMod+Tab (grupos) queda intacto.
+        "ALT, Tab, cyclenext,"
+        "ALT, Tab, bringactivetotop,"
+        "ALT SHIFT, Tab, cyclenext, prev"
+        "ALT SHIFT, Tab, bringactivetotop,"
+
+        # Cajón de ventanas (scratchpad) — esconder/mostrar flotantes con una
+        # tecla. Se ve en la barra de Caelestia (special workspaces).
+        "$mainMod, minus, togglespecialworkspace, scratch"
+        "$mainMod SHIFT, minus, movetoworkspacesilent, special:scratch"
 
         # Lanzadores Rápidos
         "$mainMod, B, exec, firefox"
@@ -168,6 +184,21 @@
         ", XF86MonBrightnessDown, global, caelestia:brightnessDown"
       ];
 
+      # Arrastre y redimensión de ventanas (sobre todo flotantes) con el
+      # mouse: Super + clic izquierdo mueve, Super + clic derecho redimensiona.
+      bindm = [
+        "$mainMod, mouse:272, movewindow"
+        "$mainMod, mouse:273, resizewindow"
+      ];
+
+      # Reglas de ventana — conservadoras, para diálogos comunes que deben
+      # abrir flotantes y centrados. Extender esta lista según haga falta.
+      windowrulev2 = [
+        "suppressevent maximize, class:.*"
+        "float, class:^(pavucontrol|nm-connection-editor|blueman-manager)$"
+        "center, floating:1, class:^(pavucontrol|nm-connection-editor|blueman-manager)$"
+        "size 55% 60%, floating:1, class:^(pavucontrol|nm-connection-editor)$"
+      ];
     };
 
     # Submap de resize: Super+S activa el modo; flechas redimensionan la

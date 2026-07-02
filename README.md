@@ -87,11 +87,25 @@ La tecla modificadora principal es `Super` (tecla Windows).
 | `Super + Q` / `Super + C` | Cerrar ventana activa |
 | `Super + F` | Pantalla completa |
 | `Super + E` | Flotante / Tiled |
+| `Super + Shift + E` | Centrar la ventana flotante activa |
+| `Super + P` | Fijar / desfijar en todos los workspaces (pin) |
 | `Super + G` | Agrupar ventanas |
 | `Super + Tab` | Cambiar en el grupo activo |
+| `Alt + Tab` / `Alt + Shift + Tab` | Ciclar entre ventanas (incluye flotantes) y traerlas al frente |
 | `Super + ←↑↓→` | Mover foco entre ventanas |
 | `Super + Shift + ←↑↓→` | Mover ventana físicamente |
+| `Super + arrastrar (clic izq)` | Mover una ventana (útil para flotantes) |
+| `Super + arrastrar (clic der)` | Redimensionar una ventana |
 | `Super + S` | **Modo resize** (flechas redimensionan, Escape/Enter salen) |
+| `Super + -` (minus) | Mostrar/ocultar el cajón de ventanas (scratchpad) |
+| `Super + Shift + -` | Enviar la ventana activa al cajón |
+
+> Las ventanas flotantes no tenían forma de arrastrarse/redimensionarse con el
+> mouse ni de ciclarse con teclado hasta agregar estos binds — Caelestia no
+> gestiona ventanas, solo aporta un popout en la barra (clic sobre el título de
+> la ventana activa) con botones **Float/Tile, Pin/Unpin, Kill** y una
+> cuadrícula para moverla a otro workspace, como complemento gráfico a estos
+> atajos.
 
 ### Workspaces (escritorios virtuales)
 
