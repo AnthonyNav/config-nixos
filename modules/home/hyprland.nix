@@ -15,7 +15,9 @@
         # no necesita exec-once aquí.
         "mpvpaper -o \"no-audio --loop --keepaspect=no --vf=scale=1920:1080\" eDP-1 /home/${username}/Pictures/Wallpapers/fondo.gif"
         "nm-applet --indicator"
-        "blueman-applet"
+        # blueman-applet quitado: era el ícono de bluetooth duplicado en la
+        # bandeja (antes del reloj); Caelestia ya tiene control de bluetooth
+        # nativo (contenedor statusIcons + sidebar de quick toggles).
         "mkdir -p ~/Pictures/Screenshots"
         "wl-paste --type text --watch cliphist store"
         "wl-paste --type image --watch cliphist store"

@@ -32,9 +32,10 @@
 
       bar.status = {
         showBattery = true;
-        # Ícono duplicado: ya existe wifi+bluetooth+rendimiento en el panel
-        # de quick toggles (sidebar); no hace falta también en la barra.
-        showBluetooth = false;
+        # showBluetooth queda en su default (true): este es el bluetooth del
+        # contenedor statusIcons (wifi + bluetooth + rendimiento), el que sí
+        # queremos conservar. El duplicado real era el ícono de blueman-applet
+        # en la bandeja del sistema (tray), antes del reloj — ver hyprland.nix.
       };
     };
   };
