@@ -24,8 +24,17 @@
         wallpaperDir = "~/Pictures/Wallpapers";
       };
 
+      # La ventana de fondo propia de Caelestia (capa "background" de Wayland)
+      # se pinta de negro sólido cuando no hay wallpaper asignado dentro de
+      # su propio gestor, tapando nuestro mpvpaper (gif animado). La
+      # desactivamos para que mpvpaper siga siendo el único dueño del fondo.
+      background.wallpaperEnabled = false;
+
       bar.status = {
         showBattery = true;
+        # Ícono duplicado: ya existe wifi+bluetooth+rendimiento en el panel
+        # de quick toggles (sidebar); no hace falta también en la barra.
+        showBluetooth = false;
       };
     };
   };
