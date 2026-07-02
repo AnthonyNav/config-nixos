@@ -11,7 +11,15 @@
 
     # Habilita el binario `caelestia` en el PATH (launcher IPC, wallpapers,
     # esquemas de color, etc.). Necesario para los binds en hyprland.nix.
-    cli.enable = true;
+    cli = {
+      enable = true;
+      settings = {
+        # Tras cada `caelestia scheme set` (o Scheme/Variant desde el
+        # launcher), recarga los colores de kitty en caliente vía su socket
+        # de control remoto (ver modules/home/kitty.nix y theme-sync.nix).
+        theme.postHook = "kitty @ --to unix:/tmp/kitty set-colors -a -c ~/.local/state/caelestia/theme/kitty-colors.conf 2>/dev/null || true";
+      };
+    };
 
     settings = {
       # Caelestia trae su PROPIA gestión de inactividad (lock/dpms/suspend

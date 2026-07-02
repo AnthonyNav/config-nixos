@@ -14,10 +14,9 @@
         # (programs.caelestia.systemd.enable, ver modules/home/caelestia.nix);
         # no necesita exec-once aquí.
         "mpvpaper -o \"no-audio --loop --keepaspect=no --vf=scale=1920:1080\" eDP-1 /home/${username}/Pictures/Wallpapers/fondo.gif"
-        "nm-applet --indicator"
-        # blueman-applet quitado: era el ícono de bluetooth duplicado en la
-        # bandeja (antes del reloj); Caelestia ya tiene control de bluetooth
-        # nativo (contenedor statusIcons + sidebar de quick toggles).
+        # nm-applet y blueman-applet quitados: eran íconos de bandeja
+        # duplicados; Caelestia ya tiene control nativo de red y bluetooth
+        # (contenedor statusIcons + sidebar de quick toggles).
         "mkdir -p ~/Pictures/Screenshots"
         "wl-paste --type text --watch cliphist store"
         "wl-paste --type image --watch cliphist store"
@@ -101,6 +100,12 @@
         "$mainMod SHIFT, S, exec, grim -g \"$(slurp)\" - | wl-copy && notify-send \"Captura\" \"Área copiada\""
         ", Print, exec, grim ~/Pictures/Screenshots/Captura_$(date +'%Y%m%d_%H%M%S').png && notify-send \"Captura\" \"Guardada\""
         "$mainMod SHIFT ALT, S, global, caelestia:screenshotFreeze"      # captura con freeze + anotación (swappy)
+
+        # Luz cálida (filtro azul) — alterna el servicio wlsunset ya existente
+        # (modules/home/night-light.nix, auto día/noche). Caelestia no trae
+        # control nativo de temperatura de color (confirmado en su código
+        # fuente), así que se resuelve con este atajo en vez de parchar el shell.
+        "$mainMod SHIFT, W, exec, systemctl --user is-active --quiet wlsunset.service && (systemctl --user stop wlsunset.service && notify-send 'Luz cálida' 'Desactivada') || (systemctl --user start wlsunset.service && notify-send 'Luz cálida' 'Activada (automática)')"
 
         # Navegación del Foco
         "$mainMod, left, movefocus, l"
