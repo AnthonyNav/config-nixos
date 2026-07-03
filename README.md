@@ -333,12 +333,20 @@ modelo no requiere rebuild):
       },
       "models": {
         "auto": { "name": "Auto (Kiro elige y ahorra tokens)" },
+        "claude-sonnet-5": { "name": "Claude Sonnet 5 (preview)" },
+        "claude-opus-4.8": { "name": "Claude Opus 4.8" },
         "claude-opus-4.7": { "name": "Claude Opus 4.7" },
         "claude-opus-4.6": { "name": "Claude Opus 4.6" },
-        "claude-opus-4.5": { "name": "Claude Opus 4.5" },
         "claude-sonnet-4.6": { "name": "Claude Sonnet 4.6" },
+        "claude-opus-4.5": { "name": "Claude Opus 4.5" },
         "claude-sonnet-4.5": { "name": "Claude Sonnet 4.5" },
-        "claude-haiku-4.5": { "name": "Claude Haiku 4.5" }
+        "claude-sonnet-4": { "name": "Claude Sonnet 4" },
+        "claude-haiku-4.5": { "name": "Claude Haiku 4.5" },
+        "deepseek-3.2": { "name": "DeepSeek V3.2 (preview)" },
+        "minimax-m2.5": { "name": "MiniMax M2.5" },
+        "minimax-m2.1": { "name": "MiniMax M2.1 (preview)" },
+        "glm-5": { "name": "GLM 5" },
+        "qwen3-coder-next": { "name": "Qwen3 Coder Next (preview)" }
       }
     }
   },
@@ -370,7 +378,18 @@ esta lista **es estática** (ver nota de arriba sobre `/v1/models`): puede no
 incluir modelos nuevos que tu cuenta ya tiene (confirmado: en julio 2026 la
 cuenta ya tenía acceso real a `claude-sonnet-5` y `claude-opus-4.8` que el
 gateway no listaba). Para saber con certeza qué modelos tiene tu cuenta *hoy*,
-la fuente confiable es Kiro IDE mismo, no `/v1/models` del gateway.
+la fuente confiable es Kiro IDE mismo, no `/v1/models` del gateway — sus logs
+registran cada respuesta real de `ListAvailableModelsCommand`:
+
+```bash
+grep -h '"commandName":"ListAvailableModelsCommand"' ~/.config/Kiro/logs/*/window1/exthost/kiro.kiroAgent/q-client.log | tail -1 | \
+  python3 -c "import sys,json; l=sys.stdin.read(); d=json.loads(l[l.find('{'):]); [print(m['modelId']) for m in d['output']['models']]"
+```
+
+(La configuración actual ya incluye los 15 modelos —`auto` más 14— que esa
+consulta devolvió al momento de escribir esto: familia Claude completa desde
+Sonnet 4 hasta Opus 4.8/Sonnet 5, DeepSeek, MiniMax, GLM y Qwen. Todos
+probados con una respuesta real, no solo listados.)
 
 **Para agregar otro provider** (no solo otro modelo de Kiro): opencode
 soporta múltiples entradas bajo `"provider"` en el mismo `config.json`, cada
