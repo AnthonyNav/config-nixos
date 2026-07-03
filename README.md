@@ -295,6 +295,26 @@ está documentado el fix real que se necesitó en esta cuenta
 (`KIRO_API_REGION` + `PROFILE_ARN` en el `.env`, ya aplicado en esta
 máquina).
 
+### Actualizar opencode
+
+opencode viene de dos fuentes a la vez:
+
+- **`~/.opencode/bin/opencode`**: instalación standalone/autoactualizable
+  (`opencode upgrade`). **Es la que gana** en el PATH (`modules/home/zsh.nix`
+  la antepone a todo lo demás) — así se resuelve el aviso de "hay
+  actualizaciones pero no se pueden instalar": el binario de Nix vive en el
+  store, de solo lectura, y `opencode upgrade` nunca puede escribir ahí.
+- **El paquete de Nix** (`home.nix`, `home.packages`): solo queda como
+  respaldo reproducible, igual que `claude-code`.
+
+Bootstrap (una sola vez, o si `~/.opencode` se borra):
+```bash
+curl -fsSL https://opencode.ai/install | bash
+# o, con el opencode de Nix como bootstrapper de un solo uso:
+opencode upgrade --method curl
+```
+Después de eso, `opencode upgrade` funciona normal, para siempre.
+
 ### Config de opencode
 
 `~/.config/opencode/config.json` (fuera de Nix, editable a mano — agregar un
@@ -312,29 +332,45 @@ modelo no requiere rebuild):
         "apiKey": "<tu PROXY_API_KEY>"
       },
       "models": {
+        "auto": { "name": "Auto (Kiro elige y ahorra tokens)" },
+        "claude-opus-4.7": { "name": "Claude Opus 4.7" },
+        "claude-opus-4.6": { "name": "Claude Opus 4.6" },
+        "claude-opus-4.5": { "name": "Claude Opus 4.5" },
+        "claude-sonnet-4.6": { "name": "Claude Sonnet 4.6" },
         "claude-sonnet-4.5": { "name": "Claude Sonnet 4.5" },
-        "claude-haiku-4.5": { "name": "Claude Haiku 4.5" },
-        "claude-opus-4.5": { "name": "Claude Opus 4.5" }
+        "claude-haiku-4.5": { "name": "Claude Haiku 4.5" }
       }
     }
   },
-  "model": "kiro/claude-sonnet-4.5",
+  "model": "kiro/auto",
   "small_model": "kiro/claude-haiku-4.5"
 }
 ```
+
+**Importante sobre el modelo `auto`:** úsalo con el ID literal `"auto"`, **no**
+`"auto-kiro"`. La guía original de kiro-gateway sugiere `"auto-kiro"` como
+alias amigable, pero la versión actual del gateway tiene un bug real: ese
+alias solo se resuelve en el endpoint de listado (`/v1/models`), no en el
+código que arma la petición de chat — así que `auto-kiro` se manda tal cual a
+Kiro y lo rechaza ("Invalid model ID..."). El ID real `auto` sí funciona
+perfecto (confirmado con una respuesta real del modelo). Detalle completo del
+bug en `CLAUDE.md`.
 
 **Para agregar otro modelo** (con el gateway corriendo, para ver los IDs
 reales disponibles en esta cuenta):
 
 ```bash
 curl -s http://127.0.0.1:8000/v1/models -H "Authorization: Bearer <tu PROXY_API_KEY>" | jq -r '.data[].id'
-# ejemplo de salida: claude-opus-4.6, claude-opus-4.7, deepseek-3.2, glm-5,
-# minimax-m2.1, minimax-m2.5, qwen3-coder-next, ...
 ```
 
 Agrega el ID que quieras dentro de `"models": { ... }` en el JSON de arriba,
 p.ej. `"deepseek-3.2": { "name": "DeepSeek V3.2" }`, y guarda — `opencode
-models kiro` lo reconoce al instante, sin reiniciar nada.
+models kiro` lo reconoce al instante, sin reiniciar nada. Ten en cuenta que
+esta lista **es estática** (ver nota de arriba sobre `/v1/models`): puede no
+incluir modelos nuevos que tu cuenta ya tiene (confirmado: en julio 2026 la
+cuenta ya tenía acceso real a `claude-sonnet-5` y `claude-opus-4.8` que el
+gateway no listaba). Para saber con certeza qué modelos tiene tu cuenta *hoy*,
+la fuente confiable es Kiro IDE mismo, no `/v1/models` del gateway.
 
 **Para agregar otro provider** (no solo otro modelo de Kiro): opencode
 soporta múltiples entradas bajo `"provider"` en el mismo `config.json`, cada

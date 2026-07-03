@@ -47,6 +47,7 @@ modules/system/    # NixOS system sub-modules (core services, nix-ld/AI helpers,
 - **Window management stays in Hyprland**: Caelestia does not manage windows at all — it only exposes a per-window action popout in the bar (float/tile, pin, kill, move-to-workspace) for whatever window is currently focused. Alt-tab, mouse drag/resize for floating windows, centering, pin, and the scratchpad are all plain Hyprland binds in `modules/home/hyprland.nix` (`bindm`, `ALT, Tab` cyclenext, `togglespecialworkspace`). No window rules (`windowrule`) are declared: since Hyprland 0.55 that hyprlang syntax is deprecated in favor of Lua, and `configType` here is all-or-nothing (hyprlang or Lua for the whole file) — not worth a full config migration for cosmetic dialog rules.
 - **nix-ld** (`modules/system/ai-helper.nix`) provides a broad set of runtime libraries so self-updating AI binaries (Claude Code, Codex, Kiro CLI, OpenCode) work without patching.
 - **kiro-gateway** (`modules/home/kiro-gateway.nix`) auto-starts a community proxy (`Jwadow/kiro-gateway`) that exposes Kiro's models as an OpenAI/Anthropic-compatible API for opencode. Deliberately kept **out of the Nix store**: the cloned repo, its Python venv, and secrets (`.env` with `PROXY_API_KEY`) live in `~/dev/shared/kiro-gateway/`, and opencode's `~/.config/opencode/config.json` (provider `kiro` → `http://127.0.0.1:8000/v1`) is hand-edited too — adding/removing a model is a JSON edit, no rebuild. The Nix module contributes only a `systemd.user.services.kiro-gateway` unit with `ConditionPathExists` on the venv's python, so if the out-of-Nix bootstrap is ever deleted, the service just doesn't start instead of breaking `hm-switch`. No `LD_LIBRARY_PATH` override is needed for the venv's compiled wheels (tiktoken, pydantic-core, uvloop): nix-ld already exports `NIX_LD`/`NIX_LD_LIBRARY_PATH` globally via PAM, and `systemd --user` inherits them (confirmed with `systemctl --user show-environment`). Credentials source is Kiro IDE's token (`~/.aws/sso/cache/kiro-auth-token.json`, `KIRO_CREDS_FILE` in `.env`) — no `kiro-cli login` required; the gateway self-refreshes via the stored `refreshToken`. To remove entirely: drop the import line in `home.nix` and `rm -rf ~/dev/shared/kiro-gateway ~/.config/opencode`. Full bootstrap/usage steps: README.md, section "Kiro Gateway + opencode".
+- **opencode is dual-installed on purpose**: the Nix package (`home.nix`, `home.packages`) is the reproducible fallback, but the primary binary is the standalone self-updating one at `~/.opencode/bin/opencode` (installed via `opencode upgrade --method curl` / `curl -fsSL https://opencode.ai/install | bash`), which `modules/home/zsh.nix`'s `PATH` export puts first — `opencode upgrade` can never work against the Nix copy since the store is read-only. Same pattern already used for `claude` (see the `claude()` wrapper function a few lines below in the same file).
 
 ### Adding a new host
 
@@ -187,3 +188,67 @@ credential change), **don't stop at `/health` or `/v1/models`** — those can
 report healthy while every real request 500s. Always test with an actual
 completion, e.g. `opencode run "..." -m kiro/<model>`, and check
 `journalctl --user -u kiro-gateway` for the specific error text if it fails.
+
+### kiro-gateway: model `auto` (or `auto-kiro`) fails with "Invalid model ID or insufficient subscription level"
+
+**Symptom:** requesting `kiro/auto-kiro` (the alias suggested by kiro-gateway's
+own upstream docs/README as the friendly name for Kiro's "pick the best model
+per task" mode) returns `HTTP 400` with the misleading message "Invalid model
+ID or insufficient subscription level to use it." Looks like an account/plan
+limitation, but it isn't.
+
+**How this was actually diagnosed (worth repeating — don't trust the error
+text at face value):** cross-checked against Kiro IDE's own runtime logs
+(`~/.config/Kiro/logs/*/window1/exthost/kiro.kiroAgent/q-client.log`), which
+record every real AWS SDK call the IDE makes, including full request/response
+bodies. Two findings there disproved the "subscription" theory outright:
+- `ListAvailableModelsCommand`'s live response includes
+  `"defaultModel":{"modelId":"auto"}` — `auto` is this account's *default*
+  model, not a locked/premium one.
+- `grep -c '"modelId":"auto"'` across `GenerateAssistantResponseCommand`
+  calls found **669 successful real uses** of literal `modelId: "auto"` by
+  the IDE itself.
+
+**Actual cause (a kiro-gateway bug, confirmed against the latest upstream
+commit — `git fetch` + `git log HEAD..origin/main` showed zero pending
+commits, so this isn't already fixed):** kiro-gateway ships
+`MODEL_ALIASES = {"auto-kiro": "auto"}` (`kiro/config.py`) meant to translate
+the friendly name to the real ID. That dict **is applied by `ModelResolver`
+for the `/v1/models` listing endpoint only.** The function that actually
+builds the chat-completion payload,
+`get_model_id_for_kiro()` (`kiro/model_resolver.py:192`), is called with just
+`HIDDEN_MODELS` (empty here) and never even receives `MODEL_ALIASES` — so
+`auto-kiro` is normalized and passed straight through, unresolved, as the
+literal string `"auto-kiro"` in the real request to Kiro's runtime API. Kiro
+correctly rejects that (it's not a real model ID) with a generic
+`INVALID_MODEL_ID` reason, which `kiro/kiro_errors.py:114` maps to the
+misleading "insufficient subscription level" text for *any* invalid-ID case,
+regardless of the real reason.
+
+**Fix:** in `~/.config/opencode/config.json`, declare and request the model
+under its **real, literal ID `auto`** — not `auto-kiro`. This fully
+sidesteps the broken alias path (no gateway/venv patching needed):
+```json
+"models": { "auto": { "name": "Auto (Kiro elige y ahorra tokens)" } },
+"model": "kiro/auto"
+```
+Confirmed working: `opencode run "..." -m kiro/auto` → real model response,
+`HTTP 200` in `kgw-logs`.
+
+**Also revealed by this investigation:** the gateway's `/v1/models` list is
+**static** for `runtime.{region}.kiro.dev`-endpoint accounts (see
+`kiro/account_manager.py`, comment `"New runtime endpoint does not provide
+/ListAvailableModels (AWS limitation)"` — it never attempts a live call, just
+serves the hardcoded `FALLBACK_MODELS` from `kiro/config.py`). Kiro IDE's own
+live `ListAvailableModelsCommand` response for this exact account/profileArn
+showed **more models than the gateway's static list** (`claude-sonnet-5`,
+`claude-opus-4.8`) — so treat the gateway's model list as a lagging snapshot,
+not ground truth; Kiro IDE's own logs are the authoritative source for what
+an account currently has access to.
+
+**Prevention rule:** if a future model/alias added to `opencode/config.json`
+gets rejected as "invalid model ID," don't assume it's an entitlement
+problem — check `~/.config/Kiro/logs/*/window1/exthost/kiro.kiroAgent/q-client.log`
+for real `GenerateAssistantResponseCommand` calls using that exact model ID
+first. If the IDE itself uses it successfully, the bug is almost certainly in
+kiro-gateway's alias/normalization layer, not the account.

@@ -42,7 +42,12 @@
       # Inicializar starship explícitamente usando la ruta del store de Nix
       eval "$(${pkgs.starship}/bin/starship init zsh)"
 
-      export PATH="$HOME/.local/bin:$HOME/.local/share/pnpm:$HOME/.npm-global/bin:$PATH"
+      # $HOME/.opencode/bin primero: es la versión standalone/autoactualizable
+      # de opencode (gestionada por su propio `opencode upgrade`), que debe
+      # ganarle en PATH a la de Nix (home.nix, solo de respaldo/reproducible —
+      # el store es de solo lectura, por eso `opencode upgrade` no puede
+      # aplicarse ahí). Mismo patrón que ya existe para `claude` más abajo.
+      export PATH="$HOME/.opencode/bin:$HOME/.local/bin:$HOME/.local/share/pnpm:$HOME/.npm-global/bin:$PATH"
 
       nix-switch() {
         sudo nixos-rebuild switch --flake "path:$HOME/nixos-config#$(hostnamectl --static)"

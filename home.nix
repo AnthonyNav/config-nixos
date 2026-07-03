@@ -76,7 +76,9 @@
     mockgen
     kiro
     kiro-cli
-    opencode
+    opencode # respaldo/reproducible; la versión primaria es la autoactualizable
+             # en ~/.opencode/bin (PATH la prioriza, ver modules/home/zsh.nix) —
+             # `opencode upgrade` no puede escribir en este paquete (store RO).
     codex
     claude-code
 
