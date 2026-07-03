@@ -11,6 +11,7 @@
     ./modules/home/caelestia.nix
     ./modules/home/theme-sync.nix
     ./modules/home/wallpapers.nix
+    ./modules/home/kiro-gateway.nix # herramienta desacoplada/temporal, ver el propio archivo
   ];
 
   home.username = username;

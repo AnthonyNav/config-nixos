@@ -10,6 +10,7 @@ Configuración modular de NixOS + Flakes + Home Manager orientada a desarrollo d
 - [Despliegue rápido](#despliegue-rápido)
 - [Atajos de teclado](#atajos-de-teclado)
 - [Escritorio (Caelestia Shell)](#escritorio-caelestia-shell)
+- [Kiro Gateway + opencode](#kiro-gateway--opencode)
 - [Para qué está preparado este entorno](#para-qué-está-preparado-este-entorno)
 - [Trabajar con Flakes en proyectos](#trabajar-con-flakes-en-proyectos)
 - [Agregar una nueva máquina](#agregar-una-nueva-máquina)
@@ -221,6 +222,118 @@ shell compila para registrar sus tipos internos de QML (config, efectos de
 blur, detección de beat del visualizador) — **no es un sistema de
 extensiones para el usuario**. No hay marketplace ni carpeta "drop-in"; para
 agregar algo ahí habría que parchar el QML del shell directamente.
+
+---
+
+## Kiro Gateway + opencode
+
+[`kiro-gateway`](https://github.com/Jwadow/kiro-gateway) es un proxy de
+comunidad que expone los modelos de Kiro (Claude Opus/Sonnet/Haiku 4.5+,
+DeepSeek, Qwen, GLM, MiniMax...) como una API OpenAI/Anthropic-compatible, para
+poder usarlos desde **opencode** (ya instalado, ver `home.nix`) u otras
+herramientas que acepten `baseURL` + `apiKey`.
+
+**Diseño a propósito desacoplado de Nix** (es una herramienta de comunidad,
+puede ser temporal): el código, el venv de Python y los secretos viven fuera
+del store, en `~/dev/shared/kiro-gateway/`. Nix solo aporta un
+`systemd --user service` mínimo (`modules/home/kiro-gateway.nix`) que lo
+arranca solo al iniciar sesión. Ver ese archivo y la sección correspondiente
+de `CLAUDE.md` para el detalle de la frontera Nix / fuera-de-Nix.
+
+### Bootstrap (una sola vez, o para reproducir en otra máquina)
+
+```bash
+git clone https://github.com/Jwadow/kiro-gateway.git ~/dev/shared/kiro-gateway
+cd ~/dev/shared/kiro-gateway
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt
+```
+
+Crea `~/dev/shared/kiro-gateway/.env` (`chmod 600`, nunca se versiona):
+
+```bash
+PROXY_API_KEY="$(python3 -c 'import secrets; print(secrets.token_hex(24))')"  # invéntala, es tuya
+KIRO_CREDS_FILE="/home/<usuario>/.aws/sso/cache/kiro-auth-token.json"          # token de Kiro IDE ya logueado
+SERVER_HOST="127.0.0.1"
+SERVER_PORT="8000"
+```
+
+`KIRO_CREDS_FILE` apunta al token que genera **Kiro IDE** al hacer login
+(no requiere `kiro-cli login` aparte); el gateway lo refresca solo con el
+`refreshToken` que ya trae ese archivo. Si prefieres usar `kiro-cli` en su
+lugar, revisa `.env.example` del repo (Opción 3, vía su SQLite).
+
+Aplica el `hm-switch` normal para que el `systemd.user.service` levante el
+gateway automáticamente (con `ConditionPathExists`: si el venv de arriba no
+existe, el servicio no falla, simplemente no corre).
+
+### Uso diario
+
+```bash
+kgw-status   # ver si está corriendo
+kgw-logs     # seguir logs en vivo
+kgw-restart  # reiniciar (p.ej. tras cambiar .env)
+kgw-up / kgw-down   # arrancar / parar a mano
+```
+
+```bash
+curl http://127.0.0.1:8000/health
+curl http://127.0.0.1:8000/v1/models -H "Authorization: Bearer <tu PROXY_API_KEY>"
+```
+
+### Config de opencode
+
+`~/.config/opencode/config.json` (fuera de Nix, editable a mano — agregar un
+modelo no requiere rebuild):
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "kiro": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Kiro Gateway",
+      "options": {
+        "baseURL": "http://127.0.0.1:8000/v1",
+        "apiKey": "<tu PROXY_API_KEY>"
+      },
+      "models": {
+        "claude-sonnet-4.5": { "name": "Claude Sonnet 4.5" },
+        "claude-haiku-4.5": { "name": "Claude Haiku 4.5" },
+        "claude-opus-4.5": { "name": "Claude Opus 4.5" }
+      }
+    }
+  },
+  "model": "kiro/claude-sonnet-4.5",
+  "small_model": "kiro/claude-haiku-4.5"
+}
+```
+
+**Para agregar otro modelo** (con el gateway corriendo, para ver los IDs
+reales disponibles en esta cuenta):
+
+```bash
+curl -s http://127.0.0.1:8000/v1/models -H "Authorization: Bearer <tu PROXY_API_KEY>" | jq -r '.data[].id'
+# ejemplo de salida: claude-opus-4.6, claude-opus-4.7, deepseek-3.2, glm-5,
+# minimax-m2.1, minimax-m2.5, qwen3-coder-next, ...
+```
+
+Agrega el ID que quieras dentro de `"models": { ... }` en el JSON de arriba,
+p.ej. `"deepseek-3.2": { "name": "DeepSeek V3.2" }`, y guarda — `opencode
+models kiro` lo reconoce al instante, sin reiniciar nada.
+
+**Para agregar otro provider** (no solo otro modelo de Kiro): opencode
+soporta múltiples entradas bajo `"provider"` en el mismo `config.json`, cada
+una con su propio `baseURL`/`apiKey`/`models` — el bloque `"kiro"` de arriba
+es la plantilla a copiar y ajustar.
+
+### Desinstalar
+
+```bash
+# 1. Quita la línea `./modules/home/kiro-gateway.nix` de home.nix, hm-switch.
+# 2. Borra el código/venv/secretos (no están versionados, es seguro):
+rm -rf ~/dev/shared/kiro-gateway ~/.config/opencode
+```
 
 ---
 
