@@ -281,6 +281,20 @@ curl http://127.0.0.1:8000/health
 curl http://127.0.0.1:8000/v1/models -H "Authorization: Bearer <tu PROXY_API_KEY>"
 ```
 
+**Importante:** `/health` y `/v1/models` (arriba) **no prueban una conexión
+real** — `/v1/models` devuelve una lista estática, así que pueden verse bien
+aunque el chat en sí falle. La prueba real es un mensaje de verdad:
+
+```bash
+opencode run "responde solo con la palabra: funciona" -m kiro/claude-haiku-4.5
+```
+
+Si eso falla (502 / "profileArn is required" / etc.), revisa
+`kgw-logs` y la sección "kiro-gateway" de `CLAUDE.md` (Troubleshooting) — ahí
+está documentado el fix real que se necesitó en esta cuenta
+(`KIRO_API_REGION` + `PROFILE_ARN` en el `.env`, ya aplicado en esta
+máquina).
+
 ### Config de opencode
 
 `~/.config/opencode/config.json` (fuera de Nix, editable a mano — agregar un
