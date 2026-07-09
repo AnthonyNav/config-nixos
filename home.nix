@@ -9,6 +9,8 @@
     ./modules/home/night-light.nix
     ./modules/home/lock-idle.nix
     ./modules/home/caelestia.nix
+    ./modules/home/caelestia-scheme.nix # interceptor: switch claro/oscuro del panel funcione con Catppuccin
+    ./modules/home/theme-mode.nix       # comandos theme-light/dark/toggle + set-wallpaper
     ./modules/home/theme-sync.nix
     ./modules/home/wallpapers.nix
     ./modules/home/kiro-gateway.nix # herramienta desacoplada/temporal, ver el propio archivo

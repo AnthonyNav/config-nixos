@@ -49,6 +49,7 @@ modules/system/    # NixOS system sub-modules (core services, nix-ld/AI helpers,
 - **kiro-gateway** (`modules/home/kiro-gateway.nix`) auto-starts a community proxy (`Jwadow/kiro-gateway`) that exposes Kiro's models as an OpenAI/Anthropic-compatible API for opencode. Deliberately kept **out of the Nix store**: the cloned repo, its Python venv, and secrets (`.env` with `PROXY_API_KEY`) live in `~/dev/shared/kiro-gateway/`, and opencode's `~/.config/opencode/config.json` (provider `kiro` → `http://127.0.0.1:8000/v1`) is hand-edited too — adding/removing a model is a JSON edit, no rebuild. The Nix module contributes only a `systemd.user.services.kiro-gateway` unit with `ConditionPathExists` on the venv's python, so if the out-of-Nix bootstrap is ever deleted, the service just doesn't start instead of breaking `hm-switch`. No `LD_LIBRARY_PATH` override is needed for the venv's compiled wheels (tiktoken, pydantic-core, uvloop): nix-ld already exports `NIX_LD`/`NIX_LD_LIBRARY_PATH` globally via PAM, and `systemd --user` inherits them (confirmed with `systemctl --user show-environment`). Credentials source is Kiro IDE's token (`~/.aws/sso/cache/kiro-auth-token.json`, `KIRO_CREDS_FILE` in `.env`) — no `kiro-cli login` required; the gateway self-refreshes via the stored `refreshToken`. To remove entirely: drop the import line in `home.nix` and `rm -rf ~/dev/shared/kiro-gateway ~/.config/opencode`. Full bootstrap/usage steps: README.md, section "Kiro Gateway + opencode".
 - **opencode is dual-installed on purpose**: the Nix package (`home.nix`, `home.packages`) is the reproducible fallback, but the primary binary is the standalone self-updating one at `~/.opencode/bin/opencode` (installed via `opencode upgrade --method curl` / `curl -fsSL https://opencode.ai/install | bash`), which `modules/home/zsh.nix`'s `PATH` export puts first — `opencode upgrade` can never work against the Nix copy since the store is read-only. Same pattern already used for `claude` (see the `claude()` wrapper function a few lines below in the same file).
 - **3D/video creation stack** (`victus` only): `davinci-resolve`, `kdePackages.kdenlive`, `krita`, `gimp`, `inkscape`, `ffmpeg-full`, plus `blender` (CPU-only fallback) in `home.nix`; `hardware.nvidia.prime.offload.enableOffloadCmd = true` in `hosts/victus/default.nix` (provides the `nvidia-offload <app>` wrapper); and the `resolve`/`blender-gpu`/`to-dnxhr`/`to-h264` shell functions in `modules/home/zsh.nix`. Chosen because this laptop has an NVIDIA RTX 4050 (6 GB VRAM) in PRIME offload — the one config where DaVinci Resolve is officially viable on Linux (it would not be on AMD-only hardware). The free Resolve build cannot import/export H.264/H.265 on Linux (a licensing limit, not a hardware one), hence the `to-dnxhr`/`to-h264` ffmpeg-based ingest/deliver helpers instead of paying for Resolve Studio. `natron` was considered as a free Fusion alternative but is marked `broken` in the current nixpkgs-unstable pin, so it's omitted. **Blender needed a second fix**: nixpkgs' `blender` is compiled with `WITH_CYCLES_CUDA_BINARIES=FALSE`/`WITH_CYCLES_DEVICE_OPTIX=FALSE` (confirmed by inspecting its derivation) — Cycles has zero GPU backend, so Preferences only lists "None"/"CUDA" and CUDA finds no device even though the GPU is healthy (`nvidia-smi` sees it fine). Rebuilding with `nixpkgs.config.cudaSupport = true` was considered but rejected: it forces `cudaPackages.backendStdenv` (nvcc-based), has no binary cache since it's unfree, and would mean a 30-90+ min from-source rebuild plus several GB of CUDA toolkit. Instead, `modules/home/blender-gpu.nix` downloads the official blender.org standalone Linux build (version+SHA-256 pinned by hand, verified before extracting) to `~/.local/opt/blender` via an idempotent `home.activation` script (same idiom as `wallpapers.nix`'s sparse-clone) — same dual-install pattern as opencode/claude, standalone wins in PATH, Nix package stays as reproducible CPU-only fallback. That standalone binary still needed one more fix to actually see the GPU: its CUDA loader (CUEW) does `dlopen("libcuda.so")` at runtime, which NixOS doesn't expose on a standard library path (it lives at `/run/opengl-driver/lib`) — so `blender-gpu` sets `LD_LIBRARY_PATH="/run/opengl-driver/lib:$LD_LIBRARY_PATH"` in addition to `nvidia-offload`. Confirmed via `bpy`/Cycles device query: without the fix, OptiX/CUDA both report zero devices; with it, both correctly list the RTX 4050. **A third fix was needed for launching from rofi** (not just terminal): the plain `.desktop` files shipped by the `davinci-resolve`/`blender` packages have bare `Exec=davinci-resolve` / `Exec=blender %f` — no `nvidia-offload`, no XWayland, no `LD_LIBRARY_PATH` — because rofi's `drun` mode reads `.desktop` files directly, bypassing zsh (and its `initContent` PATH/functions) entirely. `modules/home/gpu-launchers.nix` overrides both via Home Manager's `xdg.desktopEntries` using the *same* desktop-file-id as the originals (`davinci-resolve`, `blender`): Home Manager installs generated desktop items with `lib.hiPrio`, so ours wins the profile-merge collision and replaces only that one file — the rest of each package (binary, icons, sibling `.desktop`s like `davinci-control-panels-setup`) is untouched (verified by inspecting the built `home-path` output). The Blender override hardcodes the absolute path `${config.home.homeDirectory}/.local/opt/blender/blender` rather than bare `blender`, because the graphical session's PATH (systemd/PAM-managed) never gets the `~/.local/opt/blender` prepend — that only exists inside zsh's `initContent`, so a bare `Exec=blender` there would've resolved back to the CPU-only Nix package. Verified by launching both with an artificially minimal `PATH` (`/etc/profiles/per-user/<user>/bin:/run/current-system/sw/bin`, no zsh involved) matching what rofi actually uses — DaVinci Resolve opened a real XWayland window, and Blender's device query still correctly listed OptiX/CUDA with the RTX 4050. Full rationale and daily-use commands: README.md, section "Edición 3D / Video".
+- **Light/dark mode is global and drives the wallpaper too** (`modules/home/caelestia-scheme.nix`, `modules/home/theme-mode.nix`, README.md section "Modo claro / oscuro"): dark is Catppuccin Mocha, light is Catppuccin Latte. Caelestia's own dark/light switch (the panel toggle, `services/Colours.qml` → `Colours.setMode()`) only ever calls `caelestia scheme set -m <mode>`, keeping whatever name/flavour was already active — but in caelestia-cli's bundled Catppuccin data, `mocha` only has a `dark` mode and `latte` only has `light` (two separate flavours, not one palette with both modes), so that bare `-m light` throws before anything is applied. Since the scheme data lives in the read-only Nix store, it can't be merged there. Fix: `caelestia-scheme.nix` overrides `programs.caelestia.cli.package` with a `symlinkJoin` wrapper (`bin/caelestia` replaced by a script, everything else of the real package untouched) that intercepts *only* `scheme set` calls carrying `-m/--mode` with no `--flavour`/`--name`, and injects `--name catppuccin --flavour latte|mocha` accordingly — any other invocation (including `theme-sync.nix`'s bootstrap, which always passes an explicit flavour) passes through unmodified. This alone was enough for the terminal commands (`theme-light`/`theme-dark`/`theme-toggle`) and the `Super+Shift+T` bind, but **not** for the panel's own switch — a second, separate fix was needed for that (see the dedicated Troubleshooting entry below: `caelestia-shell`'s own binary bakes in an *unwrapped* copy of the CLI into its internal `PATH` via `makeWrapper`, independent of `programs.caelestia.cli.package`, and that copy always won inside the shell's own process). `caelestia-scheme.nix` also overrides `programs.caelestia.package` itself (rebuilding the upstream `with-cli` variant with our wrapped CLI substituted into its `caelestia-cli` build argument) so the panel resolves the same wrapper. `theme-mode.nix` also patches a second gap: `apply_gtk()` in caelestia-cli (`utils/theme.py`) hardcodes the GTK3/4 theme to `adw-gtk3-dark` regardless of mode (it only varies `color-scheme`/icon-theme via dconf) — so without a fix, Thunar would stay dark in light mode; the `theme.postHook` (`modules/home/caelestia.nix`) now also writes the correct `adw-gtk3`/`adw-gtk3-dark` dconf key based on `$SCHEME_MODE`, alongside the pre-existing kitty-reload behavior. Wallpaper follow-along uses the same postHook plus `set-wallpaper` (a real executable installed via `home.packages`, not a zsh function — it's also invoked from Hyprland's `Super+Shift+T` bind, and Hyprland's `exec` runs through `sh -c`, not zsh, so a zsh-only function wouldn't resolve there, same class of bug as the rofi `.desktop` issue above): it reads the persisted mode from `~/.local/state/caelestia/scheme.json` and relaunches `mpvpaper` with `fondo.gif` (dark) or `fondo-light.gif` (light), called both from `hyprland.nix`'s `exec-once` (so a fresh login already shows the right wallpaper) and from the postHook (so toggling mid-session updates it live). `fondo-light.gif` is fetched once via an idempotent, SHA-256-verified `home.activation` script in `wallpapers.nix` (same idiom as `blender-gpu.nix`) from a stable Wikimedia Commons URL — it's a generic placeholder (a cloud loop), not a thematic match for the hand-picked anime `fondo.gif`; dropping a personal file at that exact path (never overwritten if present) replaces it.
 
 ### Adding a new host
 
@@ -312,3 +313,161 @@ the driver/hardware. And for any *standalone* (non-Nix, non-FHS-wrapped)
 binary that dlopens NVIDIA libraries at runtime, remember NixOS keeps them at
 `/run/opengl-driver/lib`, not a path a generic Linux binary would search by
 default.
+
+### Caelestia's own light/dark switch in the panel would fail with "does not have a light mode" — and then, after fixing that, still didn't work
+
+**Symptom 1 (would have happened without the fix below — caught during
+design, by reading caelestia-cli's source before shipping, not from a live
+failure):** toggling the dark/light switch inside Caelestia's own settings
+panel (WallpaperAndStyle page) throws a critical notification like
+`"catppuccin mocha" does not have a light mode` instead of switching to a
+light theme, and nothing gets re-themed.
+
+**Cause 1:** the panel's switch (`services/Colours.qml`, `setMode()`) calls
+`Quickshell.execDetached(["caelestia", "scheme", "set", "--notify", "-m",
+mode])` — it only ever changes `mode`, keeping whatever `name`/`flavour` is
+currently active. That's fine for schemes where one flavour has both a dark
+and a light variant, but caelestia-cli's bundled Catppuccin data
+(`data/schemes/catppuccin/{mocha,latte}/`) ships mocha with **only** a `dark`
+mode and latte with **only** a `light` mode — they're two separate flavours,
+not one palette with two modes. `Scheme.mode`'s setter
+(`caelestia/utils/scheme.py`) checks the requested mode against
+`get_scheme_modes(name, flavour)` and raises `ValueError` immediately if it's
+not available for the *current* flavour — so a bare `-m light` while mocha is
+active fails before `apply_colours()` (and therefore the `postHook`) ever
+runs. The scheme data lives under `cli_data_dir / "schemes"`, inside the
+read-only Nix store (`caelestia/utils/paths.py`), so there's no way to add a
+"mocha-with-a-light-variant" entry there to route around it.
+
+**Fix 1:** `modules/home/caelestia-scheme.nix` overrides
+`programs.caelestia.cli.package` with a `pkgs.symlinkJoin` over the real CLI
+package, whose `postBuild` replaces just `bin/caelestia` with a small bash
+wrapper (everything else — fish completions, etc. — stays symlinked from the
+original). The wrapper inspects argv only when it sees `scheme set`: if
+`-m/--mode` is present and neither `-f/--flavour` nor `-n/--name` was also
+passed (exactly the panel's call shape, and also matched by the plain
+`theme-light`/`theme-dark` commands and the `Super+Shift+T` bind), it appends
+`--name catppuccin --flavour latte` (for `light`) or `--flavour mocha` (for
+`dark`) before `exec`-ing the real binary. Any call that already specifies a
+flavour/name (e.g. `theme-sync.nix`'s bootstrap:
+`--name catppuccin --flavour mocha --mode dark`) is passed through byte-for-byte
+untouched.
+
+**Verified 1:** built the wrapper (`nix build
+.#homeConfigurations.anthony.activationPackage`) and exercised it directly
+against a stub binary standing in for the real CLI, covering: the panel's
+exact call shape for both `light` and `dark`, the `--mode=value` form, a
+fully-explicit passthrough call, an unrelated subcommand (`wallpaper set`),
+and a call that already sets `--flavour` to something else while also passing
+`-m` (must NOT be overridden). All six produced the expected final argv.
+
+**Symptom 2 (a real live failure, reported after Fix 1 was already shipped
+and working from the terminal and the `Super+Shift+T` bind):** the terminal
+commands (`theme-light`/`theme-dark`) and the Hyprland keybind correctly
+switched Mocha↔Latte, but the panel's own dark-theme toggle still did
+nothing when clicked.
+
+**Cause 2:** `programs.caelestia.cli.package` only controls which `caelestia`
+gets installed into `home.packages` (i.e. what a fresh terminal, or
+Hyprland's `exec` via `sh -c`, resolve via the general profile `PATH` at
+`/etc/profiles/per-user/<user>/bin`). It does **not** change what the
+*shell's own binary* uses internally. `caelestia-shell`'s "with-cli" build
+(`caelestia-shell.override { withCli = true; }`, the module's actual default
+for `programs.caelestia.package`, per `hm-module.nix`) compiles with its own
+`caelestia-cli` argument added to `runtimeDeps`, and its `postInstall` runs
+`makeWrapper ${quickshell}/bin/qs $out/bin/caelestia-shell --prefix PATH :
+"${lib.makeBinPath runtimeDeps}" ...` (`nix/default.nix` in the
+`caelestia-shell` source) — baking an **unwrapped** copy of the CLI directly
+into the shell binary's own `PATH`, upstream of (and unrelated to) our
+override. A `--prefix PATH` entry is prepended ahead of whatever `PATH` the
+process inherits, so when the panel calls `Quickshell.execDetached(["caelestia",
+...])` from *inside* that already-running process, it always resolved the
+baked-in raw CLI first — confirmed live by diffing the running
+`caelestia-shell` process's `/proc/<pid>/environ` `PATH` entries against
+`which caelestia`: the raw CLI's store path appeared before
+`/etc/profiles/per-user/<user>/bin`. This is why the terminal and the bind
+(which never go through that baked-in prefix) already worked while the panel
+didn't — the same "two independent PATHs" class of bug as the
+rofi/`.desktop` issue in `modules/home/gpu-launchers.nix`, but one layer
+deeper (baked into a compiled wrapper instead of a `.desktop` file).
+
+**Fix 2:** `caelestia-scheme.nix` also overrides `programs.caelestia.package`
+itself, rebuilding the same upstream `with-cli` variant via
+`inputs.caelestia-shell.packages.${pkgs.system}.caelestia-shell.override {
+withCli = true; caelestia-cli = wrappedCli; }` — substituting our Fix-1
+wrapper into the exact build argument upstream bakes into
+`runtimeDeps`/`--prefix PATH`, instead of trying to patch anything after the
+fact. Since `caelestia-cli` is a regular `callPackage` argument, `.override`
+can replace it even though the flake's own `flake.nix` already passed an
+explicit value for it at the original call site.
+
+**Verified 2:** rebuilt (`nix build
+.#homeConfigurations.anthony.activationPackage`) and inspected the compiled
+`.caelestia-shell-wrapped` binary directly (`strings ... | grep prefix.*PATH`)
+— the baked-in `PATH` list now ends with our
+`caelestia-cli-catppuccin-mode-wrapper/bin` instead of the raw
+`caelestia-cli-<hash>/bin`, and `readlink -f` on `bin/caelestia` inside that
+directory resolves to the Fix-1 wrapper script.
+
+**Prevention rule:** when a Home Manager module exposes both a `package`
+option (the app itself) and a `cli.package`/similar sub-option (a tool the
+app also shells out to), don't assume overriding the sub-option is enough —
+check whether the main package's own build **also** bundles that tool
+directly (grep the upstream package expression for `makeWrapper.*--prefix
+PATH` and see whether the sub-tool's derivation is one of the inputs). If it
+does, the sub-option override only affects call sites that resolve the tool
+via the general profile `PATH` (terminal, Hyprland `exec`) — anything that
+runs *inside* the main package's own wrapped process needs the main
+`package` overridden too, with the sub-tool substituted into the same build
+argument upstream already uses to bake it in.
+
+### kitty doesn't repaint after a scheme/mode change — open windows stay stale, and so do brand-new tabs
+
+**Symptom:** switching mode (`theme-light`/`theme-dark`, the keybind, or the
+panel switch) correctly re-themes everything else, but kitty windows already
+open keep the old colors (e.g. light text on a light background, or a fully
+light terminal after switching back to dark) — and **opening a new tab in an
+existing kitty window still gets the stale colors**, not the new scheme.
+
+**Cause:** `modules/home/kitty.nix` sets `listen_on = "unix:/tmp/kitty"`, but
+kitty **appends its own PID** to that path — the real control socket is
+`/tmp/kitty-<PID>` (confirmed: `ls /tmp/kitty*` → `/tmp/kitty-39832`, one per
+running kitty process). The `theme.postHook` (`modules/home/caelestia.nix`)
+was reloading colors against the literal, unsuffixed `unix:/tmp/kitty`, which
+never exists:
+```
+Error: Failed to connect to unix:/tmp/kitty ... connect: no such file or directory
+```
+The postHook's `2>/dev/null || true` silently swallowed this every time, so
+`kitty @ set-colors` never actually ran. This explains both halves of the
+symptom: `-a` (repaint all windows) never reached kitty, and `-c`
+(`--configured`, which updates the in-memory template new tabs/windows are
+created from) never ran either — so a new tab was never stale by accident, it
+was inheriting colors that were never updated in the first place. (A brand
+new kitty **OS window** happens to re-read the `include` file from disk on
+startup, which is why the bug could look intermittent.)
+
+**Fix:** the postHook now loops over the real sockets instead of assuming one
+fixed path:
+```sh
+for sock in /tmp/kitty-*; do
+  [ -S "$sock" ] || continue
+  kitty @ --to "unix:$sock" set-colors -a -c \
+    "$HOME/.local/state/caelestia/theme/kitty-colors.conf" 2>/dev/null || true
+done
+```
+This reaches every running kitty instance/window (`-a`) and also updates the
+configured colors new tabs inherit (`-c`).
+
+**Verified:** ran the exact loop against the live socket both before and
+after the fix — before, `kitty @ --to unix:/tmp/kitty ...` errored with "no
+such file or directory"; the corrected loop found `/tmp/kitty-39832` and
+`set-colors` returned success with no error output.
+
+**Prevention rule:** any script that talks to kitty's remote-control socket
+must never hardcode `listen_on`'s configured value literally — kitty suffixes
+it with the PID at runtime. Glob for the real socket (`/tmp/kitty-*`, matching
+whatever prefix `listen_on` uses) and check `[ -S "$sock" ]`, and don't trust
+`2>/dev/null || true` to mean "it worked" — that pattern hid this exact bug
+for an entire release. If a postHook/script silently no-ops, drop the
+`2>/dev/null` temporarily and rerun manually to see the real error.

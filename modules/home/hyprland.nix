@@ -1,4 +1,4 @@
-{ username, ... }:
+{ ... }:
 
 {
   wayland.windowManager.hyprland = {
@@ -13,7 +13,11 @@
         # Caelestia Shell se autoarranca vía su propio servicio systemd --user
         # (programs.caelestia.systemd.enable, ver modules/home/caelestia.nix);
         # no necesita exec-once aquí.
-        "mpvpaper -o \"no-audio --loop --keepaspect=no --vf=scale=1920:1080\" eDP-1 /home/${username}/Pictures/Wallpapers/fondo.gif"
+        # set-wallpaper (modules/home/theme-mode.nix) elige fondo.gif o
+        # fondo-light.gif según el modo persistido en scheme.json, en vez de
+        # asumir siempre oscuro — así el fondo ya arranca correcto tras
+        # reloguear en modo claro.
+        "set-wallpaper"
         # nm-applet y blueman-applet quitados: eran íconos de bandeja
         # duplicados; Caelestia ya tiene control nativo de red y bluetooth
         # (contenedor statusIcons + sidebar de quick toggles).
@@ -101,6 +105,11 @@
         # Lanzadores Rápidos
         "$mainMod, B, exec, firefox"
         "$mainMod, T, exec, thunar"         # gestor de archivos
+
+        # Modo claro/oscuro global (ver README.md, "Modo claro / oscuro" y
+        # modules/home/caelestia-scheme.nix). Mismo efecto que theme-toggle
+        # (zsh.nix) o el switch del panel de Caelestia.
+        "$mainMod SHIFT, T, exec, theme-toggle"
 
         # Cheatsheet de atajos (muestra los binds activos de Hyprland via rofi)
         "$mainMod SHIFT, K, exec, hyprctl binds -j | jq -r '.[] | \"\\(.modmask)\\t\\(.key)\\t→\\t\\(.dispatcher) \\(.arg)\"' | column -t | rofi -dmenu -i -p \"Atajos de teclado\""

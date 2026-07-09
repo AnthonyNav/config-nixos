@@ -147,6 +147,13 @@
           "''${1%.*}_h264.mp4"
       }
 
+      # theme-light / theme-dark / theme-toggle: NO son funciones zsh a
+      # propósito (ver modules/home/theme-mode.nix) — son ejecutables reales
+      # en el PATH del perfil, porque también se invocan desde el atajo de
+      # Hyprland (Super+Shift+T), y `exec` de Hyprland corre el comando vía
+      # `sh -c`, no zsh: una función de zsh ahí no existiría (mismo bug que
+      # ya se documentó para rofi/.desktop en gpu-launchers.nix).
+
       claude() {
         if [ -x "$HOME/.local/bin/claude" ]; then
           command "$HOME/.local/bin/claude" "$@"

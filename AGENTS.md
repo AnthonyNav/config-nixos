@@ -26,6 +26,10 @@
 - `kiro-gateway` is intentionally outside the Nix store at `~/dev/shared/kiro-gateway/`; this repo only declares a `systemd --user` service with `ConditionPathExists`. Secrets and `~/.config/opencode/config.json` stay outside Nix.
 - For Kiro validation, `/health` and `/v1/models` are not enough; they can pass while chat fails. Test an actual completion such as `opencode run "responde solo con la palabra: funciona" -m kiro/claude-haiku-4.5` and inspect `kgw-logs` on failure.
 - In opencode's Kiro config, use model ID `auto`, not `auto-kiro`; the gateway's alias path is broken for chat requests.
+- Caelestia's Catppuccin data splits dark/light across *flavours* (mocha=dark only, latte=light only), not modes within one flavour. `caelestia scheme set -m <mode>` alone (what the panel's own switch sends) fails for Catppuccin without `modules/home/caelestia-scheme.nix`'s CLI wrapper, which injects the right `--flavour` when none was given. Don't try to fix this by editing scheme data — it lives in the read-only Nix store.
+- That CLI wrapper alone isn't enough for the panel's own switch: `caelestia-shell`'s binary bakes an *unwrapped* copy of the CLI into its own internal `PATH` (`makeWrapper --prefix PATH`, independent of `programs.caelestia.cli.package`). `caelestia-scheme.nix` also overrides `programs.caelestia.package` itself (rebuilding the `with-cli` variant with our wrapped CLI substituted in) so `execDetached` calls from *inside* the shell process resolve the wrapper too.
+- `theme-light`/`theme-dark`/`theme-toggle`/`set-wallpaper` (`modules/home/theme-mode.nix`) are real executables via `home.packages`, not zsh functions — same reasoning as the rofi/`.desktop` gotcha below: Hyprland's `Super+Shift+T` bind runs `exec` through `sh -c`, not zsh.
+- kitty's remote-control socket is never the literal `listen_on` value — kitty suffixes it with its own PID (`/tmp/kitty-<PID>`). The `theme.postHook` in `modules/home/caelestia.nix` globs `/tmp/kitty-*` for this reason; don't reintroduce a hardcoded `unix:/tmp/kitty` path, and don't trust a `2>/dev/null || true` on a kitty reload to mean it worked.
 
 ## GPU / Media Gotchas
 

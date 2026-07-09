@@ -206,6 +206,55 @@ pywal + `postHook` que recarga kitty vía socket de control remoto). Nota:
 hyprlock, Rofi y Starship siguen fijos en Catppuccin Mocha real —
 sincronizarlos requeriría más trabajo y queda pendiente como mejora futura.
 
+### Modo claro / oscuro
+
+El tema oscuro por defecto es Catppuccin **Mocha**; el claro es Catppuccin
+**Latte**. El cambio es global (barra/shell, kitty, GTK, Qt, btop, fuzzel,
+colores de Hyprland) y además cambia el fondo de pantalla automáticamente.
+Tres formas equivalentes de dispararlo:
+
+```bash
+theme-light    # fuerza modo claro (Latte)
+theme-dark     # fuerza modo oscuro (Mocha)
+theme-toggle   # alterna según el modo actual
+```
+
+- **Atajo**: `Super+Shift+T`.
+- **Panel de Caelestia**: la sección de estilo/wallpaper del panel también
+  trae un switch claro/oscuro — funciona igual que los comandos de arriba.
+
+Todos pasan por `caelestia scheme set -m <light|dark>`. Internamente esto
+necesitó dos fixes (detalle completo en `CLAUDE.md`):
+
+1. Catppuccin en caelestia-cli tiene **mocha solo con modo dark** y **latte
+   solo con modo light** (son flavours distintos, no una sola paleta con
+   ambos modos), así que un `-m light` "a secas" contra el flavour mocha
+   revienta. `modules/home/caelestia-scheme.nix` intercepta esa llamada
+   concreta (la misma que usa el switch del panel) y le agrega
+   `--name catppuccin --flavour latte/mocha` según el modo pedido; cualquier
+   otro uso de `caelestia scheme set` (con `--flavour`/`--name` explícitos,
+   como el bootstrap de `theme-sync.nix`) pasa intacto.
+2. El binario `caelestia-shell` trae su **propia** copia de la CLI empacada
+   en su PATH interno (vía `makeWrapper --prefix PATH`, así lo compila
+   upstream), separada del `caelestia` que se instala en el perfil general.
+   Esa copia interna ganaba siempre sobre nuestro wrapper del punto 1 — por
+   eso los comandos de terminal y el atajo ya funcionaban, pero el switch del
+   panel (que corre dentro del proceso del shell) no. El mismo archivo
+   reconstruye la variante "with-cli" de `caelestia-shell` pasándole nuestra
+   CLI ya envuelta en ese mismo argumento, así el switch del panel también
+   resuelve al wrapper.
+
+El cambio de fondo lo hace `set-wallpaper` (`modules/home/theme-mode.nix`),
+llamado tanto al iniciar sesión (`exec-once` en `hyprland.nix`, respeta el
+modo persistido en `~/.local/state/caelestia/scheme.json`) como desde el
+`postHook` de Caelestia en caliente cada vez que cambias de modo
+(`modules/home/caelestia.nix`): oscuro usa `fondo.gif`, claro usa
+`fondo-light.gif` (un gif de nubes de Wikimedia Commons, fijado por
+SHA-256 — ver `modules/home/wallpapers.nix`; es un placeholder genérico, no
+combina temáticamente con `fondo.gif`. Para poner el tuyo, deja tu propio
+archivo en `~/Pictures/Wallpapers/fondo-light.gif`: nunca se sobreescribe si
+ya existe, igual que `fondo.gif`).
+
 ### Wallpapers
 
 `~/Pictures/Wallpapers/` contiene `fondo.gif` (el fondo animado actual, vía
