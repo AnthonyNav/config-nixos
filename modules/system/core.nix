@@ -94,6 +94,9 @@
   # Hyprland exec-once — por eso quitarlo de ahi no bastaba. Caelestia ya trae
   # su propio control nativo de bluetooth (statusIcons + sidebar quick toggles).
   services.blueman.enable = false;
+  # Caelestia lee batería/tiempos restantes vía UPower; sin este servicio el
+  # icono de batería puede no aparecer aunque `bar.status.showBattery` esté activo.
+  services.upower.enable = true;
   services.power-profiles-daemon.enable = true;
   virtualisation.docker.enable = true;
 

@@ -45,6 +45,12 @@
         # queremos conservar. El duplicado real era el ícono de blueman-applet
         # en la bandeja del sistema (tray), antes del reloj — ver hyprland.nix.
       };
+      # El icono de batería vive dentro de statusIcons; al abrir ese popout,
+      # Caelestia muestra el porcentaje y el tiempo restante.
+      bar.popouts.statusIcons = true;
+
+      # También deja visible la tarjeta de batería en el dashboard de Caelestia.
+      dashboard.performance.showBattery = true;
     };
   };
 }
