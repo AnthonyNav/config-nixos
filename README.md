@@ -11,6 +11,7 @@ Configuración modular de NixOS + Flakes + Home Manager orientada a desarrollo d
 - [Atajos de teclado](#atajos-de-teclado)
 - [Escritorio (Caelestia Shell)](#escritorio-caelestia-shell)
 - [Kiro Gateway + opencode](#kiro-gateway--opencode)
+- [Edición 3D / Video](#edición-3d--video)
 - [Para qué está preparado este entorno](#para-qué-está-preparado-este-entorno)
 - [Trabajar con Flakes en proyectos](#trabajar-con-flakes-en-proyectos)
 - [Agregar una nueva máquina](#agregar-una-nueva-máquina)
@@ -406,6 +407,112 @@ rm -rf ~/dev/shared/kiro-gateway ~/.config/opencode
 
 ---
 
+## Edición 3D / Video
+
+Stack de creación audiovisual pensado para competir con Adobe (Premiere,
+After Effects, Photoshop) aprovechando la **RTX 4050 (6 GB VRAM)** de
+`victus` en modo **PRIME offload** (`hosts/victus/default.nix` —
+`hardware.nvidia.prime.offload`, incluido `enableOffloadCmd`, que provee el
+comando `nvidia-offload <app>` usado por los lanzadores de abajo).
+
+| Adobe | Aquí | Instalado vía |
+|---|---|---|
+| Premiere + Color | **DaVinci Resolve** (gratis) | `home.nix` (`davinci-resolve`) |
+| After Effects (compositing) | **Fusion** (dentro de Resolve) | — |
+| Cinema4D / 3D | **Blender** (CUDA/OptiX reales) | `modules/home/blender-gpu.nix` (standalone) |
+| NLE ligero / respaldo | **Kdenlive** | `home.nix` (`kdePackages.kdenlive`) |
+| Photoshop | **Krita** + **GIMP 3** | `home.nix` (`krita`, `gimp`) |
+| Illustrator | **Inkscape** | `home.nix` (`inkscape`) |
+
+**Importante sobre Blender:** el paquete `blender` de nixpkgs se compila
+**sin ningún backend GPU de Cycles** (confirmado en su derivación:
+`WITH_CYCLES_CUDA_BINARIES=FALSE`, `WITH_CYCLES_DEVICE_OPTIX=FALSE`) — con
+él, Preferences > System solo lista "None"/"CUDA" y CUDA no encuentra ningún
+dispositivo, aunque la GPU esté sana. Por eso `modules/home/blender-gpu.nix`
+descarga (una sola vez, versión+hash fijados a mano, checksum SHA-256
+verificado) el **build oficial de blender.org** a `~/.local/opt/blender`,
+que sí trae esos kernels precompilados — mismo patrón dual que
+opencode/claude (standalone como primario en PATH, el paquete de Nix en
+`home.nix` queda como respaldo CPU-only/reproducible).
+
+### Lanzadores (definidos en `modules/home/zsh.nix`)
+
+```bash
+resolve       # DaVinci Resolve, forzado a la RTX + XWayland (QT_QPA_PLATFORM=xcb)
+blender-gpu   # Blender standalone, forzado a la RTX + fix de LD_LIBRARY_PATH (ver abajo)
+```
+
+`kdenlive`, `krita`, `gimp` e `inkscape` no necesitan `nvidia-offload`: se
+lanzan directo por su nombre normal. `blender` a secas también resuelve ya
+al binario standalone (gana en PATH), pero sin el offload a la dGPU — para
+render en GPU usa siempre `blender-gpu`.
+
+**Nota:** estas funciones/PATH nuevas solo existen en terminales *abiertas
+después* de correr `hm-switch` — si sigues en la misma terminal donde
+corriste el switch, ábrela de nuevo.
+
+**Lanzar Resolve/Blender desde rofi (drun) también funciona**, no solo desde
+terminal: `modules/home/gpu-launchers.nix` sobreescribe los `.desktop` de
+ambas apps (mismo nombre de archivo que el original, prioridad alta vía
+`xdg.desktopEntries` + `lib.hiPrio`) para que también lleven
+`nvidia-offload`/XWayland/`LD_LIBRARY_PATH` — un `.desktop` a secas no pasa
+por zsh, así que sin esto rofi lanzaba las apps sin ninguno de esos fixes
+(Resolve fallaba bajo Wayland nativo; Blender abría el binario CPU-only de
+Nix en vez del standalone). El de Blender usa ruta absoluta a
+`~/.local/opt/blender/blender` a propósito: el PATH de la sesión gráfica
+(el que usa rofi) no es el de zsh, así que un `Exec=blender` a secas ahí
+habría vuelto a resolver al paquete de Nix.
+
+**El fix de `LD_LIBRARY_PATH` en `blender-gpu`, explicado:** el loader
+interno de Blender para CUDA (CUEW) hace `dlopen("libcuda.so")` en runtime.
+NixOS no expone esa librería en una ruta estándar — vive en
+`/run/opengl-driver/lib` — así que sin agregarla al `LD_LIBRARY_PATH` del
+proceso, Blender no la encuentra aunque exista en el sistema. Confirmado:
+sin el fix, Preferences > System solo lista "None"; con él, lista **OptiX**
+y **CUDA** con la RTX 4050 real.
+
+### Flujo de trabajo con Resolve (versión gratis)
+
+**Importante:** la versión gratis de DaVinci Resolve en Linux **no
+importa/exporta H.264/H.265** (limitación de licencia, no del hardware) — el
+metraje típico de cámara/celular necesita transcodificarse antes:
+
+```bash
+# 1. Ingesta: H.264/H.265 -> DNxHR HQ (editable sin problemas en Resolve gratis)
+to-dnxhr clip1.mp4 clip2.mp4
+
+# 2. Edita/corrige color/compón en Resolve, exporta un master DNxHR/ProRes.
+
+# 3. Entrega: master -> H.264 vía NVENC (rápido, en GPU)
+to-h264 master.mov
+```
+
+Si el paso extra molesta a futuro, la salida es comprar **Resolve Studio**
+(~$295 pago único, sí trae esos códecs) — cambiar `davinci-resolve` por
+`davinci-resolve-studio` en `home.nix`.
+
+### Notas
+
+- **Techo real de "alta calidad":** 6 GB de VRAM alcanzan sobrado para 1080p
+  y 4K moderado; vigilar en escenas Blender muy pesadas o grados 4K con
+  muchos nodos.
+- **Primera vez con Resolve:** crea su base de datos de proyectos en disco al
+  primer arranque (puede tardar un poco); si la GUI no abre bajo Hyprland, el
+  lanzador ya fuerza XWayland, que es la causa más común de fallos con apps
+  Qt en compositores Wayland nuevos.
+- **Respaldo si Resolve da problemas:** Kdenlive ingesta H.264 directo con
+  NVENC, sin necesidad de transcodificar — cubre el rol de NLE mientras se
+  resuelve cualquier fricción con Resolve.
+- **natron** (compositor nodal FOSS, alternativo a Fusion) se evaluó pero
+  está marcado `broken` en el pin actual de nixpkgs-unstable — omitido por
+  ahora; Fusion (dentro de Resolve) cubre ese rol.
+- **Actualizar la versión de Blender standalone:** edita `blenderVersion` y
+  `blenderSha256` en `modules/home/blender-gpu.nix` (el hash real se saca del
+  `blender-X.Y.Z.sha256` que publica `download.blender.org/release/`), borra
+  `~/.local/opt/blender` y corre `hm-switch` — se re-descarga y verifica solo.
+
+---
+
 ## Para qué está preparado este entorno
 
 ### Stacks de desarrollo incluidos
@@ -419,6 +526,7 @@ rm -rf ~/dev/shared/kiro-gateway ~/.config/opencode
 | **Data / Python** | Python 3, pip, Micromamba |
 | **DevOps** | Docker + Compose, GitHub CLI (`gh`) |
 | **IA / Agentes** | Claude Code, Codex (OpenAI CLI), Kiro, Kiro CLI, OpenCode |
+| **3D / Video** | DaVinci Resolve, Blender, Kdenlive, Krita, GIMP, Inkscape, ffmpeg (ver [Edición 3D / Video](#edición-3d--video)) |
 
 ### Herramientas de terminal
 

@@ -48,6 +48,7 @@ modules/system/    # NixOS system sub-modules (core services, nix-ld/AI helpers,
 - **nix-ld** (`modules/system/ai-helper.nix`) provides a broad set of runtime libraries so self-updating AI binaries (Claude Code, Codex, Kiro CLI, OpenCode) work without patching.
 - **kiro-gateway** (`modules/home/kiro-gateway.nix`) auto-starts a community proxy (`Jwadow/kiro-gateway`) that exposes Kiro's models as an OpenAI/Anthropic-compatible API for opencode. Deliberately kept **out of the Nix store**: the cloned repo, its Python venv, and secrets (`.env` with `PROXY_API_KEY`) live in `~/dev/shared/kiro-gateway/`, and opencode's `~/.config/opencode/config.json` (provider `kiro` → `http://127.0.0.1:8000/v1`) is hand-edited too — adding/removing a model is a JSON edit, no rebuild. The Nix module contributes only a `systemd.user.services.kiro-gateway` unit with `ConditionPathExists` on the venv's python, so if the out-of-Nix bootstrap is ever deleted, the service just doesn't start instead of breaking `hm-switch`. No `LD_LIBRARY_PATH` override is needed for the venv's compiled wheels (tiktoken, pydantic-core, uvloop): nix-ld already exports `NIX_LD`/`NIX_LD_LIBRARY_PATH` globally via PAM, and `systemd --user` inherits them (confirmed with `systemctl --user show-environment`). Credentials source is Kiro IDE's token (`~/.aws/sso/cache/kiro-auth-token.json`, `KIRO_CREDS_FILE` in `.env`) — no `kiro-cli login` required; the gateway self-refreshes via the stored `refreshToken`. To remove entirely: drop the import line in `home.nix` and `rm -rf ~/dev/shared/kiro-gateway ~/.config/opencode`. Full bootstrap/usage steps: README.md, section "Kiro Gateway + opencode".
 - **opencode is dual-installed on purpose**: the Nix package (`home.nix`, `home.packages`) is the reproducible fallback, but the primary binary is the standalone self-updating one at `~/.opencode/bin/opencode` (installed via `opencode upgrade --method curl` / `curl -fsSL https://opencode.ai/install | bash`), which `modules/home/zsh.nix`'s `PATH` export puts first — `opencode upgrade` can never work against the Nix copy since the store is read-only. Same pattern already used for `claude` (see the `claude()` wrapper function a few lines below in the same file).
+- **3D/video creation stack** (`victus` only): `davinci-resolve`, `kdePackages.kdenlive`, `krita`, `gimp`, `inkscape`, `ffmpeg-full`, plus `blender` (CPU-only fallback) in `home.nix`; `hardware.nvidia.prime.offload.enableOffloadCmd = true` in `hosts/victus/default.nix` (provides the `nvidia-offload <app>` wrapper); and the `resolve`/`blender-gpu`/`to-dnxhr`/`to-h264` shell functions in `modules/home/zsh.nix`. Chosen because this laptop has an NVIDIA RTX 4050 (6 GB VRAM) in PRIME offload — the one config where DaVinci Resolve is officially viable on Linux (it would not be on AMD-only hardware). The free Resolve build cannot import/export H.264/H.265 on Linux (a licensing limit, not a hardware one), hence the `to-dnxhr`/`to-h264` ffmpeg-based ingest/deliver helpers instead of paying for Resolve Studio. `natron` was considered as a free Fusion alternative but is marked `broken` in the current nixpkgs-unstable pin, so it's omitted. **Blender needed a second fix**: nixpkgs' `blender` is compiled with `WITH_CYCLES_CUDA_BINARIES=FALSE`/`WITH_CYCLES_DEVICE_OPTIX=FALSE` (confirmed by inspecting its derivation) — Cycles has zero GPU backend, so Preferences only lists "None"/"CUDA" and CUDA finds no device even though the GPU is healthy (`nvidia-smi` sees it fine). Rebuilding with `nixpkgs.config.cudaSupport = true` was considered but rejected: it forces `cudaPackages.backendStdenv` (nvcc-based), has no binary cache since it's unfree, and would mean a 30-90+ min from-source rebuild plus several GB of CUDA toolkit. Instead, `modules/home/blender-gpu.nix` downloads the official blender.org standalone Linux build (version+SHA-256 pinned by hand, verified before extracting) to `~/.local/opt/blender` via an idempotent `home.activation` script (same idiom as `wallpapers.nix`'s sparse-clone) — same dual-install pattern as opencode/claude, standalone wins in PATH, Nix package stays as reproducible CPU-only fallback. That standalone binary still needed one more fix to actually see the GPU: its CUDA loader (CUEW) does `dlopen("libcuda.so")` at runtime, which NixOS doesn't expose on a standard library path (it lives at `/run/opengl-driver/lib`) — so `blender-gpu` sets `LD_LIBRARY_PATH="/run/opengl-driver/lib:$LD_LIBRARY_PATH"` in addition to `nvidia-offload`. Confirmed via `bpy`/Cycles device query: without the fix, OptiX/CUDA both report zero devices; with it, both correctly list the RTX 4050. **A third fix was needed for launching from rofi** (not just terminal): the plain `.desktop` files shipped by the `davinci-resolve`/`blender` packages have bare `Exec=davinci-resolve` / `Exec=blender %f` — no `nvidia-offload`, no XWayland, no `LD_LIBRARY_PATH` — because rofi's `drun` mode reads `.desktop` files directly, bypassing zsh (and its `initContent` PATH/functions) entirely. `modules/home/gpu-launchers.nix` overrides both via Home Manager's `xdg.desktopEntries` using the *same* desktop-file-id as the originals (`davinci-resolve`, `blender`): Home Manager installs generated desktop items with `lib.hiPrio`, so ours wins the profile-merge collision and replaces only that one file — the rest of each package (binary, icons, sibling `.desktop`s like `davinci-control-panels-setup`) is untouched (verified by inspecting the built `home-path` output). The Blender override hardcodes the absolute path `${config.home.homeDirectory}/.local/opt/blender/blender` rather than bare `blender`, because the graphical session's PATH (systemd/PAM-managed) never gets the `~/.local/opt/blender` prepend — that only exists inside zsh's `initContent`, so a bare `Exec=blender` there would've resolved back to the CPU-only Nix package. Verified by launching both with an artificially minimal `PATH` (`/etc/profiles/per-user/<user>/bin:/run/current-system/sw/bin`, no zsh involved) matching what rofi actually uses — DaVinci Resolve opened a real XWayland window, and Blender's device query still correctly listed OptiX/CUDA with the RTX 4050. Full rationale and daily-use commands: README.md, section "Edición 3D / Video".
 
 ### Adding a new host
 
@@ -252,3 +253,62 @@ problem — check `~/.config/Kiro/logs/*/window1/exthost/kiro.kiroAgent/q-client
 for real `GenerateAssistantResponseCommand` calls using that exact model ID
 first. If the IDE itself uses it successfully, the bug is almost certainly in
 kiro-gateway's alias/normalization layer, not the account.
+
+### Blender Preferences > System shows only "None"/"CUDA", and CUDA finds no device
+
+**Symptom:** after installing the 3D/video stack, Blender's Preferences >
+System doesn't even offer OptiX as an option — only "None" and "CUDA" — and
+selecting CUDA reports no compatible device, even though `nvidia-smi` shows
+the RTX 4050 healthy and fully visible to the driver.
+
+**Cause (two separate, stacked problems — confirmed by direct inspection
+on the live system, not guessed):**
+1. **`pkgs.blender` from nixpkgs has zero Cycles GPU backend compiled in.**
+   Dumping its `.drv` (`nix show-derivation`) shows
+   `-DWITH_CYCLES_CUDA_BINARIES:BOOL=FALSE` and
+   `-DWITH_CYCLES_DEVICE_OPTIX:BOOL=FALSE` in `cmakeFlags` — CPU-only Cycles,
+   by design of the generic nixpkgs package (`cudaSupport ? config.cudaSupport`
+   defaults to off). This is why OptiX doesn't even appear as an option.
+2. **Even after switching to the official blender.org standalone build**
+   (which does ship precompiled CUDA/OptiX kernels), a *second* issue
+   remained: querying Cycles' device list via `bpy`
+   (`prefs.get_devices_for_type('CUDA'/'OPTIX')`) returned empty lists, with
+   `WARNING CUEW initialization failed: Error opening the library` in the
+   log. Blender's CUDA loader (CUEW) does a runtime `dlopen("libcuda.so")`,
+   but NixOS doesn't expose that library on any path a standalone
+   (non-nix-ld-wrapped) binary would search by default — it lives at
+   `/run/opengl-driver/lib/libcuda.so` (a symlink into the `nvidia-x11`
+   store path), not a "standard" library directory.
+
+**Fix:** don't try to make nixpkgs' `blender` GPU-capable (rebuilding with
+`nixpkgs.config.cudaSupport = true` forces `cudaPackages.backendStdenv`,
+has zero binary cache since it's unfree, and costs a 30-90+ min from-source
+rebuild plus multi-GB CUDA toolkit download). Instead:
+- `modules/home/blender-gpu.nix`: idempotent `home.activation` script
+  (same idiom as `wallpapers.nix`) downloads the official
+  `blender-X.Y.Z-linux-x64.tar.xz` from `download.blender.org`, verifies its
+  SHA-256 against blender.org's own published `.sha256` file, and extracts
+  it to `~/.local/opt/blender`. Version+hash are pinned by hand in that file
+  (no silent "latest").
+- `modules/home/zsh.nix`: `$HOME/.local/opt/blender` is prepended to `PATH`
+  (same dual-install pattern as opencode/claude — standalone wins, Nix
+  `blender` package in `home.nix` stays as the CPU-only reproducible
+  fallback).
+- The `blender-gpu` shell function sets
+  `LD_LIBRARY_PATH="/run/opengl-driver/lib:$LD_LIBRARY_PATH"` in addition to
+  `nvidia-offload`, so CUEW's `dlopen` actually finds `libcuda.so`.
+
+**Verified fix works:** ran a headless Cycles device query
+(`blender --background --python-expr "..."` calling
+`prefs.get_devices_for_type()`) with and without the `LD_LIBRARY_PATH` fix —
+without it, both OPTIX and CUDA report `[]`; with it, both correctly list
+`('NVIDIA GeForce RTX 4050 Laptop GPU', 'OPTIX'/'CUDA')`.
+
+**Prevention rule:** for any future GPU-accelerated app added to this stack,
+don't assume "nixpkgs package exists" implies "GPU backend compiled in" —
+check the package's actual `cmakeFlags`/build options
+(`nix show-derivation nixpkgs#<pkg> | grep -i <backend>`) before debugging
+the driver/hardware. And for any *standalone* (non-Nix, non-FHS-wrapped)
+binary that dlopens NVIDIA libraries at runtime, remember NixOS keeps them at
+`/run/opengl-driver/lib`, not a path a generic Linux binary would search by
+default.

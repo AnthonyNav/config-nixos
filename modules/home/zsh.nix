@@ -47,7 +47,11 @@
       # ganarle en PATH a la de Nix (home.nix, solo de respaldo/reproducible —
       # el store es de solo lectura, por eso `opencode upgrade` no puede
       # aplicarse ahí). Mismo patrón que ya existe para `claude` más abajo.
-      export PATH="$HOME/.opencode/bin:$HOME/.local/bin:$HOME/.local/share/pnpm:$HOME/.npm-global/bin:$PATH"
+      #
+      # $HOME/.local/opt/blender: build oficial de blender.org con CUDA/OptiX
+      # reales (el `blender` de nixpkgs es CPU-only, ver blender-gpu.nix) —
+      # mismo patrón, gana en PATH sobre el de Nix.
+      export PATH="$HOME/.opencode/bin:$HOME/.local/opt/blender:$HOME/.local/bin:$HOME/.local/share/pnpm:$HOME/.npm-global/bin:$PATH"
 
       nix-switch() {
         sudo nixos-rebuild switch --flake "path:$HOME/nixos-config#$(hostnamectl --static)"
@@ -88,6 +92,59 @@
           return 127
         fi
         appimage-run "$appimage" "$@" &
+      }
+
+      # --- Stack de creación 3D/video (ver README.md, "Edición 3D / Video") ---
+      # `nvidia-offload` viene de hosts/victus/default.nix
+      # (hardware.nvidia.prime.offload.enableOffloadCmd) — fuerza a la app a
+      # correr en la RTX 4050 en vez del iGPU AMD.
+
+      # DaVinci Resolve: Qt sobre Wayland nativo da problemas en Hyprland,
+      # se fuerza XWayland. Recuerda: la versión gratis no importa/exporta
+      # H.264/H.265 — usa to-dnxhr/to-h264 para eso.
+      resolve() {
+        nvidia-offload env QT_QPA_PLATFORM=xcb davinci-resolve "$@"
+      }
+
+      # Blender (standalone, ver blender-gpu.nix) forzado a la RTX. El
+      # LD_LIBRARY_PATH es necesario: el loader interno de Blender (CUEW)
+      # hace dlopen("libcuda.so") en runtime, y NixOS no lo expone en una
+      # ruta estándar de librerías — vive en /run/opengl-driver/lib
+      # (confirmado: sin esto, Preferences > System solo lista "None", con
+      # esto lista OptiX y CUDA con la RTX 4050 real). Además, activar OptiX
+      # en Preferences > System > CUDA/OptiX es config de GUI, no de Nix.
+      #
+      # Ruta absoluta a propósito (no confiar en PATH): el mismo binario se
+      # invoca así también desde el .desktop de rofi (gpu-launchers.nix),
+      # cuya sesión gráfica no ve el PATH de zsh — usar la misma ruta
+      # absoluta en ambos lados evita que se dupliquen criterios distintos.
+      blender-gpu() {
+        nvidia-offload env LD_LIBRARY_PATH="/run/opengl-driver/lib:$LD_LIBRARY_PATH" "$HOME/.local/opt/blender/blender" "$@"
+      }
+
+      # Ingesta para Resolve gratis: H.264/H.265 (típico de cámara/celular)
+      # -> DNxHR HQ, formato que sí puede importar/editar sin problemas.
+      to-dnxhr() {
+        if [ "$#" -eq 0 ]; then
+          echo "Uso: to-dnxhr archivo1.mp4 [archivo2.mp4 ...]" >&2
+          return 1
+        fi
+        local f
+        for f in "$@"; do
+          ffmpeg -i "$f" -c:v dnxhd -profile:v dnxhr_hq -pix_fmt yuv422p \
+            -c:a pcm_s16le "''${f%.*}_dnxhr.mov"
+        done
+      }
+
+      # Entrega: master DNxHR/ProRes exportado de Resolve -> H.264 vía NVENC
+      # (rápido, en la GPU) listo para subir/compartir.
+      to-h264() {
+        if [ "$#" -eq 0 ]; then
+          echo "Uso: to-h264 master.mov" >&2
+          return 1
+        fi
+        ffmpeg -i "$1" -c:v h264_nvenc -preset p5 -cq 19 -c:a aac -b:a 192k \
+          "''${1%.*}_h264.mp4"
       }
 
       claude() {
