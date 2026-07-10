@@ -29,6 +29,13 @@
       v = "nvim";
       c = "clear";
       ff = "fastfetch";
+
+      # Pritunl VPN: el cliente real (CLI + daemon + GUI) se instala a nivel
+      # de sistema, reproducible desde nixpkgs (ver modules/system/pritunl.nix)
+      # — ya no es el AppImage manual que este alias reemplaza. `pritunl` abre
+      # la GUI (Electron); la CLI real es `pritunl-client`
+      # (ver `pritunl-client --help`).
+      pritunl = "pritunl-client-electron";
     };
 
     # Configuración inteligente del historial
@@ -82,16 +89,6 @@
       night-auto() {
         pkill wlsunset 2>/dev/null || true
         systemctl --user restart wlsunset.service
-      }
-
-      pritunl() {
-        local appimage="$HOME/.local/bin/pritunl-client.AppImage"
-        if [ ! -f "$appimage" ]; then
-          echo "Pritunl Client no está instalado. Descárgalo con:" >&2
-          echo "  curl -fsSL https://github.com/pritunl/pritunl-client-electron/releases/latest/download/Pritunl.AppImage -o $appimage && chmod +x $appimage" >&2
-          return 127
-        fi
-        appimage-run "$appimage" "$@" &
       }
 
       # --- Stack de creación 3D/video (ver README.md, "Edición 3D / Video") ---

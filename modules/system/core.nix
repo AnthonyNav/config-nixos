@@ -1,6 +1,8 @@
 { lib, pkgs, username, ... }:
 
 {
+  imports = [ ./pritunl.nix ];
+
   networking.networkmanager.enable = true;
   networking.firewall.interfaces.tailscale0 = {
     allowedTCPPorts = [ 22 22000 ];   # SSH solo accesible desde la red Tailscale

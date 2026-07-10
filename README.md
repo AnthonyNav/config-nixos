@@ -600,22 +600,24 @@ ff                           # fastfetch
 nix-switch                   # reconstruir sistema
 hm-switch                    # reconstruir solo perfil de usuario
 nix-clean                    # liberar espacio (garbage collect + optimize)
-pritunl                      # VPN Pritunl (AppImage)
+pritunl                      # abre la GUI de Pritunl VPN
 ```
 
 ### VPN Pritunl
 
-El cliente Pritunl se instala como AppImage (una sola vez):
+El cliente Pritunl (`pritunl-client`) se instala a nivel de **sistema**
+(`modules/system/pritunl.nix`, importado globalmente desde
+`modules/system/core.nix`, así que está disponible en cualquier host del
+repo) — no hace falta descargar nada a mano ni AppImages: nixpkgs ya trae el
+paquete completo (CLI + daemon privilegiado + GUI Electron), compilado desde
+fuente. El daemon (`pritunl-client.service`) arranca solo con el sistema.
 
 ```bash
-curl -fsSL https://github.com/pritunl/pritunl-client-electron/releases/latest/download/Pritunl.AppImage \
-  -o ~/.local/bin/pritunl-client.AppImage && chmod +x ~/.local/bin/pritunl-client.AppImage
-```
-
-Luego, cada vez que se necesite:
-
-```bash
-pritunl
+pritunl                      # alias a la GUI (pritunl-client-electron)
+pritunl-client --help        # CLI real
+pritunl-client add <perfil.ovpn | uri-pritunl://...>
+pritunl-client list
+pritunl-client start <profile-id>
 ```
 
 ### Claude Code
