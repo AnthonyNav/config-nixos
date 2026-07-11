@@ -27,7 +27,7 @@
       inherit system;
       config.allowUnfree = true;
     };
-    mkHost = hostPath:
+    mkHost = hostPath: extraHomeModules:
       lib.nixosSystem {
         inherit system specialArgs;
         modules = [
@@ -37,23 +37,27 @@
             home-manager.useGlobalPkgs = true;
             home-manager.useUserPackages = true;
             home-manager.backupFileExtension = "hm-backup";
-            home-manager.users.${username} = import ./home.nix;
+            home-manager.users.${username}.imports = [ ./home.nix ] ++ extraHomeModules;
             home-manager.extraSpecialArgs = { inherit inputs username; };
             home-manager.sharedModules = [ catppuccin.homeModules.catppuccin ];
           }
         ];
       };
-    hostIfReady = name: hostPath:
+    hostIfReady = name: hostPath: extraHomeModules:
       lib.optionalAttrs (builtins.pathExists "${toString hostPath}/hardware-configuration.nix") {
-        ${name} = mkHost hostPath;
+        ${name} = mkHost hostPath extraHomeModules;
       };
   in {
     nixosConfigurations =
       {
-        victus = mkHost ./hosts/victus;
+        # Solo victus trae modules/home/creative-suite.nix (davinci-resolve,
+        # blender, kdenlive, etc.): es la única máquina con GPU dedicada
+        # (RTX 4050 + PRIME offload). thinkpad/desktop se quedan con el
+        # home.nix base — ver CLAUDE.md, "3D/video creation stack".
+        victus = mkHost ./hosts/victus [ ./modules/home/creative-suite.nix ];
       }
-      // hostIfReady "thinkpad" ./hosts/thinkpad
-      // hostIfReady "desktop" ./hosts/desktop;
+      // hostIfReady "thinkpad" ./hosts/thinkpad []
+      // hostIfReady "desktop" ./hosts/desktop [];
 
     homeConfigurations.${username} = home-manager.lib.homeManagerConfiguration {
       pkgs = pkgsFor;

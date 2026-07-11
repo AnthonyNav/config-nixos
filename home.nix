@@ -14,8 +14,10 @@
     ./modules/home/theme-sync.nix
     ./modules/home/wallpapers.nix
     ./modules/home/kiro-gateway.nix # herramienta desacoplada/temporal, ver el propio archivo
-    ./modules/home/blender-gpu.nix  # binario standalone con CUDA/OptiX, ver el propio archivo
-    ./modules/home/gpu-launchers.nix # overrides de .desktop para que rofi también use los fixes de GPU
+    # NOTA: modules/home/creative-suite.nix (davinci-resolve, kdenlive, blender,
+    # krita, gimp, inkscape, ffmpeg-full, blender-gpu.nix, gpu-launchers.nix) NO
+    # se importa aquí — es opt-in por host vía flake.nix (hostExtraHomeModules),
+    # solo para máquinas con GPU dedicada capaz de PRIME offload (hoy: victus).
   ];
 
   home.username = username;
@@ -116,25 +118,6 @@
     wget
     curl
     wl-clipboard
-
-    # --- CREACIÓN 3D / VIDEO (RTX 4050 vía PRIME offload, ver hosts/victus) ---
-    # Editor NLE gratuito de Resolve NO decodifica/exporta H.264/H.265 en
-    # Linux (limitación de licencia, no del hardware). Flujo: ingesta con
-    # `to-dnxhr` (zsh.nix) antes de importar, entrega con `to-h264` al final.
-    # Si esto molesta a futuro, la salida es cambiar este atributo por
-    # davinci-resolve-studio (~$295, pago único, sí trae esos códecs).
-    davinci-resolve
-    kdePackages.kdenlive # NLE de respaldo: sí ingesta H.264 directo (NVENC), sin transcodificar
-    blender              # respaldo CPU-only/reproducible; el binario con CUDA/OptiX real es
-                          # el standalone en ~/.local/opt/blender (ver modules/home/blender-gpu.nix
-                          # y zsh.nix), que gana en PATH — mismo patrón que opencode/claude.
-    krita                # pintura/raster — equivalente Photoshop
-    gimp                 # edición de foto — equivalente Photoshop
-    inkscape             # vectorial — equivalente Illustrator
-    # natron (compositor nodal alternativo a Fusion) omitido: marcado "broken"
-    # en el pin actual de nixpkgs-unstable. Fusion (dentro de Resolve) cubre
-    # ese rol; revisar en el futuro si upstream lo repara.
-    ffmpeg-full           # trae NVENC habilitado; usado por to-dnxhr/to-h264
   ];
 
   # Tema GTK — Thunar es GTK3 (no GTK4), así que solo necesita `gtk.theme`

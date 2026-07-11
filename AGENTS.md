@@ -31,6 +31,7 @@
 - `theme-light`/`theme-dark`/`theme-toggle`/`set-wallpaper` (`modules/home/theme-mode.nix`) are real executables via `home.packages`, not zsh functions — same reasoning as the rofi/`.desktop` gotcha below: Hyprland's `Super+Shift+T` bind runs `exec` through `sh -c`, not zsh.
 - kitty's remote-control socket is never the literal `listen_on` value — kitty suffixes it with its own PID (`/tmp/kitty-<PID>`). The `theme.postHook` in `modules/home/caelestia.nix` globs `/tmp/kitty-*` for this reason; don't reintroduce a hardcoded `unix:/tmp/kitty` path, and don't trust a `2>/dev/null || true` on a kitty reload to mean it worked.
 - Pritunl is a system module (`modules/system/pritunl.nix`, imported from `core.nix` for every host), not a home-manager package — its daemon needs root. `zsh.nix`'s `pritunl` is just a `shellAliases` entry to the real `pritunl-client-electron` binary; the real CLI is `pritunl-client`.
+- The 3D/video creative suite (`davinci-resolve`, `kdenlive`, `blender`, `krita`, `gimp`, `inkscape`, `ffmpeg-full`, `blender-gpu.nix`, `gpu-launchers.nix`) is not in `home.nix` — it's `modules/home/creative-suite.nix`, imported per-host as an opt-in home-manager module via `flake.nix`'s `mkHost extraHomeModules` param. Only `victus` passes it in. Don't add those packages back to shared `home.nix`; a GPU-less host would install them for nothing.
 
 ## GPU / Media Gotchas
 

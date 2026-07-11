@@ -466,12 +466,14 @@ comando `nvidia-offload <app>` usado por los lanzadores de abajo).
 
 | Adobe | Aquí | Instalado vía |
 |---|---|---|
-| Premiere + Color | **DaVinci Resolve** (gratis) | `home.nix` (`davinci-resolve`) |
+| Premiere + Color | **DaVinci Resolve** (gratis) | `modules/home/creative-suite.nix` (`davinci-resolve`) |
 | After Effects (compositing) | **Fusion** (dentro de Resolve) | — |
 | Cinema4D / 3D | **Blender** (CUDA/OptiX reales) | `modules/home/blender-gpu.nix` (standalone) |
-| NLE ligero / respaldo | **Kdenlive** | `home.nix` (`kdePackages.kdenlive`) |
-| Photoshop | **Krita** + **GIMP 3** | `home.nix` (`krita`, `gimp`) |
-| Illustrator | **Inkscape** | `home.nix` (`inkscape`) |
+| NLE ligero / respaldo | **Kdenlive** | `modules/home/creative-suite.nix` (`kdePackages.kdenlive`) |
+| Photoshop | **Krita** + **GIMP 3** | `modules/home/creative-suite.nix` (`krita`, `gimp`) |
+| Illustrator | **Inkscape** | `modules/home/creative-suite.nix` (`inkscape`) |
+
+**Todo este stack es opt-in por host** (ver `flake.nix`, `hostExtraHomeModules`/`mkHost`): solo `victus` lo importa, porque es la única máquina con GPU dedicada. Un host sin GPU discreta (p. ej. `thinkpad`) usa `home.nix` a secas y no instala nada de esto.
 
 **Importante sobre Blender:** el paquete `blender` de nixpkgs se compila
 **sin ningún backend GPU de Cycles** (confirmado en su derivación:
@@ -538,7 +540,7 @@ to-h264 master.mov
 
 Si el paso extra molesta a futuro, la salida es comprar **Resolve Studio**
 (~$295 pago único, sí trae esos códecs) — cambiar `davinci-resolve` por
-`davinci-resolve-studio` en `home.nix`.
+`davinci-resolve-studio` en `modules/home/creative-suite.nix`.
 
 ### Notas
 
