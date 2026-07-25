@@ -53,6 +53,18 @@
     mpv
     mpvpaper
 
+    # Puente de audio bidireccional teléfono <-> NixOS (mic/bocina) sobre
+    # PipeWire (ya declarado en modules/system/core.nix). qpwgraph permite
+    # enrutar visualmente qué app suena hacia el teléfono, y viceversa hacia
+    # un mic virtual (pactl module-null-sink + module-remap-source, no
+    # declarativo — ver README para los comandos de sesión). `pulseaudio` va
+    # solo por su CLI (pactl/pacmd) — pipewire NO la incluye, aunque su
+    # servidor pulse ya reemplaza al daemon real de pulseaudio.
+    sonobus
+    qpwgraph
+    pavucontrol
+    pulseaudio
+
     # --- PRODUCTIVIDAD ---
     grim
     slurp
@@ -223,6 +235,12 @@ EOF
         IdentityFile = "/home/${username}/.ssh/id_personal";
         IdentitiesOnly = true;
         User = "git";
+      };
+      "debian-server" = {
+        HostName = "192.168.1.250";
+        IdentityFile = "/home/${username}/.ssh/debian13-server-192.168.1.250";
+        IdentitiesOnly = true;
+        User = "anthony";
       };
     };
   };
