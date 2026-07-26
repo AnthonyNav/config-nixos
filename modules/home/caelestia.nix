@@ -31,8 +31,6 @@ let
       light) dconf write /org/gnome/desktop/interface/gtk-theme "'adw-gtk3'" ;;
       *) dconf write /org/gnome/desktop/interface/gtk-theme "'adw-gtk3-dark'" ;;
     esac
-
-    set-wallpaper || true
   '';
 in
 {
@@ -66,11 +64,15 @@ in
         wallpaperDir = "~/Pictures/Wallpapers";
       };
 
-      # La ventana de fondo propia de Caelestia (capa "background" de Wayland)
-      # se pinta de negro sólido cuando no hay wallpaper asignado dentro de
-      # su propio gestor, tapando nuestro mpvpaper (gif animado). La
-      # desactivamos para que mpvpaper siga siendo el único dueño del fondo.
-      background.wallpaperEnabled = false;
+      # Gestión nativa de wallpaper de Caelestia: un solo fondo estático
+      # (jpg/png/webp/svg/tiff, sin animación) compartido por todas las
+      # pantallas — elegido a mano desde el selector visual del panel/launcher
+      # en vez de un script propio (ver README.md, "Wallpapers"). Antes usaba
+      # mpvpaper con gifs animados y overrides por monitor; se retiró porque
+      # Caelestia no soporta ni animación ni wallpapers distintos por
+      # pantalla, y el usuario prefirió el flujo 100% visual sin terminal a
+      # cambio de esas dos cosas.
+      background.wallpaperEnabled = true;
 
       bar.status = {
         showBattery = true;

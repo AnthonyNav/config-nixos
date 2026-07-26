@@ -210,8 +210,9 @@ sincronizarlos requeriría más trabajo y queda pendiente como mejora futura.
 
 El tema oscuro por defecto es Catppuccin **Mocha**; el claro es Catppuccin
 **Latte**. El cambio es global (barra/shell, kitty, GTK, Qt, btop, fuzzel,
-colores de Hyprland) y además cambia el fondo de pantalla automáticamente.
-Tres formas equivalentes de dispararlo:
+colores de Hyprland). El wallpaper es independiente del modo y no cambia con
+el toggle — ver sección "Wallpapers" más abajo. Tres formas equivalentes de
+dispararlo:
 
 ```bash
 theme-light    # fuerza modo claro (Latte)
@@ -244,26 +245,58 @@ necesitó dos fixes (detalle completo en `CLAUDE.md`):
    CLI ya envuelta en ese mismo argumento, así el switch del panel también
    resuelve al wrapper.
 
-El cambio de fondo lo hace `set-wallpaper` (`modules/home/theme-mode.nix`),
-llamado tanto al iniciar sesión (`exec-once` en `hyprland.nix`, respeta el
-modo persistido en `~/.local/state/caelestia/scheme.json`) como desde el
-`postHook` de Caelestia en caliente cada vez que cambias de modo
-(`modules/home/caelestia.nix`): oscuro usa `fondo.gif`, claro usa
-`fondo-light.gif` (un gif de nubes de Wikimedia Commons, fijado por
-SHA-256 — ver `modules/home/wallpapers.nix`; es un placeholder genérico, no
-combina temáticamente con `fondo.gif`. Para poner el tuyo, deja tu propio
-archivo en `~/Pictures/Wallpapers/fondo-light.gif`: nunca se sobreescribe si
-ya existe, igual que `fondo.gif`).
+### Monitores externos
+
+`set-monitor` (`modules/home/monitors.nix`) posiciona (izquierda/derecha) y
+rota (paisaje/retrato) un monitor externo recién conectado, sin depender de
+nombres de salida fijos — a diferencia de kanshi, no necesita conocer de
+antemano qué monitor vas a conectar; lee el estado real vía `hyprctl monitors
+-j` en cada invocación. Es puramente manual: no reemplaza la regla global
+`monitor = ", preferred, auto, 1"` de `hyprland.nix`, solo la sobreescribe en
+caliente para la sesión actual — hay que volver a correrlo si reconectas el
+monitor o reinicias Hyprland/la sesión.
+
+```bash
+set-monitor right                  # extiende a la derecha del ancla, sin rotar
+set-monitor left portrait          # a la izquierda, en vertical (90°)
+set-monitor right portrait-inv     # 270° — probar si "portrait" queda al revés
+set-monitor right normal DP-2      # 3+ monitores conectados: nombre explícito
+```
+
+El "ancla" (monitor de referencia) es `eDP-1` (panel interno) si está
+presente, si no el monitor enfocado, si no el de menor id — cubre tanto
+laptops (victus, thinkpad) como `desktop` (sin panel interno). Con más de 2
+monitores conectados y sin nombre explícito, el comando lista
+`nombre / descripción` de cada uno para que elijas.
+
+Atajos de Hyprland para el caso más común (extender sin rotar):
+`Super+Alt+→` = `set-monitor right`, `Super+Alt+←` = `set-monitor left`. Los
+casos con rotación quedan solo como comando de terminal.
 
 ### Wallpapers
 
-`~/Pictures/Wallpapers/` contiene `fondo.gif` (el fondo animado actual, vía
-`mpvpaper`) más subcarpetas por tema (`catppuccin/`, `nord/`, `dracula/`,
-`gruvbox/`, `tokyo-dark/moon/storm/`, `solarized/`, `onedark/`) que combinan
-con los esquemas de color de arriba. Se descargan solas la primera vez desde
+El fondo de pantalla se gestiona de forma nativa por Caelestia
+(`background.wallpaperEnabled = true`, `modules/home/caelestia.nix`): es un
+solo wallpaper estático, compartido por todos los monitores (Caelestia no
+soporta un wallpaper distinto por pantalla, ni animación — solo
+jpg/jpeg/png/webp/svg/tiff, nada de gifs).
+
+Para elegirlo, sin tocar la terminal:
+- **Panel** (Super+D, dashboard) o la página de estilo/wallpaper del panel:
+  botones "Browse" (abre selector de archivos) y "Random" (elige uno al azar
+  de `paths.wallpaperDir`).
+- **Launcher** (Super+R): busca el wallpaper por nombre, igual que una app.
+
+`~/Pictures/Wallpapers/` trae subcarpetas por tema (`catppuccin/`, `nord/`,
+`dracula/`, `gruvbox/`, `tokyo-dark/moon/storm/`, `solarized/`, `onedark/`)
+que combinan con los esquemas de color de arriba — se descargan solas la
+primera vez desde
 [`yukazakiri/themed-wallpapers`](https://github.com/yukazakiri/themed-wallpapers)
-(ver `modules/home/wallpapers.nix`) sin tocar `fondo.gif`. El selector de
-wallpapers del launcher de Caelestia las lista directamente.
+(ver `modules/home/wallpapers.nix`). Cualquier imagen que agregues ahí (o en
+cualquier otra subcarpeta) aparece también en el selector.
+
+Si prefieres terminal de todos modos: `caelestia wallpaper -f <ruta>` fija una
+imagen puntual, `caelestia wallpaper -r` elige una al azar.
 
 ### Plugins de Caelestia
 

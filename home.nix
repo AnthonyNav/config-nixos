@@ -10,7 +10,8 @@
     ./modules/home/lock-idle.nix
     ./modules/home/caelestia.nix
     ./modules/home/caelestia-scheme.nix # interceptor: switch claro/oscuro del panel funcione con Catppuccin
-    ./modules/home/theme-mode.nix       # comandos theme-light/dark/toggle + set-wallpaper
+    ./modules/home/theme-mode.nix       # comandos theme-light/dark/toggle
+    ./modules/home/monitors.nix         # comando set-monitor (posición/rotación de monitores externos)
     ./modules/home/theme-sync.nix
     ./modules/home/wallpapers.nix
     ./modules/home/kiro-gateway.nix # herramienta desacoplada/temporal, ver el propio archivo
@@ -51,7 +52,6 @@
     nvidia-vaapi-driver
     imv
     mpv
-    mpvpaper
 
     # Puente de audio bidireccional teléfono <-> NixOS (mic/bocina) sobre
     # PipeWire (ya declarado en modules/system/core.nix). qpwgraph permite

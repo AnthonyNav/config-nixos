@@ -70,7 +70,10 @@
         };
       }
       // hostIfReady "thinkpad" ./hosts/thinkpad []
-      // hostIfReady "desktop" ./hosts/desktop [ ./modules/home/creative-suite.nix ];
+      // hostIfReady "desktop" ./hosts/desktop [
+        ./modules/home/creative-suite.nix
+        ./modules/home/monitors-desktop.nix # layout fijo de 3 monitores, ver ese archivo
+      ];
 
     homeConfigurations.${username} = home-manager.lib.homeManagerConfiguration {
       pkgs = pkgsFor;

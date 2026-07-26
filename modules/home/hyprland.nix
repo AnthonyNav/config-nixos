@@ -1,23 +1,25 @@
-{ ... }:
+{ lib, ... }:
 
 {
   wayland.windowManager.hyprland = {
     enable = true;
     configType = "hyprlang";
     systemd.enable = true;
-    
+
     settings = {
-      monitor = ", preferred, auto, 1";
+      # mkDefault: hosts con layout de monitores fijo (ver
+      # modules/home/monitors-desktop.nix) sobreescriben esto por completo con
+      # una lista de reglas explícitas — este comodín solo aplica donde nadie
+      # más define `monitor` (victus, thinkpad, o cualquier salida nueva no
+      # contemplada en el override).
+      monitor = lib.mkDefault ", preferred, auto, 1";
 
       "exec-once" = [
         # Caelestia Shell se autoarranca vía su propio servicio systemd --user
         # (programs.caelestia.systemd.enable, ver modules/home/caelestia.nix);
-        # no necesita exec-once aquí.
-        # set-wallpaper (modules/home/theme-mode.nix) elige fondo.gif o
-        # fondo-light.gif según el modo persistido en scheme.json, en vez de
-        # asumir siempre oscuro — así el fondo ya arranca correcto tras
-        # reloguear en modo claro.
-        "set-wallpaper"
+        # no necesita exec-once aquí. Tampoco lo necesita el wallpaper: es la
+        # gestión nativa de Caelestia (background.wallpaperEnabled = true),
+        # se pinta sola al arrancar el shell.
         # nm-applet y blueman-applet quitados: eran íconos de bandeja
         # duplicados; Caelestia ya tiene control nativo de red y bluetooth
         # (contenedor statusIcons + sidebar de quick toggles).
@@ -110,6 +112,13 @@
         # modules/home/caelestia-scheme.nix). Mismo efecto que theme-toggle
         # (zsh.nix) o el switch del panel de Caelestia.
         "$mainMod SHIFT, T, exec, theme-toggle"
+
+        # Posiciona un monitor externo recién conectado a la izq/der del
+        # ancla, sin rotar (ver README.md, "Monitores externos" y
+        # modules/home/monitors.nix). Para rotación usa el comando de
+        # terminal: `set-monitor left|right portrait`.
+        "$mainMod ALT, right, exec, set-monitor right"
+        "$mainMod ALT, left, exec, set-monitor left"
 
         # Cheatsheet de atajos (muestra los binds activos de Hyprland via rofi)
         "$mainMod SHIFT, K, exec, hyprctl binds -j | jq -r '.[] | \"\\(.modmask)\\t\\(.key)\\t→\\t\\(.dispatcher) \\(.arg)\"' | column -t | rofi -dmenu -i -p \"Atajos de teclado\""
