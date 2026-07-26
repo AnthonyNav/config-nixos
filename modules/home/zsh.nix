@@ -92,15 +92,19 @@
       }
 
       # --- Stack de creación 3D/video (ver README.md, "Edición 3D / Video") ---
-      # `nvidia-offload` viene de hosts/victus/default.nix
-      # (hardware.nvidia.prime.offload.enableOffloadCmd) — fuerza a la app a
-      # correr en la RTX 4050 en vez del iGPU AMD.
+      # `gpu-launch` (definido más abajo via home.packages) decide en runtime
+      # si usar `nvidia-offload` (solo existe en laptops con GPU híbrida vía
+      # hardware.nvidia.prime.offload.enableOffloadCmd, ej. victus con RTX
+      # 4050 + iGPU AMD) o correr el comando tal cual (desktops con una sola
+      # GPU NVIDIA y sin iGPU, ej. desktop con RTX 3060 Ti sobre un i5-12400F
+      # — el sufijo F confirma que no hay iGPU, así que no hay a qué hacerle
+      # offload). Mismo wrapper usado por los .desktop de gpu-launchers.nix.
 
       # DaVinci Resolve: Qt sobre Wayland nativo da problemas en Hyprland,
       # se fuerza XWayland. Recuerda: la versión gratis no importa/exporta
       # H.264/H.265 — usa to-dnxhr/to-h264 para eso.
       resolve() {
-        nvidia-offload env QT_QPA_PLATFORM=xcb davinci-resolve "$@"
+        gpu-launch env QT_QPA_PLATFORM=xcb davinci-resolve "$@"
       }
 
       # Blender (standalone, ver blender-gpu.nix) forzado a la RTX. El
@@ -116,7 +120,7 @@
       # cuya sesión gráfica no ve el PATH de zsh — usar la misma ruta
       # absoluta en ambos lados evita que se dupliquen criterios distintos.
       blender-gpu() {
-        nvidia-offload env LD_LIBRARY_PATH="/run/opengl-driver/lib:$LD_LIBRARY_PATH" "$HOME/.local/opt/blender/blender" "$@"
+        gpu-launch env LD_LIBRARY_PATH="/run/opengl-driver/lib:$LD_LIBRARY_PATH" "$HOME/.local/opt/blender/blender" "$@"
       }
 
       # Ingesta para Resolve gratis: H.264/H.265 (típico de cámara/celular)
@@ -276,4 +280,20 @@
     enable = true;
     enableZshIntegration = true;
   };
+
+  # Ejecutable real en el PATH del perfil (no función zsh) a propósito:
+  # también lo invocan los .desktop de gpu-launchers.nix, cuya sesión
+  # gráfica (rofi/Hyprland) resuelve contra el PATH de systemd/PAM, no el
+  # de zsh — mismo motivo por el que `set-wallpaper` (wallpapers.nix)
+  # tampoco es una función. Ver comentario junto a resolve()/blender-gpu()
+  # arriba para el porqué de este wrapper.
+  home.packages = [
+    (pkgs.writeShellScriptBin "gpu-launch" ''
+      if command -v nvidia-offload >/dev/null 2>&1; then
+        exec nvidia-offload "$@"
+      else
+        exec "$@"
+      fi
+    '')
+  ];
 }

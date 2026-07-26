@@ -50,10 +50,11 @@
   in {
     nixosConfigurations =
       {
-        # Solo victus trae modules/home/creative-suite.nix (davinci-resolve,
-        # blender, kdenlive, etc.): es la única máquina con GPU dedicada
-        # (RTX 4050 + PRIME offload). thinkpad/desktop se quedan con el
-        # home.nix base — ver CLAUDE.md, "3D/video creation stack".
+        # victus y desktop traen modules/home/creative-suite.nix
+        # (davinci-resolve, blender, kdenlive, etc.): ambas tienen GPU NVIDIA
+        # dedicada (victus: RTX 4050 híbrida + PRIME offload; desktop: RTX
+        # 3060 Ti única, sin iGPU). thinkpad se queda con el home.nix base —
+        # ver CLAUDE.md, "3D/video creation stack".
         victus = mkHost ./hosts/victus [ ./modules/home/creative-suite.nix ];
 
         # ISO instaladora personalizada, no un host real: SSH ya autorizado +
@@ -69,7 +70,7 @@
         };
       }
       // hostIfReady "thinkpad" ./hosts/thinkpad []
-      // hostIfReady "desktop" ./hosts/desktop [];
+      // hostIfReady "desktop" ./hosts/desktop [ ./modules/home/creative-suite.nix ];
 
     homeConfigurations.${username} = home-manager.lib.homeManagerConfiguration {
       pkgs = pkgsFor;

@@ -32,8 +32,10 @@
       icon = "davinci-resolve";
       terminal = false;
       categories = [ "AudioVideo" "AudioVideoEditing" "Video" "Graphics" ];
-      # Mismo comando que la función `resolve` de zsh.nix.
-      exec = "nvidia-offload env QT_QPA_PLATFORM=xcb davinci-resolve";
+      # Mismo comando que la función `resolve` de zsh.nix (usa el wrapper
+      # `gpu-launch` — ver comentario ahí sobre por qué ya no es
+      # `nvidia-offload` a secas).
+      exec = "gpu-launch env QT_QPA_PLATFORM=xcb davinci-resolve";
       settings.StartupWMClass = "resolve";
     };
 
@@ -46,8 +48,10 @@
       mimeType = [ "application/x-blender" ];
       categories = [ "Graphics" "3DGraphics" ];
       # Mismo comando que la función `blender-gpu` de zsh.nix, pero con ruta
-      # absoluta al standalone (ver comentario arriba del por qué).
-      exec = "nvidia-offload env LD_LIBRARY_PATH=/run/opengl-driver/lib ${config.home.homeDirectory}/.local/opt/blender/blender %f";
+      # absoluta al standalone (ver comentario arriba del por qué). Usa el
+      # wrapper `gpu-launch` — ver zsh.nix sobre por qué ya no es
+      # `nvidia-offload` a secas.
+      exec = "gpu-launch env LD_LIBRARY_PATH=/run/opengl-driver/lib ${config.home.homeDirectory}/.local/opt/blender/blender %f";
       settings.StartupWMClass = "Blender";
     };
   };
