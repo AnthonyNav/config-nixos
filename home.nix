@@ -94,10 +94,10 @@
     mockgen
     kiro
     kiro-cli
+    antigravity
     opencode # respaldo/reproducible; la versión primaria es la autoactualizable
              # en ~/.opencode/bin (PATH la prioriza, ver modules/home/zsh.nix) —
              # `opencode upgrade` no puede escribir en este paquete (store RO).
-    codex
     claude-code
     rtk # CLI que comprime salidas de comandos (git, grep, pytest, etc.) antes
         # de que lleguen al contexto de agentes IA, para ahorrar tokens.
