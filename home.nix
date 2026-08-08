@@ -99,11 +99,15 @@
              # `opencode upgrade` no puede escribir en este paquete (store RO).
     codex
     claude-code
+    rtk # CLI que comprime salidas de comandos (git, grep, pytest, etc.) antes
+        # de que lleguen al contexto de agentes IA, para ahorrar tokens.
 
     # Ciencia de Datos y Python
     python3
     python3Packages.pip
     micromamba
+    uv # gestor de paquetes/venvs de Python; usado aquí para `uv tool install
+       # graphifyy` (Graphify no está en nixpkgs).
 
     # Ingeniería de Software C++
     gcc
