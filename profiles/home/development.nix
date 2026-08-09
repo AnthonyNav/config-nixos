@@ -3,6 +3,7 @@
 {
   imports = [
     ../../modules/home/zsh.nix
+    ../../modules/home/nixos-update.nix
     ../../modules/home/kiro-gateway.nix
     ../../modules/home/opencode.nix
   ];

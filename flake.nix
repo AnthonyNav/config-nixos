@@ -23,6 +23,11 @@
       url = "github:numtide/treefmt-nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    kiro-gateway = {
+      url = "github:AnthonyNav/kiro-gateway/91f42a27cbecab5c31c01192e5a1d9018bc7320d";
+      flake = false;
+    };
   };
 
   outputs =

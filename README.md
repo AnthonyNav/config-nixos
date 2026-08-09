@@ -45,30 +45,37 @@ cd ~/nixos-config
 sudo nixos-generate-config --show-hardware-config > hosts/<nombre>/hardware-configuration.nix
 ```
 
-### Reconstruir el sistema
+### Primera activación
 
 ```bash
-# Detecta el hostname automáticamente (requiere que coincida con la carpeta del host)
-nix-switch
-
-# O explícitamente
-sudo nixos-rebuild switch --flake .#victus
-
-# Con archivos nuevos aún sin git add
+# `nix-switch` aún no existe en una instalación nueva.
 sudo nixos-rebuild switch --flake "path:$PWD#victus"
 ```
 
-### Solo perfil de usuario (sin cambios de sistema)
+### Actualizar una máquina existente
 
 ```bash
-hm-switch
+nixos-update
 ```
 
-> `nix-switch` y `hm-switch` son funciones Zsh definidas en `modules/home/zsh.nix`.  
-> Usan siempre `path:` internamente para soportar archivos sin rastrear por git.
-> `hm-switch` selecciona el perfil del hostname para conservar sus features.
-> Todos los hosts reciben perfiles base, desarrollo y clientes de base de datos;
-> ThinkPad nunca recibe la suite creativa NVIDIA.
+`nixos-update` es el único flujo de despliegue diario: exige un árbol limpio en
+`main`, obtiene `origin/main` solo mediante fast-forward, valida el flake,
+activa el host detectado y actualiza el gateway Kiro si ya está configurado. No
+actualiza inputs de Nix ni mezcla cambios locales.
+
+`nix-switch` conserva el flujo de desarrollo para aplicar cambios locales, y
+`hm-switch` aplica solo el perfil de usuario. Todos los hosts reciben perfiles
+base, desarrollo y clientes de base de datos; ThinkPad nunca recibe la suite
+creativa NVIDIA.
+
+### Limpiar el portapapeles
+
+```bash
+clipboard-clear
+```
+
+El comando borra los portapapeles estándar y primario de Wayland, además del
+historial de `cliphist`.
 
 ---
 
@@ -304,24 +311,20 @@ DeepSeek, Qwen, GLM, MiniMax...) como una API OpenAI/Anthropic-compatible, para
 poder usarlos desde **opencode** (ya instalado, ver `home.nix`) u otras
 herramientas que acepten `baseURL` + `apiKey`.
 
-**Diseño a propósito desacoplado de Nix** (es una herramienta de comunidad,
-puede ser temporal): el código, el venv de Python y los secretos viven fuera
-del store, en `~/dev/shared/kiro-gateway/`. Nix solo aporta un
-`systemd --user service` mínimo (`modules/home/kiro-gateway.nix`) que lo
-arranca solo al iniciar sesión. La frontera Nix / fuera-de-Nix está documentada
-en [docs/maintainer.md](docs/maintainer.md).
+**Diseño reproducible con secretos locales:** el código procede del fork
+`AnthonyNav/kiro-gateway` fijado por `flake.lock`. El venv y los secretos quedan
+fuera del store: `~/.local/share/kiro-gateway/` y
+`~/.config/kiro-gateway/.env`. Nix aporta las unidades de usuario y actualiza
+el código con el resto de la configuración. Las dependencias Python probadas se
+fijan en `modules/home/kiro-gateway-requirements.txt`.
 
 ### Bootstrap (una sola vez, o para reproducir en otra máquina)
 
 ```bash
-git clone git@github.com-personal:AnthonyNav/kiro-gateway.git ~/dev/shared/kiro-gateway
-cd ~/dev/shared/kiro-gateway
-git checkout 91f42a27cbecab5c31c01192e5a1d9018bc7320d
-python3 -m venv .venv
-.venv/bin/pip install -r requirements.txt
+mkdir -p ~/.config/kiro-gateway
 ```
 
-Crea `~/dev/shared/kiro-gateway/.env` (`chmod 600`, nunca se versiona):
+Crea `~/.config/kiro-gateway/.env` (`chmod 600`, nunca se versiona):
 
 ```bash
 PROXY_API_KEY="$(python3 -c 'import secrets; print(secrets.token_hex(24))')"  # invéntala, es tuya
@@ -330,14 +333,20 @@ SERVER_HOST="127.0.0.1"
 SERVER_PORT="8000"
 ```
 
+Después ejecuta:
+
+```bash
+kiro-gateway-bootstrap
+```
+
 `KIRO_CREDS_FILE` apunta al token que genera **Kiro IDE** al hacer login
 (no requiere `kiro-cli login` aparte); el gateway lo refresca solo con el
 `refreshToken` que ya trae ese archivo. Si prefieres usar `kiro-cli` en su
 lugar, revisa `.env.example` del repo (Opción 3, vía su SQLite).
 
-Aplica el `hm-switch` normal para que el `systemd.user.service` levante el
-gateway automáticamente (con `ConditionPathExists`: si el venv de arriba no
-existe, el servicio no falla, simplemente no corre).
+El bootstrap crea el venv local desde la revisión bloqueada y arranca el
+gateway. En equipos ya configurados migra automáticamente el `.env` previo de
+`~/dev/shared/kiro-gateway/` la primera vez que se ejecuta.
 
 ### Uso diario
 
@@ -440,8 +449,8 @@ entrada bajo `"provider"` en `opencode/opencode.json`, con su propio
 
 ```bash
 # 1. Quita el import de kiro-gateway de profiles/home/development.nix, hm-switch.
-# 2. Borra el código/venv/secretos (no están versionados, es seguro):
-rm -rf ~/dev/shared/kiro-gateway ~/.config/opencode
+# 2. Borra el venv, secretos y estado local (no están versionados, es seguro):
+rm -rf ~/.local/share/kiro-gateway ~/.config/kiro-gateway ~/.config/opencode
 ```
 
 ---
@@ -752,11 +761,14 @@ nix build               # construir el output por defecto
 
 ### Actualizar las dependencias del sistema
 
+Esto se hace en un branch y PR dedicado, nunca con `nixos-update` en una
+máquina de uso diario:
+
 ```bash
 cd ~/nixos-config
 nix flake update        # actualiza las entradas fijadas para todos los hosts
 nix flake check --no-write-lock-file
-nix-switch              # aplica las actualizaciones
+# construye los hosts afectados y abre un PR hacia main
 ```
 
 ---

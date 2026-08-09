@@ -20,8 +20,9 @@ managed files under `~/.config/opencode/` automatically.
 
 `opencode/opencode.json` is the Nix-managed provider configuration. Its Kiro
 key is the `{env:PROXY_API_KEY}` runtime placeholder, resolved by the managed
-`opencode` wrapper from the gateway's private `.env`. Do not add tokens, OAuth
-data, or database passwords to Git.
+`opencode` wrapper from `~/.config/kiro-gateway/.env`. Gateway source is pinned
+by `flake.lock`; its venv stays local under `~/.local/share/kiro-gateway/`.
+Do not add tokens, OAuth data, or database passwords to Git.
 
 The managed plugin and skills work without changing the local Kiro config.
 Edit the repository configuration, retain its `$schema`, and validate JSON

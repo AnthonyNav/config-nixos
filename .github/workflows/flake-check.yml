@@ -3,7 +3,7 @@ name: Flake checks
 on:
   pull_request:
   push:
-    branches: [main, caelestia]
+    branches: [main]
 
 jobs:
   check:
@@ -16,3 +16,15 @@ jobs:
       - run: node --check opencode/plugins/rtk.js
       - run: jq empty opencode/opencode.json
       - run: jq empty opencode/kiro-models.json
+
+  build-host:
+    needs: check
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        host: [victus, desktop, thinkpad]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: cachix/install-nix-action@v31
+      - run: nix build --no-write-lock-file .#nixosConfigurations.${{ matrix.host }}.config.system.build.toplevel

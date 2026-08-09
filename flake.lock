@@ -87,6 +87,23 @@
         "type": "github"
       }
     },
+    "kiro-gateway": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1786294530,
+        "narHash": "sha256-eEOKiVDEu+qNm5plw9bpJcM1MkYXpF2H3deWfcHwK5U=",
+        "owner": "AnthonyNav",
+        "repo": "kiro-gateway",
+        "rev": "91f42a27cbecab5c31c01192e5a1d9018bc7320d",
+        "type": "github"
+      },
+      "original": {
+        "owner": "AnthonyNav",
+        "repo": "kiro-gateway",
+        "rev": "91f42a27cbecab5c31c01192e5a1d9018bc7320d",
+        "type": "github"
+      }
+    },
     "m3shapes": {
       "flake": false,
       "locked": {
@@ -146,6 +163,7 @@
         "caelestia-shell": "caelestia-shell",
         "catppuccin": "catppuccin",
         "home-manager": "home-manager",
+        "kiro-gateway": "kiro-gateway",
         "nixpkgs": "nixpkgs",
         "treefmt-nix": "treefmt-nix"
       }

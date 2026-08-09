@@ -40,6 +40,12 @@ Apply the complete configuration for the current host:
 nix-switch
 ```
 
+Receive the reviewed configuration from `main`, validate it, and apply it:
+
+```sh
+nixos-update
+```
+
 Apply only the Home Manager profile for the current host:
 
 ```sh
@@ -48,6 +54,9 @@ hm-switch
 
 `hm-switch` selects `anthony@$(hostnamectl --static)`. It must not be changed
 back to a generic profile because that would omit host-specific features.
+`nixos-update` rejects dirty trees, non-`main` branches, and divergent local
+history. It is the only normal deployment command; `nix-switch` is for local
+development before opening a PR.
 
 ## Non-Negotiable Invariants
 
@@ -57,10 +66,10 @@ back to a generic profile because that would omit host-specific features.
 - Caelestia is the shell; Hyprland owns window navigation, scratchpad,
   mouse move/resize, and Alt-Tab. Verify syntax against the installed
   Hyprland before adding window or layer rules.
-- Kiro Gateway intentionally remains outside the Nix store in
-  `~/dev/shared/kiro-gateway/`. Its `.env` contains the local secret, while
-  Nix manages OpenCode's base configuration. The gateway discovers the account
-  catalog from `management.<region>.kiro.dev`; the
+- Kiro Gateway source is pinned as the `kiro-gateway` flake input. Its `.env`
+  remains local in `~/.config/kiro-gateway/` and its venv in
+  `~/.local/share/kiro-gateway/`; Nix manages OpenCode's base configuration.
+  The gateway discovers the account catalog from `management.<region>.kiro.dev`; the
   `kiro-opencode-model-sync` timer writes its mutable overlay under XDG state.
   Validate it with a real completion, not only `/health` or `/v1/models`.
 - Use Kiro model ID `auto`, never `auto-kiro`.
@@ -105,6 +114,12 @@ examples. Do not enable a credential-bearing MCP globally or commit its token.
 
 Claude Code remains installed as a secondary CLI. Its local permissions file
 is not part of this repository.
+
+## Contributions
+
+All changes use a short-lived branch and a PR to `main`. Read
+`CONTRIBUTING.md` before opening a PR. CI formats, evaluates, and builds every
+workstation; branch protection must require those checks and a review.
 
 ## External Artifacts
 

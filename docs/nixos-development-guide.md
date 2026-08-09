@@ -111,13 +111,15 @@ For a Home Manager-only change, build the matching activation package:
 nix build --no-write-lock-file .#homeConfigurations."anthony@victus".activationPackage
 ```
 
-Only then apply with `nix-switch` or `hm-switch`. If an activation goes wrong,
+Only then apply locally with `nix-switch` or `hm-switch`. Once the PR is merged,
+each workstation receives it with `nixos-update`. If an activation goes wrong,
 select an earlier boot generation or run `sudo nixos-rebuild switch --rollback`.
 
 ## 6. Update Deliberately
 
 An input update changes versions for every host that consumes the shared lock.
-Keep it separate from functional refactors:
+Keep it separate from functional refactors in its own PR. Do not run this as
+part of a normal workstation update:
 
 ```sh
 nix flake update
@@ -151,4 +153,5 @@ update method, secrets boundary, and a command that proves it works.
 
 The goal is not to force everything into Nix immediately. The goal is to know
 which state is reproducible, which is intentionally local, and how to recover
-either one on a new machine.
+either one on a new machine. Kiro Gateway source is now pinned by the flake;
+only its secrets and virtual environment remain local.

@@ -11,7 +11,7 @@ let
     name = "opencode";
     runtimeInputs = [ pkgs.opencode ];
     text = ''
-      gateway_env="$HOME/dev/shared/kiro-gateway/.env"
+      gateway_env="''${XDG_CONFIG_HOME:-$HOME/.config}/kiro-gateway/.env"
       if [[ ! -r "$gateway_env" ]]; then
         printf 'OpenCode requires a readable Kiro Gateway environment file: %s\n' "$gateway_env" >&2
         exit 1

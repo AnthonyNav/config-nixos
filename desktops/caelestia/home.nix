@@ -1,5 +1,22 @@
 { pkgs, ... }:
 
+let
+  clipboardClear = pkgs.writeShellApplication {
+    name = "clipboard-clear";
+    runtimeInputs = with pkgs; [
+      wl-clipboard
+      cliphist
+      libnotify
+    ];
+    text = ''
+      wl-copy --clear
+      wl-copy --primary --clear
+      cliphist wipe
+      notify-send "Portapapeles" "Contenido e historial eliminados"
+    '';
+  };
+in
+
 {
   imports = [
     ../../modules/home/hyprland.nix
@@ -29,6 +46,7 @@
     wl-clipboard
     cliphist
     hyprpicker
+    clipboardClear
   ];
 
   # Caelestia renders GTK files dynamically. Home Manager must not own GTK4 CSS.

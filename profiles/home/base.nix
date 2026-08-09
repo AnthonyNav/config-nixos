@@ -111,6 +111,13 @@
           email = "anthonydevxp@gmail.com";
         };
       }
+      {
+        condition = "gitdir:/home/${username}/nixos-config/";
+        contents.user = {
+          name = "Antonio Zempoaltecatl";
+          email = "anthonydevxp@gmail.com";
+        };
+      }
     ];
   };
 
