@@ -24,8 +24,8 @@ Configuración modular de NixOS + Flakes + Home Manager orientada a desarrollo d
 | Host | Estado | Hardware |
 |---|---|---|
 | `victus` | Activo | HP Victus — AMD HawkPoint + NVIDIA RTX 4050 |
-| `thinkpad` | Listo (falta hardware-configuration.nix) | ThinkPad |
-| `desktop` | Listo (falta hardware-configuration.nix) | Desktop |
+| `thinkpad` | Activo | ThinkPad con gráficos integrados |
+| `desktop` | Activo | Desktop — NVIDIA RTX 3060 Ti |
 
 ---
 
@@ -65,6 +65,7 @@ hm-switch
 
 > `nix-switch` y `hm-switch` son funciones Zsh definidas en `modules/home/zsh.nix`.  
 > Usan siempre `path:` internamente para soportar archivos sin rastrear por git.
+> `hm-switch` selecciona el perfil del hostname para conservar sus features.
 
 ---
 
@@ -224,26 +225,10 @@ theme-toggle   # alterna según el modo actual
 - **Panel de Caelestia**: la sección de estilo/wallpaper del panel también
   trae un switch claro/oscuro — funciona igual que los comandos de arriba.
 
-Todos pasan por `caelestia scheme set -m <light|dark>`. Internamente esto
-necesitó dos fixes (detalle completo en `CLAUDE.md`):
-
-1. Catppuccin en caelestia-cli tiene **mocha solo con modo dark** y **latte
-   solo con modo light** (son flavours distintos, no una sola paleta con
-   ambos modos), así que un `-m light` "a secas" contra el flavour mocha
-   revienta. `modules/home/caelestia-scheme.nix` intercepta esa llamada
-   concreta (la misma que usa el switch del panel) y le agrega
-   `--name catppuccin --flavour latte/mocha` según el modo pedido; cualquier
-   otro uso de `caelestia scheme set` (con `--flavour`/`--name` explícitos,
-   como el bootstrap de `theme-sync.nix`) pasa intacto.
-2. El binario `caelestia-shell` trae su **propia** copia de la CLI empacada
-   en su PATH interno (vía `makeWrapper --prefix PATH`, así lo compila
-   upstream), separada del `caelestia` que se instala en el perfil general.
-   Esa copia interna ganaba siempre sobre nuestro wrapper del punto 1 — por
-   eso los comandos de terminal y el atajo ya funcionaban, pero el switch del
-   panel (que corre dentro del proceso del shell) no. El mismo archivo
-   reconstruye la variante "with-cli" de `caelestia-shell` pasándole nuestra
-   CLI ya envuelta en ese mismo argumento, así el switch del panel también
-   resuelve al wrapper.
+Todos pasan por `caelestia scheme set -m <light|dark>`. El módulo
+`caelestia-scheme.nix` adapta el flavour Catppuccin correcto y reemplaza tanto
+la CLI general como la CLI interna de Caelestia Shell. Los detalles de
+mantenimiento están en [docs/maintainer.md](docs/maintainer.md).
 
 ### Monitores externos
 
@@ -320,8 +305,8 @@ herramientas que acepten `baseURL` + `apiKey`.
 puede ser temporal): el código, el venv de Python y los secretos viven fuera
 del store, en `~/dev/shared/kiro-gateway/`. Nix solo aporta un
 `systemd --user service` mínimo (`modules/home/kiro-gateway.nix`) que lo
-arranca solo al iniciar sesión. Ver ese archivo y la sección correspondiente
-de `CLAUDE.md` para el detalle de la frontera Nix / fuera-de-Nix.
+arranca solo al iniciar sesión. La frontera Nix / fuera-de-Nix está documentada
+en [docs/maintainer.md](docs/maintainer.md).
 
 ### Bootstrap (una sola vez, o para reproducir en otra máquina)
 
@@ -372,36 +357,24 @@ aunque el chat en sí falle. La prueba real es un mensaje de verdad:
 opencode run "responde solo con la palabra: funciona" -m kiro/claude-haiku-4.5
 ```
 
-Si eso falla (502 / "profileArn is required" / etc.), revisa
-`kgw-logs` y la sección "kiro-gateway" de `CLAUDE.md` (Troubleshooting) — ahí
-está documentado el fix real que se necesitó en esta cuenta
-(`KIRO_API_REGION` + `PROFILE_ARN` en el `.env`, ya aplicado en esta
-máquina).
+Si eso falla (502 / "profileArn is required" / etc.), revisa `kgw-logs` y
+confirma `KIRO_API_REGION` y `PROFILE_ARN` en el `.env` local. La regla de
+validación y el límite de responsabilidad están en
+[docs/maintainer.md](docs/maintainer.md).
 
-### Actualizar opencode
+### Actualizar OpenCode
 
-opencode viene de dos fuentes a la vez:
-
-- **`~/.opencode/bin/opencode`**: instalación standalone/autoactualizable
-  (`opencode upgrade`). **Es la que gana** en el PATH (`modules/home/zsh.nix`
-  la antepone a todo lo demás) — así se resuelve el aviso de "hay
-  actualizaciones pero no se pueden instalar": el binario de Nix vive en el
-  store, de solo lectura, y `opencode upgrade` nunca puede escribir ahí.
-- **El paquete de Nix** (`home.nix`, `home.packages`): solo queda como
-  respaldo reproducible, igual que `claude-code`.
-
-Bootstrap (una sola vez, o si `~/.opencode` se borra):
-```bash
-curl -fsSL https://opencode.ai/install | bash
-# o, con el opencode de Nix como bootstrapper de un solo uso:
-opencode upgrade --method curl
-```
-Después de eso, `opencode upgrade` funciona normal, para siempre.
+OpenCode se instala desde Nix y su versión queda fijada para todos los equipos
+por `flake.lock`. No ejecutes `opencode upgrade`: actualiza el lock del repo,
+valida los hosts y aplica `nix-switch`. Las skills compartidas y el plugin RTK
+se distribuyen mediante Home Manager; reinicia OpenCode después de cambiar una
+skill o plugin.
 
 ### Config de opencode
 
-`~/.config/opencode/config.json` (fuera de Nix, editable a mano — agregar un
-modelo no requiere rebuild):
+`~/.config/opencode/config.json` queda fuera de Nix porque contiene el secreto
+local. `opencode/config.example.json` es la plantilla sin secretos. Agregar un
+modelo no requiere rebuild:
 
 ```json
 {
@@ -439,13 +412,9 @@ modelo no requiere rebuild):
 ```
 
 **Importante sobre el modelo `auto`:** úsalo con el ID literal `"auto"`, **no**
-`"auto-kiro"`. La guía original de kiro-gateway sugiere `"auto-kiro"` como
-alias amigable, pero la versión actual del gateway tiene un bug real: ese
-alias solo se resuelve en el endpoint de listado (`/v1/models`), no en el
-código que arma la petición de chat — así que `auto-kiro` se manda tal cual a
-Kiro y lo rechaza ("Invalid model ID..."). El ID real `auto` sí funciona
-perfecto (confirmado con una respuesta real del modelo). Detalle completo del
-bug en `CLAUDE.md`.
+`"auto-kiro"`. El alias se resuelve para el listado, pero no para solicitudes
+de chat; el ID real `auto` sí funciona. Ver
+[docs/maintainer.md](docs/maintainer.md) para esta regla de operación.
 
 **Para agregar otro modelo** (con el gateway corriendo, para ver los IDs
 reales disponibles en esta cuenta):
@@ -491,11 +460,8 @@ rm -rf ~/dev/shared/kiro-gateway ~/.config/opencode
 
 ## Edición 3D / Video
 
-Stack de creación audiovisual pensado para competir con Adobe (Premiere,
-After Effects, Photoshop) aprovechando la **RTX 4050 (6 GB VRAM)** de
-`victus` en modo **PRIME offload** (`hosts/victus/default.nix` —
-`hardware.nvidia.prime.offload`, incluido `enableOffloadCmd`, que provee el
-comando `nvidia-offload <app>` usado por los lanzadores de abajo).
+Stack de creación audiovisual para los hosts NVIDIA: `victus` usa su RTX 4050
+mediante PRIME offload y `desktop` usa su RTX 3060 Ti como GPU principal.
 
 | Adobe | Aquí | Instalado vía |
 |---|---|---|
@@ -506,7 +472,9 @@ comando `nvidia-offload <app>` usado por los lanzadores de abajo).
 | Photoshop | **Krita** + **GIMP 3** | `modules/home/creative-suite.nix` (`krita`, `gimp`) |
 | Illustrator | **Inkscape** | `modules/home/creative-suite.nix` (`inkscape`) |
 
-**Todo este stack es opt-in por host** (ver `flake.nix`, `hostExtraHomeModules`/`mkHost`): solo `victus` lo importa, porque es la única máquina con GPU dedicada. Un host sin GPU discreta (p. ej. `thinkpad`) usa `home.nix` a secas y no instala nada de esto.
+**Todo este stack es opt-in por host**: `hosts/victus/home.nix` y
+`hosts/desktop/home.nix` lo importan; `thinkpad` usa el perfil base y no
+instala nada de esto.
 
 **Importante sobre Blender:** el paquete `blender` de nixpkgs se compila
 **sin ningún backend GPU de Cycles** (confirmado en su derivación:
@@ -515,11 +483,11 @@ comando `nvidia-offload <app>` usado por los lanzadores de abajo).
 dispositivo, aunque la GPU esté sana. Por eso `modules/home/blender-gpu.nix`
 descarga (una sola vez, versión+hash fijados a mano, checksum SHA-256
 verificado) el **build oficial de blender.org** a `~/.local/opt/blender`,
-que sí trae esos kernels precompilados — mismo patrón dual que
-opencode/claude (standalone como primario en PATH, el paquete de Nix en
-`home.nix` queda como respaldo CPU-only/reproducible).
+que sí trae esos kernels precompilados. El binario standalone es una excepción
+documentada al modelo reproducible; el paquete Nix permanece como respaldo
+CPU-only.
 
-### Lanzadores (definidos en `modules/home/zsh.nix`)
+### Lanzadores (definidos en `modules/home/creative-shell.nix`)
 
 ```bash
 resolve       # DaVinci Resolve, forzado a la RTX + XWayland (QT_QPA_PLATFORM=xcb)
@@ -763,7 +731,8 @@ nix build               # construir el output por defecto
 
 ```bash
 cd ~/nixos-config
-nix flake update        # actualiza nixpkgs, home-manager, catppuccin
+nix flake update        # actualiza las entradas fijadas para todos los hosts
+nix flake check --no-write-lock-file
 nix-switch              # aplica las actualizaciones
 ```
 
@@ -778,9 +747,7 @@ nix-switch              # aplica las actualizaciones
 {
   imports = [
     ./hardware-configuration.nix
-    ../../modules/system/core.nix
-    ../../modules/system/ai-helper.nix
-    ../../modules/system/display-manager.nix
+    ../../modules/system
   ];
 
   networking.hostName = "<nombre>";
@@ -801,7 +768,8 @@ nix-switch              # aplica las actualizaciones
 sudo nixos-generate-config --show-hardware-config > hosts/<nombre>/hardware-configuration.nix
 ```
 
-3. El host aparece automáticamente en `nixosConfigurations` (via `hostIfReady` en `flake.nix`).
+3. Agrega el host y su `hosts/<nombre>/home.nix` al registro explícito de
+   workstations en `flake.nix`.
 
 4. Desplegar:
 

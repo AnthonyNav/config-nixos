@@ -3,7 +3,7 @@
 # opencode. Repo: https://github.com/Jwadow/kiro-gateway
 #
 # DISEÑO A PROPÓSITO DESACOPLADO DE NIX (kiro-gateway es una herramienta de
-# comunidad que puede ser temporal — ver CLAUDE.md, sección "kiro-gateway"):
+# comunidad que puede ser temporal — ver docs/maintainer.md):
 #   - El código (repo clonado), el venv de Python y los SECRETOS (.env con
 #     PROXY_API_KEY) viven fuera del store, en ~/dev/shared/kiro-gateway/.
 #   - ~/.config/opencode/config.json (con los modelos y el provider "kiro")
