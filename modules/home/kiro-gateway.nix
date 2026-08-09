@@ -9,9 +9,9 @@
 #   - ~/.config/opencode/config.json (con los modelos y el provider "kiro")
 #     también se edita a mano, fuera de Nix — agregar/quitar un modelo no
 #     requiere rebuild.
-#   - Este módulo aporta ÚNICAMENTE el unit de systemd --user que lo levanta
-#     solo. Si el repo/venv no existe (o se borra), el servicio simplemente no
-#     arranca (ConditionPathExists) en vez de romper `hm-switch`.
+#   - Este módulo aporta unidades systemd --user. Una unidad .path inicia el
+#     servicio cuando el venv aparece, sin depender de una sola comprobación al
+#     inicio de sesión.
 #
 # Para desinstalar por completo: quita el import de este archivo en home.nix
 # y borra ~/dev/shared/kiro-gateway (y opcionalmente ~/.config/opencode).
@@ -29,9 +29,6 @@
     Unit = {
       Description = "kiro-gateway: proxy OpenAI/Anthropic-compatible para los modelos de Kiro (usado por opencode)";
       Documentation = "https://github.com/Jwadow/kiro-gateway";
-      # Desacople: si el repo/venv no está clonado en esta máquina, el
-      # servicio no falla el arranque de la sesión — simplemente no corre.
-      ConditionPathExists = "%h/dev/shared/kiro-gateway/.venv/bin/python";
     };
 
     Service = {
@@ -49,7 +46,13 @@
       RestartSec = 5;
     };
 
-    Install.WantedBy = [ "default.target" ]; # arranca junto con la sesión gráfica de usuario
+    # La unidad .path activa este servicio cuando el venv existe.
+  };
+
+  systemd.user.paths.kiro-gateway = {
+    Unit.Description = "Espera el venv de kiro-gateway";
+    Path.PathExists = "%h/dev/shared/kiro-gateway/.venv/bin/python";
+    Install.WantedBy = [ "default.target" ];
   };
 
   # Atajos de conveniencia, autocontenidos en este módulo (no tocan zsh.nix,

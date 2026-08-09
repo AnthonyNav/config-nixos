@@ -1,5 +1,10 @@
-{ ... }:
+{ hostFeatures, ... }:
 
 {
-  # El perfil base es suficiente hasta que ThinkPad tenga una feature propia.
+  assertions = [
+    {
+      assertion = !hostFeatures.creativeNvidia;
+      message = "ThinkPad is a development-only host and must not enable creative NVIDIA tools.";
+    }
+  ];
 }
