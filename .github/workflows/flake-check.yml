@@ -17,7 +17,7 @@ jobs:
       - run: jq empty opencode/opencode.json
       - run: jq empty opencode/kiro-models.json
 
-  build-host:
+  build-home:
     needs: check
     runs-on: ubuntu-latest
     strategy:
@@ -27,4 +27,4 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - uses: cachix/install-nix-action@v31
-      - run: nix build --no-write-lock-file .#nixosConfigurations.${{ matrix.host }}.config.system.build.toplevel
+      - run: nix build --no-write-lock-file '.#homeConfigurations."anthony@${{ matrix.host }}".activationPackage'

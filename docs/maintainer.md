@@ -119,7 +119,8 @@ is not part of this repository.
 
 All changes use a short-lived branch and a PR to `main`. Read
 `CONTRIBUTING.md` before opening a PR. CI formats, evaluates, and builds every
-workstation; branch protection must require those checks and a review.
+Home Manager activation; full NixOS builds remain a local validation. Branch
+protection must require those checks and a review.
 
 ## External Artifacts
 
