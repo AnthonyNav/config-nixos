@@ -18,77 +18,127 @@
       url = "github:caelestia-dots/shell";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    treefmt-nix = {
+      url = "github:numtide/treefmt-nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
-  outputs = { nixpkgs, home-manager, catppuccin, ... }@inputs:
-  let
-    lib = nixpkgs.lib;
-    system = "x86_64-linux";
-    username = "anthony";
-    specialArgs = { inherit inputs username; };
-    pkgsFor = import nixpkgs {
-      localSystem = system;
-      config.allowUnfree = true;
-    };
-    workstations = {
-      victus = {
-        systemModule = ./hosts/victus;
-        homeModules = [ ./hosts/victus/home.nix ];
-        features = {
-          graphics = "nvidia-prime";
-          creativeNvidia = true;
-          monitorProfile = "dynamic";
+  outputs =
+    {
+      self,
+      nixpkgs,
+      home-manager,
+      catppuccin,
+      treefmt-nix,
+      ...
+    }@inputs:
+    let
+      lib = nixpkgs.lib;
+      system = "x86_64-linux";
+      username = "anthony";
+      specialArgs = { inherit inputs username; };
+      pkgsFor = import nixpkgs {
+        localSystem = system;
+        config.allowUnfree = true;
+      };
+      treefmtEval = treefmt-nix.lib.evalModule pkgsFor ./treefmt.nix;
+      desktopStyles = {
+        caelestia = {
+          systemModule = ./desktops/caelestia/system.nix;
+          homeModule = ./desktops/caelestia/home.nix;
         };
       };
-      desktop = {
-        systemModule = ./hosts/desktop;
-        homeModules = [ ./hosts/desktop/home.nix ];
-        features = {
-          graphics = "nvidia";
-          creativeNvidia = true;
-          monitorProfile = "desktop-3";
+      workstations = {
+        victus = {
+          systemModule = ./hosts/victus;
+          homeModules = [ ./hosts/victus/home.nix ];
+          desktopStyle = "caelestia";
+          features = {
+            graphics = "nvidia-prime";
+            creativeNvidia = true;
+            monitorProfile = "dynamic";
+          };
+        };
+        desktop = {
+          systemModule = ./hosts/desktop;
+          homeModules = [ ./hosts/desktop/home.nix ];
+          desktopStyle = "caelestia";
+          features = {
+            graphics = "nvidia";
+            creativeNvidia = true;
+            monitorProfile = "desktop-3";
+          };
+        };
+        thinkpad = {
+          systemModule = ./hosts/thinkpad;
+          homeModules = [ ./hosts/thinkpad/home.nix ];
+          desktopStyle = "caelestia";
+          features = {
+            graphics = "intel";
+            creativeNvidia = false;
+            monitorProfile = "dynamic";
+          };
         };
       };
-      thinkpad = {
-        systemModule = ./hosts/thinkpad;
-        homeModules = [ ./hosts/thinkpad/home.nix ];
-        features = {
-          graphics = "intel";
-          creativeNvidia = false;
-          monitorProfile = "dynamic";
+      mkHost =
+        host:
+        let
+          style =
+            desktopStyles.${host.desktopStyle} or (throw "Unknown desktop style '${host.desktopStyle}'.");
+          hostFeatures = host.features // {
+            desktopStyle = host.desktopStyle;
+          };
+        in
+        lib.nixosSystem {
+          inherit system specialArgs;
+          modules = [
+            style.systemModule
+            host.systemModule
+            home-manager.nixosModules.home-manager
+            {
+              home-manager.useGlobalPkgs = true;
+              home-manager.useUserPackages = true;
+              home-manager.backupFileExtension = "hm-backup";
+              home-manager.users.${username}.imports = [
+                ./home.nix
+                style.homeModule
+              ]
+              ++ host.homeModules;
+              home-manager.extraSpecialArgs = {
+                inherit inputs username;
+                inherit hostFeatures;
+              };
+              home-manager.sharedModules = [ catppuccin.homeModules.catppuccin ];
+            }
+          ];
         };
-      };
-    };
-    mkHost = host:
-      lib.nixosSystem {
-        inherit system specialArgs;
-        modules = [
-          host.systemModule
-          home-manager.nixosModules.home-manager
-          {
-            home-manager.useGlobalPkgs = true;
-            home-manager.useUserPackages = true;
-            home-manager.backupFileExtension = "hm-backup";
-            home-manager.users.${username}.imports = [ ./home.nix ] ++ host.homeModules;
-            home-manager.extraSpecialArgs = {
-              inherit inputs username;
-              hostFeatures = host.features;
-            };
-            home-manager.sharedModules = [ catppuccin.homeModules.catppuccin ];
-          }
-        ];
-      };
-    mkHome = host:
-      home-manager.lib.homeManagerConfiguration {
-        pkgs = pkgsFor;
-        extraSpecialArgs = {
-          inherit inputs username;
-          hostFeatures = host.features;
+      mkHome =
+        host:
+        let
+          style =
+            desktopStyles.${host.desktopStyle} or (throw "Unknown desktop style '${host.desktopStyle}'.");
+          hostFeatures = host.features // {
+            desktopStyle = host.desktopStyle;
+          };
+        in
+        home-manager.lib.homeManagerConfiguration {
+          pkgs = pkgsFor;
+          extraSpecialArgs = {
+            inherit inputs username;
+            inherit hostFeatures;
+          };
+          modules = [
+            ./home.nix
+            style.homeModule
+            catppuccin.homeModules.catppuccin
+          ]
+          ++ host.homeModules;
         };
-        modules = [ ./home.nix catppuccin.homeModules.catppuccin ] ++ host.homeModules;
-      };
-  in {
-    nixosConfigurations = (lib.mapAttrs (_: mkHost) workstations) // {
+    in
+    {
+      nixosConfigurations = (lib.mapAttrs (_: mkHost) workstations) // {
         # ISO instaladora personalizada, no un host real: SSH ya autorizado +
         # este repo pre-cargado en /etc/nixos-config (ver iso/installer.nix),
         # para instalar hosts nuevos completamente por SSH desde otra
@@ -102,8 +152,22 @@
         };
       };
 
-    homeConfigurations = lib.mapAttrs'
-      (name: host: lib.nameValuePair "${username}@${name}" (mkHome host))
-      workstations;
-  };
+      homeConfigurations = lib.mapAttrs' (
+        name: host: lib.nameValuePair "${username}@${name}" (mkHome host)
+      ) workstations;
+
+      formatter.${system} = treefmtEval.config.build.wrapper;
+      checks.${system}.formatting = treefmtEval.config.build.check self;
+      devShells.${system}.default = pkgsFor.mkShell {
+        packages = with pkgsFor; [
+          treefmtEval.config.build.wrapper
+          nixfmt
+          statix
+          deadnix
+          shellcheck
+          nodejs_22
+          jq
+        ];
+      };
+    };
 }
