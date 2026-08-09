@@ -4,7 +4,7 @@
   programs.rofi = {
     enable = true;
     package = pkgs.rofi;
-    
+
     extraConfig = {
       modi = "drun,run";
       show-icons = true;
@@ -14,80 +14,88 @@
       sidebar-mode = false;
     };
 
-    theme = let
-      inherit (config.lib.formats.rasi) mkLiteral;
-    in {
-      "*" = {
-        bg-col = mkLiteral "#1e1e2e";
-        border-col = mkLiteral "#cba6f7";
-        selected-col = mkLiteral "#313244";
-        text-col = mkLiteral "#cdd6f4";
-        fg-col = mkLiteral "#f38ba8";
-        
-        background-color = mkLiteral "@bg-col";
-        font = "JetBrainsMono Nerd Font 11";
-      };
+    theme =
+      let
+        inherit (config.lib.formats.rasi) mkLiteral;
+      in
+      {
+        "*" = {
+          bg-col = mkLiteral "#1e1e2e";
+          border-col = mkLiteral "#cba6f7";
+          selected-col = mkLiteral "#313244";
+          text-col = mkLiteral "#cdd6f4";
+          fg-col = mkLiteral "#f38ba8";
 
-      "window" = {
-        height = mkLiteral "450px";
-        width = mkLiteral "650px";
-        border = mkLiteral "2px";
-        border-color = mkLiteral "@border-col";
-        border-radius = mkLiteral "12px";
-      };
+          background-color = mkLiteral "@bg-col";
+          font = "JetBrainsMono Nerd Font 11";
+        };
 
-      "mainbox" = {
-        background-color = mkLiteral "@bg-col";
-        children = map mkLiteral [ "inputbar" "listview" ];
-      };
+        "window" = {
+          height = mkLiteral "450px";
+          width = mkLiteral "650px";
+          border = mkLiteral "2px";
+          border-color = mkLiteral "@border-col";
+          border-radius = mkLiteral "12px";
+        };
 
-      "inputbar" = {
-        children = map mkLiteral [ "prompt" "entry" ];
-        background-color = mkLiteral "@bg-col";
-        padding = mkLiteral "12px";
-      };
+        "mainbox" = {
+          background-color = mkLiteral "@bg-col";
+          children = map mkLiteral [
+            "inputbar"
+            "listview"
+          ];
+        };
 
-      "prompt" = {
-        background-color = mkLiteral "@border-col";
-        padding = mkLiteral "6px 10px";
-        text-color = mkLiteral "#11111b";
-        border-radius = mkLiteral "6px";
-      };
+        "inputbar" = {
+          children = map mkLiteral [
+            "prompt"
+            "entry"
+          ];
+          background-color = mkLiteral "@bg-col";
+          padding = mkLiteral "12px";
+        };
 
-      "entry" = {
-        text-color = mkLiteral "@text-col";
-        padding = mkLiteral "6px 10px";
-      };
+        "prompt" = {
+          background-color = mkLiteral "@border-col";
+          padding = mkLiteral "6px 10px";
+          text-color = mkLiteral "#11111b";
+          border-radius = mkLiteral "6px";
+        };
 
-      "listview" = {
-        border = mkLiteral "0px";
-        padding = mkLiteral "6px 12px";
-        columns = 1;
-        lines = 8;
-        background-color = mkLiteral "@bg-col";
-      };
+        "entry" = {
+          text-color = mkLiteral "@text-col";
+          padding = mkLiteral "6px 10px";
+        };
 
-      "element" = {
-        padding = mkLiteral "8px";
-        background-color = mkLiteral "@bg-col";
-        text-color = mkLiteral "@text-col";
-        border-radius = mkLiteral "6px";
-      };
+        "listview" = {
+          border = mkLiteral "0px";
+          padding = mkLiteral "6px 12px";
+          columns = 1;
+          lines = 8;
+          background-color = mkLiteral "@bg-col";
+        };
 
-      "element-text" = {
-        background-color = mkLiteral "transparent";
-        text-color = mkLiteral "inherit";
-      };
+        "element" = {
+          padding = mkLiteral "8px";
+          background-color = mkLiteral "@bg-col";
+          text-color = mkLiteral "@text-col";
+          border-radius = mkLiteral "6px";
+        };
 
-      "element-icon" = {
-        size = mkLiteral "24px";
-        background-color = mkLiteral "transparent";
-      };
+        "element-text" = {
+          background-color = mkLiteral "transparent";
+          text-color = mkLiteral "inherit";
+        };
 
-      "element selected" = {
-        background-color = mkLiteral "@selected-col";
-        text-color = mkLiteral "@text-col";
+        "element-icon" = {
+          size = mkLiteral "24px";
+          background-color = mkLiteral "transparent";
+        };
+
+        "element selected" = {
+          background-color = mkLiteral "@selected-col";
+          text-color = mkLiteral "@text-col";
+        };
       };
-    };
   };
 }

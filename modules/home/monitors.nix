@@ -20,7 +20,12 @@
   home.packages = [
     (pkgs.writeShellApplication {
       name = "set-monitor";
-      runtimeInputs = [ pkgs.jq pkgs.hyprland pkgs.libnotify pkgs.coreutils ];
+      runtimeInputs = [
+        pkgs.jq
+        pkgs.hyprland
+        pkgs.libnotify
+        pkgs.coreutils
+      ];
       text = ''
         usage() {
           cat >&2 <<'EOF'

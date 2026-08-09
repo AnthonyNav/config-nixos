@@ -20,12 +20,12 @@
     # se encarga de kitty + GTK3 — no hace falta nada más aquí.
     (pkgs.writeShellApplication {
       name = "theme-light";
-      text = ''caelestia scheme set --notify -m light'';
+      text = "caelestia scheme set --notify -m light";
     })
 
     (pkgs.writeShellApplication {
       name = "theme-dark";
-      text = ''caelestia scheme set --notify -m dark'';
+      text = "caelestia scheme set --notify -m dark";
     })
 
     (pkgs.writeShellApplication {

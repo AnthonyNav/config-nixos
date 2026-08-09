@@ -5,7 +5,8 @@ let
   # programs.caelestia.cli.package, ver el flake de caelestia-shell:
   # cli-default = self.inputs.caelestia-cli.packages.${system}.default en su
   # nix/hm-module.nix). La resolvemos explícitamente para poder envolverla.
-  realCli = inputs.caelestia-shell.inputs.caelestia-cli.packages.${pkgs.stdenv.hostPlatform.system}.default;
+  realCli =
+    inputs.caelestia-shell.inputs.caelestia-cli.packages.${pkgs.stdenv.hostPlatform.system}.default;
 
   # El switch claro/oscuro del panel de Caelestia (WallpaperAndStyle.qml ->
   # Colours.setMode() -> `caelestia scheme set --notify -m <mode>`, ver
@@ -121,10 +122,12 @@ let
   # Fix: reconstruir la variante "with-cli" pasándole NUESTRA CLI envuelta en
   # el mismo argumento (`caelestia-cli`) que el flake usa para ese
   # runtimeDeps, en vez de tocar algo después de compilado.
-  wrappedShell = inputs.caelestia-shell.packages.${pkgs.stdenv.hostPlatform.system}.caelestia-shell.override {
-    withCli = true;
-    caelestia-cli = wrappedCli;
-  };
+  wrappedShell =
+    inputs.caelestia-shell.packages.${pkgs.stdenv.hostPlatform.system}.caelestia-shell.override
+      {
+        withCli = true;
+        caelestia-cli = wrappedCli;
+      };
 in
 {
   # Sobreescribe tanto el binario del shell (para que execDetached del panel

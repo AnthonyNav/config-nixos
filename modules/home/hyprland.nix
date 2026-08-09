@@ -72,21 +72,21 @@
       bind = [
         # Gestión del Sistema y Terminal
         "$mainMod, Return, exec, kitty"
-        "$mainMod, R, exec, caelestia shell drawers toggle launcher"   # launcher nativo de Caelestia (antes rofi -show drun)
-        "$mainMod, D, global, caelestia:dashboard"                     # dashboard (media, clima, info del sistema)
+        "$mainMod, R, exec, caelestia shell drawers toggle launcher" # launcher nativo de Caelestia (antes rofi -show drun)
+        "$mainMod, D, global, caelestia:dashboard" # dashboard (media, clima, info del sistema)
         "$mainMod, C, killactive,"
-        "$mainMod, Q, killactive,"          # alias estándar de i3/sway
+        "$mainMod, Q, killactive," # alias estándar de i3/sway
         "$mainMod, F, fullscreen, 0"
 
         # Sesión y Energía
-        "$mainMod, L, exec, pidof hyprlock || hyprlock"            # bloquear pantalla
-        "$mainMod, Escape, global, caelestia:session"              # menú de sesión nativo de Caelestia (antes wlogout)
-        "$mainMod, M, exit,"                                       # salida de emergencia (sin menú)
+        "$mainMod, L, exec, pidof hyprlock || hyprlock" # bloquear pantalla
+        "$mainMod, Escape, global, caelestia:session" # menú de sesión nativo de Caelestia (antes wlogout)
+        "$mainMod, M, exit," # salida de emergencia (sin menú)
 
         # Modos de Ordenamiento y Ventanas
         "$mainMod, E, togglefloating,"
-        "$mainMod SHIFT, E, centerwindow,"  # centrar la ventana flotante activa
-        "$mainMod, P, pin,"                 # fijar/desfijar en todos los workspaces
+        "$mainMod SHIFT, E, centerwindow," # centrar la ventana flotante activa
+        "$mainMod, P, pin," # fijar/desfijar en todos los workspaces
         "$mainMod, G, togglegroup,"
         "$mainMod, Tab, changegroupactive, f"
 
@@ -106,7 +106,7 @@
 
         # Lanzadores Rápidos
         "$mainMod, B, exec, firefox"
-        "$mainMod, T, exec, thunar"         # gestor de archivos
+        "$mainMod, T, exec, thunar" # gestor de archivos
 
         # Modo claro/oscuro global (ver README.md, "Modo claro / oscuro" y
         # modules/home/caelestia-scheme.nix). Mismo efecto que theme-toggle
@@ -124,16 +124,16 @@
         "$mainMod SHIFT, K, exec, hyprctl binds -j | jq -r '.[] | \"\\(.modmask)\\t\\(.key)\\t→\\t\\(.dispatcher) \\(.arg)\"' | column -t | rofi -dmenu -i -p \"Atajos de teclado\""
 
         # Control de Notificaciones (Caelestia Shell, antes SwayNC)
-        "$mainMod, N, exec, caelestia shell drawers toggle sidebar"    # panel de notifs + quick toggles
-        "$mainMod ALT, N, exec, caelestia shell notifs clear"          # limpiar todas las notificaciones
+        "$mainMod, N, exec, caelestia shell drawers toggle sidebar" # panel de notifs + quick toggles
+        "$mainMod ALT, N, exec, caelestia shell notifs clear" # limpiar todas las notificaciones
 
         # Herramientas de Productividad
         "$mainMod, V, exec, cliphist list | rofi -dmenu -p \"Portapapeles\" | cliphist decode | wl-copy"
         "$mainMod SHIFT, P, exec, hyprpicker -a && notify-send \"Color Picker\" \"Código copiado\""
-        "$mainMod SHIFT, C, exec, caelestia shell picker open"           # color picker nativo de Caelestia (alternativa a hyprpicker)
+        "$mainMod SHIFT, C, exec, caelestia shell picker open" # color picker nativo de Caelestia (alternativa a hyprpicker)
         "$mainMod SHIFT, S, exec, grim -g \"$(slurp)\" - | wl-copy && notify-send \"Captura\" \"Área copiada\""
         ", Print, exec, grim ~/Pictures/Screenshots/Captura_$(date +'%Y%m%d_%H%M%S').png && notify-send \"Captura\" \"Guardada\""
-        "$mainMod SHIFT ALT, S, global, caelestia:screenshotFreeze"      # captura con freeze + anotación (swappy)
+        "$mainMod SHIFT ALT, S, global, caelestia:screenshotFreeze" # captura con freeze + anotación (swappy)
 
         # Luz cálida (filtro azul) — alterna el servicio wlsunset ya existente
         # (modules/home/night-light.nix, auto día/noche). Caelestia no trae

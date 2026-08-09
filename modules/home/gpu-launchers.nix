@@ -31,7 +31,12 @@
       comment = "Professional video editing, color, effects and audio post-processing";
       icon = "davinci-resolve";
       terminal = false;
-      categories = [ "AudioVideo" "AudioVideoEditing" "Video" "Graphics" ];
+      categories = [
+        "AudioVideo"
+        "AudioVideoEditing"
+        "Video"
+        "Graphics"
+      ];
       # Mismo comando que la función `resolve` de zsh.nix (usa el wrapper
       # `gpu-launch` — ver comentario ahí sobre por qué ya no es
       # `nvidia-offload` a secas).
@@ -46,7 +51,10 @@
       icon = "blender";
       terminal = false;
       mimeType = [ "application/x-blender" ];
-      categories = [ "Graphics" "3DGraphics" ];
+      categories = [
+        "Graphics"
+        "3DGraphics"
+      ];
       # Mismo comando que la función `blender-gpu` de zsh.nix, pero con ruta
       # absoluta al standalone (ver comentario arriba del por qué). Usa el
       # wrapper `gpu-launch` — ver zsh.nix sobre por qué ya no es
