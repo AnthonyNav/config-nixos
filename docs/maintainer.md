@@ -118,9 +118,9 @@ is not part of this repository.
 ## Contributions
 
 All changes use a short-lived branch and a PR to `main`. Read
-`CONTRIBUTING.md` before opening a PR. CI formats, evaluates, and builds every
-Home Manager activation; full NixOS builds remain a local validation. Branch
-protection must require those checks and a review.
+`CONTRIBUTING.md` before opening a PR. CI formats, evaluates, and plans every
+NixOS host build without downloading its closure; full NixOS builds remain a local
+validation. Branch protection must require those checks and a review.
 
 ## External Artifacts
 
