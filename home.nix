@@ -15,10 +15,9 @@
     ./modules/home/theme-sync.nix
     ./modules/home/wallpapers.nix
     ./modules/home/kiro-gateway.nix # herramienta desacoplada/temporal, ver el propio archivo
-    # NOTA: modules/home/creative-suite.nix (davinci-resolve, kdenlive, blender,
-    # krita, gimp, inkscape, ffmpeg-full, blender-gpu.nix, gpu-launchers.nix) NO
-    # se importa aquí — es opt-in por host vía flake.nix (hostExtraHomeModules),
-    # solo para máquinas con GPU dedicada capaz de PRIME offload (hoy: victus).
+    ./modules/home/opencode.nix
+    # La suite creativa y las configuraciones de monitor fijas viven en
+    # hosts/<nombre>/home.nix. El perfil base no asume una GPU concreta.
   ];
 
   home.username = username;
@@ -47,9 +46,7 @@
 
     # --- CONECTIVIDAD Y MULTIMEDIA ---
     brightnessctl
-    nvtopPackages.amd
     bottom
-    nvidia-vaapi-driver
     imv
     mpv
 
@@ -94,10 +91,8 @@
     mockgen
     kiro
     kiro-cli
-    antigravity
-    opencode # respaldo/reproducible; la versión primaria es la autoactualizable
-             # en ~/.opencode/bin (PATH la prioriza, ver modules/home/zsh.nix) —
-             # `opencode upgrade` no puede escribir en este paquete (store RO).
+    antigravity-ide
+    opencode # versión canónica, fijada por flake.lock para todos los hosts.
     claude-code
     rtk # CLI que comprime salidas de comandos (git, grep, pytest, etc.) antes
         # de que lleguen al contexto de agentes IA, para ahorrar tokens.
@@ -166,6 +161,7 @@
   };
 
   home.pointerCursor = {
+    enable = true;
     gtk.enable = true;
     x11.enable = true;
     package = pkgs.bibata-cursors;
@@ -190,6 +186,10 @@
 
   catppuccin.flavor = "mocha";
   catppuccin.enable = true;
+  catppuccin.autoEnable = true;
+  # Catppuccin genera un bloque Lua incompatible con configType = "hyprlang".
+  # Los colores de Hyprland ya se declaran explícitamente en hyprland.nix.
+  catppuccin.hyprland.enable = false;
 
   home.activation.configureClaudeSettings = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
     claude_dir="$HOME/.claude"
