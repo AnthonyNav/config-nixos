@@ -28,5 +28,14 @@
     }
   },
   "model": "kiro/auto",
-  "small_model": "kiro/claude-haiku-4.5"
+  "small_model": "kiro/claude-haiku-4.5",
+  "tool_output": {
+    "max_lines": 200,
+    "max_bytes": 8192
+  },
+  "compaction": {
+    "auto": true,
+    "prune": true,
+    "tail_turns": 6
+  }
 }

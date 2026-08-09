@@ -7,6 +7,10 @@
   xdg.configFile = {
     "opencode/skills/graphify/SKILL.md".source = ../../opencode/skills/graphify/SKILL.md;
     "opencode/skills/pre-pr-review/SKILL.md".source = ../../opencode/skills/pre-pr-review/SKILL.md;
+    "opencode/skills/nixos-maintenance/SKILL.md".source =
+      ../../opencode/skills/nixos-maintenance/SKILL.md;
+    "opencode/skills/network-diagnostics/SKILL.md".source =
+      ../../opencode/skills/network-diagnostics/SKILL.md;
     "opencode/plugins/rtk.js".source = ../../opencode/plugins/rtk.js;
   };
 

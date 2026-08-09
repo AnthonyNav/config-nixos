@@ -11,6 +11,7 @@ Configuración modular de NixOS + Flakes + Home Manager orientada a desarrollo d
 - [Atajos de teclado](#atajos-de-teclado)
 - [Escritorio (Caelestia Shell)](#escritorio-caelestia-shell)
 - [Kiro Gateway + opencode](#kiro-gateway--opencode)
+- [Base de datos y terminal](#base-de-datos-y-terminal)
 - [Edición 3D / Video](#edición-3d--video)
 - [Para qué está preparado este entorno](#para-qué-está-preparado-este-entorno)
 - [Trabajar con Flakes en proyectos](#trabajar-con-flakes-en-proyectos)
@@ -66,6 +67,8 @@ hm-switch
 > `nix-switch` y `hm-switch` son funciones Zsh definidas en `modules/home/zsh.nix`.  
 > Usan siempre `path:` internamente para soportar archivos sin rastrear por git.
 > `hm-switch` selecciona el perfil del hostname para conservar sus features.
+> Todos los hosts reciben perfiles base, desarrollo y clientes de base de datos;
+> ThinkPad nunca recibe la suite creativa NVIDIA.
 
 ---
 
@@ -451,10 +454,45 @@ es la plantilla a copiar y ajustar.
 ### Desinstalar
 
 ```bash
-# 1. Quita la línea `./modules/home/kiro-gateway.nix` de home.nix, hm-switch.
+# 1. Quita el import de kiro-gateway de profiles/home/development.nix, hm-switch.
 # 2. Borra el código/venv/secretos (no están versionados, es seguro):
 rm -rf ~/dev/shared/kiro-gateway ~/.config/opencode
 ```
+
+---
+
+## Base de datos y terminal
+
+Todos los hosts reciben clientes de desarrollo, no un servidor de base de datos:
+
+| Herramienta | Uso |
+|---|---|
+| DBeaver | Cliente gráfico universal para SQL y motores con drivers JDBC |
+| Beekeeper Studio | Cliente gráfico ligero para trabajo diario con SQL |
+| MySQL Workbench | Administración y modelado específico de MySQL/MariaDB |
+| `usql` | Cliente universal de terminal para PostgreSQL, MySQL/MariaDB, SQLite, SQL Server, Oracle y otros |
+
+Ejemplos de `usql`:
+
+```bash
+usql postgres://usuario@host/base
+usql mysql://usuario@host/base
+usql sqlite3://$PWD/dev.db
+```
+
+`usql` guarda conexiones nombradas en `~/.config/usql/config.yaml`; ese archivo
+puede contener secretos y no se versiona. Para levantar MariaDB localmente,
+importa de forma explícita `profiles/system/local-mariadb.nix` desde el host que
+lo necesite. El perfil no se activa por defecto.
+
+La terminal incluye `zoxide` (`z <directorio>`), `atuin` para historial local,
+`lazygit`, `delta`, `yazi`, completion visual con `fzf-tab` y búsqueda de
+historial por texto con las flechas arriba/abajo. `Ctrl-R` conserva la búsqueda
+de FZF; Atuin no sincroniza el historial por defecto.
+
+La guía de OpenCode y MCPs opt-in está en
+[docs/opencode.md](docs/opencode.md). El protocolo para medir la red ThinkPad
+está en [docs/thinkpad-network.md](docs/thinkpad-network.md).
 
 ---
 

@@ -1,0 +1,17 @@
+name: Flake checks
+
+on:
+  pull_request:
+  push:
+    branches: [main, caelestia]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: cachix/install-nix-action@v31
+      - run: nix fmt -- --ci
+      - run: nix flake check --no-build
+      - run: node --check opencode/plugins/rtk.js
+      - run: jq empty opencode/config.example.json

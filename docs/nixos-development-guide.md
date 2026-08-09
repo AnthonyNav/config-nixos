@@ -33,6 +33,10 @@ flake and enter them with `nix develop`.
 Do not add a project dependency to this repository's shared profile unless all
 workstations need it regularly.
 
+This repository has four relevant profile layers: `base`, `development`,
+`database-tools`, and a selected desktop style. Creative NVIDIA software is a
+separate opt-in capability and must not be added to the ThinkPad profile.
+
 ## 3. Use Reproducible Project Environments
 
 For a project, create a `flake.nix` and `.envrc`:
@@ -85,6 +89,13 @@ Run this after any flake or module change:
 
 ```sh
 nix flake check --no-build --no-write-lock-file
+```
+
+Format Nix files and use the repository's reproducible maintenance shell:
+
+```sh
+nix fmt
+nix develop
 ```
 
 For a host-specific change, build without switching first:
