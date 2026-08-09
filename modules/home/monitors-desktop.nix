@@ -1,6 +1,13 @@
-{ ... }:
+{ hostFeatures, ... }:
 
 {
+  assertions = [
+    {
+      assertion = hostFeatures.monitorProfile == "desktop-3";
+      message = "monitors-desktop requires the desktop-3 monitor profile.";
+    }
+  ];
+
   # Layout fijo de 3 monitores del host `desktop`: uno central en horizontal
   # y dos laterales en vertical (retrato) — a diferencia de victus/thinkpad
   # (laptops que se conectan a monitores externos variables, ver

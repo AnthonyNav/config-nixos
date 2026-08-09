@@ -9,7 +9,10 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    catppuccin.url = "github:catppuccin/nix";
+    catppuccin = {
+      url = "github:catppuccin/nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
 
     caelestia-shell = {
       url = "github:caelestia-dots/shell";
@@ -24,39 +27,68 @@
     username = "anthony";
     specialArgs = { inherit inputs username; };
     pkgsFor = import nixpkgs {
-      inherit system;
+      localSystem = system;
       config.allowUnfree = true;
     };
-    mkHost = hostPath: extraHomeModules:
+    workstations = {
+      victus = {
+        systemModule = ./hosts/victus;
+        homeModules = [ ./hosts/victus/home.nix ];
+        features = {
+          graphics = "nvidia-prime";
+          creativeNvidia = true;
+          monitorProfile = "dynamic";
+        };
+      };
+      desktop = {
+        systemModule = ./hosts/desktop;
+        homeModules = [ ./hosts/desktop/home.nix ];
+        features = {
+          graphics = "nvidia";
+          creativeNvidia = true;
+          monitorProfile = "desktop-3";
+        };
+      };
+      thinkpad = {
+        systemModule = ./hosts/thinkpad;
+        homeModules = [ ./hosts/thinkpad/home.nix ];
+        features = {
+          graphics = "intel";
+          creativeNvidia = false;
+          monitorProfile = "dynamic";
+        };
+      };
+    };
+    mkHost = host:
       lib.nixosSystem {
         inherit system specialArgs;
         modules = [
-          hostPath
+          host.systemModule
           home-manager.nixosModules.home-manager
           {
             home-manager.useGlobalPkgs = true;
             home-manager.useUserPackages = true;
             home-manager.backupFileExtension = "hm-backup";
-            home-manager.users.${username}.imports = [ ./home.nix ] ++ extraHomeModules;
-            home-manager.extraSpecialArgs = { inherit inputs username; };
+            home-manager.users.${username}.imports = [ ./home.nix ] ++ host.homeModules;
+            home-manager.extraSpecialArgs = {
+              inherit inputs username;
+              hostFeatures = host.features;
+            };
             home-manager.sharedModules = [ catppuccin.homeModules.catppuccin ];
           }
         ];
       };
-    hostIfReady = name: hostPath: extraHomeModules:
-      lib.optionalAttrs (builtins.pathExists "${toString hostPath}/hardware-configuration.nix") {
-        ${name} = mkHost hostPath extraHomeModules;
+    mkHome = host:
+      home-manager.lib.homeManagerConfiguration {
+        pkgs = pkgsFor;
+        extraSpecialArgs = {
+          inherit inputs username;
+          hostFeatures = host.features;
+        };
+        modules = [ ./home.nix catppuccin.homeModules.catppuccin ] ++ host.homeModules;
       };
   in {
-    nixosConfigurations =
-      {
-        # victus y desktop traen modules/home/creative-suite.nix
-        # (davinci-resolve, blender, kdenlive, etc.): ambas tienen GPU NVIDIA
-        # dedicada (victus: RTX 4050 híbrida + PRIME offload; desktop: RTX
-        # 3060 Ti única, sin iGPU). thinkpad se queda con el home.nix base —
-        # ver CLAUDE.md, "3D/video creation stack".
-        victus = mkHost ./hosts/victus [ ./modules/home/creative-suite.nix ];
-
+    nixosConfigurations = (lib.mapAttrs (_: mkHost) workstations) // {
         # ISO instaladora personalizada, no un host real: SSH ya autorizado +
         # este repo pre-cargado en /etc/nixos-config (ver iso/installer.nix),
         # para instalar hosts nuevos completamente por SSH desde otra
@@ -68,20 +100,10 @@
             ./iso/installer.nix
           ];
         };
-      }
-      // hostIfReady "thinkpad" ./hosts/thinkpad []
-      // hostIfReady "desktop" ./hosts/desktop [
-        ./modules/home/creative-suite.nix
-        ./modules/home/monitors-desktop.nix # layout fijo de 3 monitores, ver ese archivo
-      ];
+      };
 
-    homeConfigurations.${username} = home-manager.lib.homeManagerConfiguration {
-      pkgs = pkgsFor;
-      extraSpecialArgs = { inherit inputs username; };
-      modules = [
-        ./home.nix
-        catppuccin.homeModules.catppuccin
-      ];
-    };
+    homeConfigurations = lib.mapAttrs'
+      (name: host: lib.nameValuePair "${username}@${name}" (mkHome host))
+      workstations;
   };
 }

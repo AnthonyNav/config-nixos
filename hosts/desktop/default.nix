@@ -3,9 +3,7 @@
 {
   imports = [
     ./hardware-configuration.nix
-    ../../modules/system/core.nix
-    ../../modules/system/ai-helper.nix
-    ../../modules/system/display-manager.nix
+    ../../modules/system
   ];
 
   networking.hostName = "desktop";

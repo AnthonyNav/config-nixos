@@ -29,6 +29,9 @@
       v = "nvim";
       c = "clear";
       ff = "fastfetch";
+      # Claude Code sigue disponible, pero la versión de Nix evita que una
+      # instalación local autoactualizable desincronice los workstations.
+      claude = "${pkgs.claude-code}/bin/claude";
 
       # Pritunl VPN: el cliente real (CLI + daemon + GUI) se instala a nivel
       # de sistema, reproducible desde nixpkgs (ver modules/system/pritunl.nix)
@@ -49,16 +52,7 @@
       # Inicializar starship explícitamente usando la ruta del store de Nix
       eval "$(${pkgs.starship}/bin/starship init zsh)"
 
-      # $HOME/.opencode/bin primero: es la versión standalone/autoactualizable
-      # de opencode (gestionada por su propio `opencode upgrade`), que debe
-      # ganarle en PATH a la de Nix (home.nix, solo de respaldo/reproducible —
-      # el store es de solo lectura, por eso `opencode upgrade` no puede
-      # aplicarse ahí). Mismo patrón que ya existe para `claude` más abajo.
-      #
-      # $HOME/.local/opt/blender: build oficial de blender.org con CUDA/OptiX
-      # reales (el `blender` de nixpkgs es CPU-only, ver blender-gpu.nix) —
-      # mismo patrón, gana en PATH sobre el de Nix.
-      export PATH="$HOME/.opencode/bin:$HOME/.local/opt/blender:$HOME/.local/bin:$HOME/.local/share/pnpm:$HOME/.npm-global/bin:$PATH"
+      export PATH="$HOME/.local/bin:$HOME/.local/share/pnpm:$HOME/.npm-global/bin:$PATH"
 
       nix-switch() {
         sudo nixos-rebuild switch --flake "path:$HOME/nixos-config#$(hostnamectl --static)"
@@ -66,9 +60,9 @@
 
       hm-switch() {
         if command -v home-manager >/dev/null 2>&1; then
-          home-manager switch --flake "path:$HOME/nixos-config#$(id -un)"
+          home-manager switch --flake "path:$HOME/nixos-config#$(id -un)@$(hostnamectl --static)"
         else
-          nix run github:nix-community/home-manager -- switch --flake "path:$HOME/nixos-config#$(id -un)"
+          nix run github:nix-community/home-manager -- switch --flake "path:$HOME/nixos-config#$(id -un)@$(hostnamectl --static)"
         fi
       }
 
@@ -91,63 +85,6 @@
         systemctl --user restart wlsunset.service
       }
 
-      # --- Stack de creación 3D/video (ver README.md, "Edición 3D / Video") ---
-      # `gpu-launch` (definido más abajo via home.packages) decide en runtime
-      # si usar `nvidia-offload` (solo existe en laptops con GPU híbrida vía
-      # hardware.nvidia.prime.offload.enableOffloadCmd, ej. victus con RTX
-      # 4050 + iGPU AMD) o correr el comando tal cual (desktops con una sola
-      # GPU NVIDIA y sin iGPU, ej. desktop con RTX 3060 Ti sobre un i5-12400F
-      # — el sufijo F confirma que no hay iGPU, así que no hay a qué hacerle
-      # offload). Mismo wrapper usado por los .desktop de gpu-launchers.nix.
-
-      # DaVinci Resolve: Qt sobre Wayland nativo da problemas en Hyprland,
-      # se fuerza XWayland. Recuerda: la versión gratis no importa/exporta
-      # H.264/H.265 — usa to-dnxhr/to-h264 para eso.
-      resolve() {
-        gpu-launch env QT_QPA_PLATFORM=xcb davinci-resolve "$@"
-      }
-
-      # Blender (standalone, ver blender-gpu.nix) forzado a la RTX. El
-      # LD_LIBRARY_PATH es necesario: el loader interno de Blender (CUEW)
-      # hace dlopen("libcuda.so") en runtime, y NixOS no lo expone en una
-      # ruta estándar de librerías — vive en /run/opengl-driver/lib
-      # (confirmado: sin esto, Preferences > System solo lista "None", con
-      # esto lista OptiX y CUDA con la RTX 4050 real). Además, activar OptiX
-      # en Preferences > System > CUDA/OptiX es config de GUI, no de Nix.
-      #
-      # Ruta absoluta a propósito (no confiar en PATH): el mismo binario se
-      # invoca así también desde el .desktop de rofi (gpu-launchers.nix),
-      # cuya sesión gráfica no ve el PATH de zsh — usar la misma ruta
-      # absoluta en ambos lados evita que se dupliquen criterios distintos.
-      blender-gpu() {
-        gpu-launch env LD_LIBRARY_PATH="/run/opengl-driver/lib:$LD_LIBRARY_PATH" "$HOME/.local/opt/blender/blender" "$@"
-      }
-
-      # Ingesta para Resolve gratis: H.264/H.265 (típico de cámara/celular)
-      # -> DNxHR HQ, formato que sí puede importar/editar sin problemas.
-      to-dnxhr() {
-        if [ "$#" -eq 0 ]; then
-          echo "Uso: to-dnxhr archivo1.mp4 [archivo2.mp4 ...]" >&2
-          return 1
-        fi
-        local f
-        for f in "$@"; do
-          ffmpeg -i "$f" -c:v dnxhd -profile:v dnxhr_hq -pix_fmt yuv422p \
-            -c:a pcm_s16le "''${f%.*}_dnxhr.mov"
-        done
-      }
-
-      # Entrega: master DNxHR/ProRes exportado de Resolve -> H.264 vía NVENC
-      # (rápido, en la GPU) listo para subir/compartir.
-      to-h264() {
-        if [ "$#" -eq 0 ]; then
-          echo "Uso: to-h264 master.mov" >&2
-          return 1
-        fi
-        ffmpeg -i "$1" -c:v h264_nvenc -preset p5 -cq 19 -c:a aac -b:a 192k \
-          "''${1%.*}_h264.mp4"
-      }
-
       # theme-light / theme-dark / theme-toggle: NO son funciones zsh a
       # propósito (ver modules/home/theme-mode.nix) — son ejecutables reales
       # en el PATH del perfil, porque también se invocan desde el atajo de
@@ -155,25 +92,6 @@
       # `sh -c`, no zsh: una función de zsh ahí no existiría (mismo bug que
       # ya se documentó para rofi/.desktop en gpu-launchers.nix).
 
-      claude() {
-        if [ -x "$HOME/.local/bin/claude" ]; then
-          command "$HOME/.local/bin/claude" "$@"
-          return
-        fi
-
-        local npm_root
-        npm_root="$(npm root -g 2>/dev/null)" || {
-          echo "Claude Code no está instalado todavía." >&2
-          return 127
-        }
-
-        if [ -f "$npm_root/@anthropic-ai/claude-code/cli.js" ]; then
-          command node "$npm_root/@anthropic-ai/claude-code/cli.js" "$@"
-        else
-          echo "Claude Code no está instalado todavía." >&2
-          return 127
-        fi
-      }
     '';
   };
 
@@ -281,19 +199,4 @@
     enableZshIntegration = true;
   };
 
-  # Ejecutable real en el PATH del perfil (no función zsh) a propósito:
-  # también lo invocan los .desktop de gpu-launchers.nix, cuya sesión
-  # gráfica (rofi/Hyprland) resuelve contra el PATH de systemd/PAM, no el
-  # de zsh — mismo motivo por el que `set-wallpaper` (wallpapers.nix)
-  # tampoco es una función. Ver comentario junto a resolve()/blender-gpu()
-  # arriba para el porqué de este wrapper.
-  home.packages = [
-    (pkgs.writeShellScriptBin "gpu-launch" ''
-      if command -v nvidia-offload >/dev/null 2>&1; then
-        exec nvidia-offload "$@"
-      else
-        exec "$@"
-      fi
-    '')
-  ];
 }

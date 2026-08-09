@@ -10,7 +10,7 @@
   # completo — Resolve falla bajo Wayland nativo sin forzar XWayland, y
   # Blender muestra CUDA en Preferences pero "no detecta ningún dispositivo"
   # porque le falta el LD_LIBRARY_PATH hacia /run/opengl-driver/lib (mismo
-  # bug documentado en CLAUDE.md, sección Troubleshooting).
+  # detalle operativo en docs/maintainer.md).
   #
   # `xdg.desktopEntries` con la MISMA clave (nombre de archivo sin .desktop)
   # que el original permite *sobreescribirlo*: Home Manager lo instala con
