@@ -59,7 +59,9 @@ back to a generic profile because that would omit host-specific features.
   Hyprland before adding window or layer rules.
 - Kiro Gateway intentionally remains outside the Nix store in
   `~/dev/shared/kiro-gateway/`. Its secret-bearing OpenCode config stays local.
-  Validate it with a real completion, not only `/health` or `/v1/models`.
+  The gateway discovers the account catalog from `management.<region>.kiro.dev`;
+  the `kiro-opencode-model-sync` timer copies new IDs into the local OpenCode
+  config. Validate it with a real completion, not only `/health` or `/v1/models`.
 - Use Kiro model ID `auto`, never `auto-kiro`.
 - The Catppuccin mode wrapper must override both the Caelestia CLI and shell
   package. The shell has its own wrapped internal PATH.

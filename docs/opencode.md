@@ -30,6 +30,19 @@ restarting OpenCode:
 jq empty ~/.config/opencode/config.json
 ```
 
+Kiro Gateway discovers the models available to the signed-in account from
+Kiro's control-plane API. OpenCode custom providers still require an explicit
+`models` map, so the `kiro-opencode-model-sync` user timer adds newly detected
+IDs to the local config every hour. It preserves existing names and provider
+options, including the credential. The gateway alias `auto-kiro` is excluded:
+use the actual Kiro model ID `auto`. Run `kgw-models-sync` to refresh it now.
+
+When Kiro advertises native reasoning levels for a model, the sync also creates
+matching OpenCode variants. Select `high` or `max` from `/models`; the gateway
+forwards the model-specific native Kiro field rather than using its fake
+reasoning fallback. The current GPT Luna, Sol, and Terra models support
+`low`, `medium`, `high`, `xhigh`, and `max`.
+
 ## Optional MCP Servers
 
 MCP servers are intentionally not enabled globally. They add tool schemas and

@@ -376,8 +376,8 @@ skill o plugin.
 ### Config de opencode
 
 `~/.config/opencode/config.json` queda fuera de Nix porque contiene el secreto
-local. `opencode/config.example.json` es la plantilla sin secretos. Agregar un
-modelo no requiere rebuild:
+local. `opencode/config.example.json` es la plantilla sin secretos y contiene
+el catalogo conocido al momento de actualizar el repo:
 
 ```json
 {
@@ -419,32 +419,44 @@ modelo no requiere rebuild:
 de chat; el ID real `auto` sí funciona. Ver
 [docs/maintainer.md](docs/maintainer.md) para esta regla de operación.
 
-**Para agregar otro modelo** (con el gateway corriendo, para ver los IDs
-reales disponibles en esta cuenta):
+Kiro Gateway consulta el catalogo real de la cuenta en
+`management.<region>.kiro.dev/ListAvailableModels`, igual que Kiro IDE. Como
+OpenCode necesita una lista explicita para providers OpenAI-compatible, el
+timer de usuario `kiro-opencode-model-sync` agrega al JSON local los IDs nuevos
+cada hora, sin modificar el secreto ni los nombres ya personalizados. Para
+sincronizar sin esperar al timer (excluye el alias `auto-kiro`; usa siempre
+`auto`):
+
+```bash
+kgw-models-sync
+```
+
+Cuando Kiro expone niveles de razonamiento nativos, el sincronizador agrega las
+variantes correspondientes a OpenCode. Abre `/models`, selecciona Luna, Sol o
+Terra y escoge `high` o `max`; el gateway los reenvia como el campo nativo de
+Kiro, no como razonamiento simulado. Actualmente esos tres modelos ofrecen
+`low`, `medium`, `high`, `xhigh` y `max`.
+
+Para inspeccionar el catalogo que el gateway detecto:
 
 ```bash
 curl -s http://127.0.0.1:8000/v1/models -H "Authorization: Bearer <tu PROXY_API_KEY>" | jq -r '.data[].id'
 ```
 
-Agrega el ID que quieras dentro de `"models": { ... }` en el JSON de arriba,
-p.ej. `"deepseek-3.2": { "name": "DeepSeek V3.2" }`, y guarda — `opencode
-models kiro` lo reconoce al instante, sin reiniciar nada. Ten en cuenta que
-esta lista **es estática** (ver nota de arriba sobre `/v1/models`): puede no
-incluir modelos nuevos que tu cuenta ya tiene (confirmado: en julio 2026 la
-cuenta ya tenía acceso real a `claude-sonnet-5` y `claude-opus-4.8` que el
-gateway no listaba). Para saber con certeza qué modelos tiene tu cuenta *hoy*,
-la fuente confiable es Kiro IDE mismo, no `/v1/models` del gateway — sus logs
-registran cada respuesta real de `ListAvailableModelsCommand`:
+`opencode models kiro` reconoce los IDs agregados en la siguiente sesion. Si
+el gateway no esta disponible, revisa `kgw-status` y `kgw-logs`. Kiro IDE sigue
+siendo una fuente util de diagnostico porque sus logs registran cada respuesta
+real de `ListAvailableModelsCommand`:
 
 ```bash
 grep -h '"commandName":"ListAvailableModelsCommand"' ~/.config/Kiro/logs/*/window1/exthost/kiro.kiroAgent/q-client.log | tail -1 | \
   python3 -c "import sys,json; l=sys.stdin.read(); d=json.loads(l[l.find('{'):]); [print(m['modelId']) for m in d['output']['models']]"
 ```
 
-(La configuración actual ya incluye los 15 modelos —`auto` más 14— que esa
-consulta devolvió al momento de escribir esto: familia Claude completa desde
-Sonnet 4 hasta Opus 4.8/Sonnet 5, DeepSeek, MiniMax, GLM y Qwen. Todos
-probados con una respuesta real, no solo listados.)
+(La plantilla actual incluye los 15 modelos —`auto` más 14— que esa consulta
+devolvió al momento de escribir esto: familia Claude completa desde Sonnet 4
+hasta Opus 4.8/Sonnet 5, DeepSeek, MiniMax, GLM y Qwen. El sincronizador agrega
+modelos posteriores que la cuenta tenga habilitados.)
 
 **Para agregar otro provider** (no solo otro modelo de Kiro): opencode
 soporta múltiples entradas bajo `"provider"` en el mismo `config.json`, cada

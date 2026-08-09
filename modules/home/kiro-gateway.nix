@@ -55,6 +55,33 @@
     Install.WantedBy = [ "default.target" ];
   };
 
+  # OpenCode needs an explicit models map for custom OpenAI-compatible
+  # providers. Keep it synchronized from the gateway without managing the
+  # credential-bearing config.json in Nix.
+  systemd.user.services.kiro-opencode-model-sync = {
+    Unit = {
+      Description = "Sincroniza los modelos de Kiro Gateway hacia OpenCode";
+      After = [ "kiro-gateway.service" ];
+      Wants = [ "kiro-gateway.service" ];
+      ConditionPathExists = "%h/dev/shared/kiro-gateway/scripts/sync-opencode-models.py";
+    };
+
+    Service = {
+      Type = "oneshot";
+      ExecStart = "%h/dev/shared/kiro-gateway/.venv/bin/python %h/dev/shared/kiro-gateway/scripts/sync-opencode-models.py --wait-seconds 15";
+    };
+  };
+
+  systemd.user.timers.kiro-opencode-model-sync = {
+    Unit.Description = "Actualiza periodicamente el catalogo de modelos de Kiro en OpenCode";
+    Timer = {
+      OnBootSec = "2min";
+      OnUnitActiveSec = "1h";
+      Persistent = true;
+    };
+    Install.WantedBy = [ "timers.target" ];
+  };
+
   # Atajos de conveniencia, autocontenidos en este módulo (no tocan zsh.nix,
   # así que desaparecen solos si se quita el import).
   home.shellAliases = {
@@ -63,5 +90,6 @@
     kgw-restart = "systemctl --user restart kiro-gateway";
     kgw-status = "systemctl --user status kiro-gateway";
     kgw-logs = "journalctl --user -u kiro-gateway -f";
+    kgw-models-sync = "systemctl --user start kiro-opencode-model-sync";
   };
 }
