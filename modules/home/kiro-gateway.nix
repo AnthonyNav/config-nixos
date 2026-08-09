@@ -1,14 +1,13 @@
 # kiro-gateway: arranque automático (systemd --user) para el proxy que expone
 # los modelos de Kiro como API OpenAI/Anthropic-compatible, consumido por
-# opencode. Repo: https://github.com/Jwadow/kiro-gateway
+# opencode. Repo: https://github.com/AnthonyNav/kiro-gateway
 #
 # DISEÑO A PROPÓSITO DESACOPLADO DE NIX (kiro-gateway es una herramienta de
 # comunidad que puede ser temporal — ver docs/maintainer.md):
 #   - El código (repo clonado), el venv de Python y los SECRETOS (.env con
 #     PROXY_API_KEY) viven fuera del store, en ~/dev/shared/kiro-gateway/.
-#   - ~/.config/opencode/config.json (con los modelos y el provider "kiro")
-#     también se edita a mano, fuera de Nix — agregar/quitar un modelo no
-#     requiere rebuild.
+#   - ~/.config/opencode/opencode.json define el provider y los modelos base
+#     desde Nix. El catalogo detectado se guarda en XDG state, fuera del store.
 #   - Este módulo aporta unidades systemd --user. Una unidad .path inicia el
 #     servicio cuando el venv aparece, sin depender de una sola comprobación al
 #     inicio de sesión.
@@ -17,7 +16,8 @@
 # y borra ~/dev/shared/kiro-gateway (y opcionalmente ~/.config/opencode).
 #
 # Bootstrap manual (una sola vez, o para reproducir en otra máquina):
-#   git clone https://github.com/Jwadow/kiro-gateway.git ~/dev/shared/kiro-gateway
+#   git clone git@github.com-personal:AnthonyNav/kiro-gateway.git ~/dev/shared/kiro-gateway
+#   git -C ~/dev/shared/kiro-gateway checkout 91f42a27cbecab5c31c01192e5a1d9018bc7320d
 #   cd ~/dev/shared/kiro-gateway && python3 -m venv .venv
 #   .venv/bin/pip install -r requirements.txt
 #   # .env con PROXY_API_KEY (inventado) + KIRO_CREDS_FILE=~/.aws/sso/cache/kiro-auth-token.json
@@ -28,7 +28,7 @@
   systemd.user.services.kiro-gateway = {
     Unit = {
       Description = "kiro-gateway: proxy OpenAI/Anthropic-compatible para los modelos de Kiro (usado por opencode)";
-      Documentation = "https://github.com/Jwadow/kiro-gateway";
+      Documentation = "https://github.com/AnthonyNav/kiro-gateway";
     };
 
     Service = {
@@ -56,8 +56,8 @@
   };
 
   # OpenCode needs an explicit models map for custom OpenAI-compatible
-  # providers. Keep it synchronized from the gateway without managing the
-  # credential-bearing config.json in Nix.
+  # providers. The gateway writes only the discovered catalog to XDG state;
+  # the provider configuration remains managed by Home Manager.
   systemd.user.services.kiro-opencode-model-sync = {
     Unit = {
       Description = "Sincroniza los modelos de Kiro Gateway hacia OpenCode";
@@ -68,7 +68,8 @@
 
     Service = {
       Type = "oneshot";
-      ExecStart = "%h/dev/shared/kiro-gateway/.venv/bin/python %h/dev/shared/kiro-gateway/scripts/sync-opencode-models.py --wait-seconds 15";
+      EnvironmentFile = "%h/dev/shared/kiro-gateway/.env";
+      ExecStart = "%h/dev/shared/kiro-gateway/.venv/bin/python %h/dev/shared/kiro-gateway/scripts/sync-opencode-models.py --base-config %h/.config/opencode/opencode.json --config %h/.local/state/opencode/kiro-models.json --wait-seconds 15";
     };
   };
 

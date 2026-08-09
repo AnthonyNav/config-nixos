@@ -14,4 +14,5 @@ jobs:
       - run: nix fmt -- --ci
       - run: nix flake check --no-build
       - run: node --check opencode/plugins/rtk.js
-      - run: jq empty opencode/config.example.json
+      - run: jq empty opencode/opencode.json
+      - run: jq empty opencode/kiro-models.json

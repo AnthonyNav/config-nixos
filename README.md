@@ -298,7 +298,7 @@ agregar algo ahí habría que parchar el QML del shell directamente.
 
 ## Kiro Gateway + opencode
 
-[`kiro-gateway`](https://github.com/Jwadow/kiro-gateway) es un proxy de
+[`kiro-gateway`](https://github.com/AnthonyNav/kiro-gateway) es un proxy de
 comunidad que expone los modelos de Kiro (Claude Opus/Sonnet/Haiku 4.5+,
 DeepSeek, Qwen, GLM, MiniMax...) como una API OpenAI/Anthropic-compatible, para
 poder usarlos desde **opencode** (ya instalado, ver `home.nix`) u otras
@@ -314,8 +314,9 @@ en [docs/maintainer.md](docs/maintainer.md).
 ### Bootstrap (una sola vez, o para reproducir en otra máquina)
 
 ```bash
-git clone https://github.com/Jwadow/kiro-gateway.git ~/dev/shared/kiro-gateway
+git clone git@github.com-personal:AnthonyNav/kiro-gateway.git ~/dev/shared/kiro-gateway
 cd ~/dev/shared/kiro-gateway
+git checkout 91f42a27cbecab5c31c01192e5a1d9018bc7320d
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
 ```
@@ -353,8 +354,8 @@ curl http://127.0.0.1:8000/v1/models -H "Authorization: Bearer <tu PROXY_API_KEY
 ```
 
 **Importante:** `/health` y `/v1/models` (arriba) **no prueban una conexión
-real** — `/v1/models` devuelve una lista estática, así que pueden verse bien
-aunque el chat en sí falle. La prueba real es un mensaje de verdad:
+real**. El catálogo es el detectado para la cuenta, pero el chat puede fallar
+por credenciales, región o límites. La prueba real es un mensaje de verdad:
 
 ```bash
 opencode run "responde solo con la palabra: funciona" -m kiro/claude-haiku-4.5
@@ -375,44 +376,16 @@ skill o plugin.
 
 ### Config de opencode
 
-`~/.config/opencode/config.json` queda fuera de Nix porque contiene el secreto
-local. `opencode/config.example.json` es la plantilla sin secretos y contiene
-el catalogo conocido al momento de actualizar el repo:
+`opencode/opencode.json` es la configuración canónica, distribuida por Home
+Manager como `~/.config/opencode/opencode.json`. Define el provider, modelos
+base, defaults y límites; la clave se resuelve en runtime como
+`{env:PROXY_API_KEY}` y nunca entra al store de Nix.
 
-```json
-{
-  "$schema": "https://opencode.ai/config.json",
-  "provider": {
-    "kiro": {
-      "npm": "@ai-sdk/openai-compatible",
-      "name": "Kiro Gateway",
-      "options": {
-        "baseURL": "http://127.0.0.1:8000/v1",
-        "apiKey": "<tu PROXY_API_KEY>"
-      },
-      "models": {
-        "auto": { "name": "Auto (Kiro elige y ahorra tokens)" },
-        "claude-sonnet-5": { "name": "Claude Sonnet 5 (preview)" },
-        "claude-opus-4.8": { "name": "Claude Opus 4.8" },
-        "claude-opus-4.7": { "name": "Claude Opus 4.7" },
-        "claude-opus-4.6": { "name": "Claude Opus 4.6" },
-        "claude-sonnet-4.6": { "name": "Claude Sonnet 4.6" },
-        "claude-opus-4.5": { "name": "Claude Opus 4.5" },
-        "claude-sonnet-4.5": { "name": "Claude Sonnet 4.5" },
-        "claude-sonnet-4": { "name": "Claude Sonnet 4" },
-        "claude-haiku-4.5": { "name": "Claude Haiku 4.5" },
-        "deepseek-3.2": { "name": "DeepSeek V3.2 (preview)" },
-        "minimax-m2.5": { "name": "MiniMax M2.5" },
-        "minimax-m2.1": { "name": "MiniMax M2.1 (preview)" },
-        "glm-5": { "name": "GLM 5" },
-        "qwen3-coder-next": { "name": "Qwen3 Coder Next (preview)" }
-      }
-    }
-  },
-  "model": "kiro/auto",
-  "small_model": "kiro/claude-haiku-4.5"
-}
-```
+El comando `opencode` también lo distribuye Home Manager mediante un wrapper:
+lee exclusivamente `PROXY_API_KEY` del `.env` privado del gateway y carga el
+catálogo dinámico desde `~/.local/state/opencode/kiro-models.json`. No crees
+`config.json` ni `opencode.jsonc` locales: tendrían precedencia y anularían la
+configuración declarativa.
 
 **Importante sobre el modelo `auto`:** úsalo con el ID literal `"auto"`, **no**
 `"auto-kiro"`. El alias se resuelve para el listado, pero no para solicitudes
@@ -422,8 +395,8 @@ de chat; el ID real `auto` sí funciona. Ver
 Kiro Gateway consulta el catalogo real de la cuenta en
 `management.<region>.kiro.dev/ListAvailableModels`, igual que Kiro IDE. Como
 OpenCode necesita una lista explicita para providers OpenAI-compatible, el
-timer de usuario `kiro-opencode-model-sync` agrega al JSON local los IDs nuevos
-cada hora, sin modificar el secreto ni los nombres ya personalizados. Para
+timer de usuario `kiro-opencode-model-sync` agrega al catálogo de estado los
+IDs nuevos cada hora, sin modificar la configuración administrada por Nix. Para
 sincronizar sin esperar al timer (excluye el alias `auto-kiro`; usa siempre
 `auto`):
 
@@ -443,7 +416,8 @@ Para inspeccionar el catalogo que el gateway detecto:
 curl -s http://127.0.0.1:8000/v1/models -H "Authorization: Bearer <tu PROXY_API_KEY>" | jq -r '.data[].id'
 ```
 
-`opencode models kiro` reconoce los IDs agregados en la siguiente sesion. Si
+Reinicia OpenCode tras la sincronización para que reconozca los IDs agregados.
+Si
 el gateway no esta disponible, revisa `kgw-status` y `kgw-logs`. Kiro IDE sigue
 siendo una fuente util de diagnostico porque sus logs registran cada respuesta
 real de `ListAvailableModelsCommand`:
@@ -458,10 +432,9 @@ devolvió al momento de escribir esto: familia Claude completa desde Sonnet 4
 hasta Opus 4.8/Sonnet 5, DeepSeek, MiniMax, GLM y Qwen. El sincronizador agrega
 modelos posteriores que la cuenta tenga habilitados.)
 
-**Para agregar otro provider** (no solo otro modelo de Kiro): opencode
-soporta múltiples entradas bajo `"provider"` en el mismo `config.json`, cada
-una con su propio `baseURL`/`apiKey`/`models` — el bloque `"kiro"` de arriba
-es la plantilla a copiar y ajustar.
+**Para agregar otro provider** (no solo otro modelo de Kiro): declara su
+entrada bajo `"provider"` en `opencode/opencode.json`, con su propio
+`baseURL`/`apiKey`/`models`.
 
 ### Desinstalar
 

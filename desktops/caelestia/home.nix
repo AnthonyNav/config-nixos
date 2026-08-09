@@ -58,5 +58,7 @@
     autoEnable = true;
     # Catppuccin emits Lua that the Hyprlang configuration rejects.
     hyprland.enable = false;
+    # Starship already uses the explicit Catppuccin palette in zsh.nix.
+    starship.enable = false;
   };
 }

@@ -18,24 +18,26 @@ managed files under `~/.config/opencode/` automatically.
 
 ## Local Configuration And Secrets
 
-`~/.config/opencode/config.json` remains local because it contains the Kiro
-credential. Do not add that file, tokens, OAuth data, or database passwords to
-Git. `opencode/config.example.json` is the secret-free provider template.
+`opencode/opencode.json` is the Nix-managed provider configuration. Its Kiro
+key is the `{env:PROXY_API_KEY}` runtime placeholder, resolved by the managed
+`opencode` wrapper from the gateway's private `.env`. Do not add tokens, OAuth
+data, or database passwords to Git.
 
 The managed plugin and skills work without changing the local Kiro config.
-When editing that config, retain its `$schema` and validate JSON before
-restarting OpenCode:
+Edit the repository configuration, retain its `$schema`, and validate JSON
+before applying Home Manager:
 
 ```sh
-jq empty ~/.config/opencode/config.json
+jq empty opencode/opencode.json
 ```
 
 Kiro Gateway discovers the models available to the signed-in account from
 Kiro's control-plane API. OpenCode custom providers still require an explicit
-`models` map, so the `kiro-opencode-model-sync` user timer adds newly detected
-IDs to the local config every hour. It preserves existing names and provider
-options, including the credential. The gateway alias `auto-kiro` is excluded:
-use the actual Kiro model ID `auto`. Run `kgw-models-sync` to refresh it now.
+`models` map, so the `kiro-opencode-model-sync` user timer writes newly
+detected IDs to `~/.local/state/opencode/kiro-models.json` every hour. OpenCode
+merges that catalog after the Nix-managed base configuration. The gateway alias
+`auto-kiro` is excluded: use the actual Kiro model ID `auto`. Run
+`kgw-models-sync` to refresh it now, then restart OpenCode.
 
 When Kiro advertises native reasoning levels for a model, the sync also creates
 matching OpenCode variants. Select `high` or `max` from `/models`; the gateway

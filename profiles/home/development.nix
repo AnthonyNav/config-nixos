@@ -28,7 +28,6 @@
     kiro
     kiro-cli
     antigravity-ide
-    opencode
     claude-code
     rtk
     python3
