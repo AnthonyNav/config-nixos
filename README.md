@@ -10,6 +10,9 @@ Configuración modular de NixOS + Flakes + Home Manager orientada a desarrollo d
 - [Despliegue rápido](#despliegue-rápido)
 - [Atajos de teclado](#atajos-de-teclado)
 - [Escritorio (Caelestia Shell)](#escritorio-caelestia-shell)
+- [Kiro Gateway + opencode](#kiro-gateway--opencode)
+- [Base de datos y terminal](#base-de-datos-y-terminal)
+- [Edición 3D / Video](#edición-3d--video)
 - [Para qué está preparado este entorno](#para-qué-está-preparado-este-entorno)
 - [Trabajar con Flakes en proyectos](#trabajar-con-flakes-en-proyectos)
 - [Agregar una nueva máquina](#agregar-una-nueva-máquina)
@@ -22,8 +25,8 @@ Configuración modular de NixOS + Flakes + Home Manager orientada a desarrollo d
 | Host | Estado | Hardware |
 |---|---|---|
 | `victus` | Activo | HP Victus — AMD HawkPoint + NVIDIA RTX 4050 |
-| `thinkpad` | Listo (falta hardware-configuration.nix) | ThinkPad |
-| `desktop` | Listo (falta hardware-configuration.nix) | Desktop |
+| `thinkpad` | Activo | ThinkPad con gráficos integrados |
+| `desktop` | Activo | Desktop — NVIDIA RTX 3060 Ti |
 
 ---
 
@@ -42,27 +45,48 @@ cd ~/nixos-config
 sudo nixos-generate-config --show-hardware-config > hosts/<nombre>/hardware-configuration.nix
 ```
 
-### Reconstruir el sistema
+### Primera activación
 
 ```bash
-# Detecta el hostname automáticamente (requiere que coincida con la carpeta del host)
-nix-switch
-
-# O explícitamente
-sudo nixos-rebuild switch --flake .#victus
-
-# Con archivos nuevos aún sin git add
+# `nix-switch` aún no existe en una instalación nueva.
 sudo nixos-rebuild switch --flake "path:$PWD#victus"
 ```
 
-### Solo perfil de usuario (sin cambios de sistema)
+### Actualizar una máquina existente
 
 ```bash
-hm-switch
+nixos-update
 ```
 
-> `nix-switch` y `hm-switch` son funciones Zsh definidas en `modules/home/zsh.nix`.  
-> Usan siempre `path:` internamente para soportar archivos sin rastrear por git.
+`nixos-update` es el único flujo de despliegue diario: exige un árbol limpio en
+`main`, obtiene `origin/main` solo mediante fast-forward, valida el flake,
+activa el host detectado y actualiza el gateway Kiro si ya está configurado. No
+actualiza inputs de Nix ni mezcla cambios locales.
+
+La primera vez que una máquina recibe esta función, actualiza el checkout de
+`main` y activa la generación una vez con el flujo anterior:
+
+```bash
+git switch main
+git pull --ff-only
+nix-switch
+```
+
+Después de esa migración, usa únicamente `nixos-update`.
+
+`nix-switch` conserva el flujo de desarrollo para aplicar cambios locales, y
+`hm-switch` aplica solo el perfil de usuario. Todos los hosts reciben perfiles
+base, desarrollo y clientes de base de datos; ThinkPad nunca recibe la suite
+creativa NVIDIA.
+
+### Limpiar el portapapeles
+
+```bash
+clipboard-clear
+```
+
+El comando borra los portapapeles estándar y primario de Wayland, además del
+historial de `cliphist`.
 
 ---
 
@@ -87,11 +111,25 @@ La tecla modificadora principal es `Super` (tecla Windows).
 | `Super + Q` / `Super + C` | Cerrar ventana activa |
 | `Super + F` | Pantalla completa |
 | `Super + E` | Flotante / Tiled |
+| `Super + Shift + E` | Centrar la ventana flotante activa |
+| `Super + P` | Fijar / desfijar en todos los workspaces (pin) |
 | `Super + G` | Agrupar ventanas |
 | `Super + Tab` | Cambiar en el grupo activo |
+| `Alt + Tab` / `Alt + Shift + Tab` | Ciclar entre ventanas (incluye flotantes) y traerlas al frente |
 | `Super + ←↑↓→` | Mover foco entre ventanas |
 | `Super + Shift + ←↑↓→` | Mover ventana físicamente |
+| `Super + arrastrar (clic izq)` | Mover una ventana (útil para flotantes) |
+| `Super + arrastrar (clic der)` | Redimensionar una ventana |
 | `Super + S` | **Modo resize** (flechas redimensionan, Escape/Enter salen) |
+| `Super + -` (minus) | Mostrar/ocultar el cajón de ventanas (scratchpad) |
+| `Super + Shift + -` | Enviar la ventana activa al cajón |
+
+> Las ventanas flotantes no tenían forma de arrastrarse/redimensionarse con el
+> mouse ni de ciclarse con teclado hasta agregar estos binds — Caelestia no
+> gestiona ventanas, solo aporta un popout en la barra (clic sobre el título de
+> la ventana activa) con botones **Float/Tile, Pin/Unpin, Kill** y una
+> cuadrícula para moverla a otro workspace, como complemento gráfico a estos
+> atajos.
 
 ### Workspaces (escritorios virtuales)
 
@@ -190,15 +228,81 @@ pywal + `postHook` que recarga kitty vía socket de control remoto). Nota:
 hyprlock, Rofi y Starship siguen fijos en Catppuccin Mocha real —
 sincronizarlos requeriría más trabajo y queda pendiente como mejora futura.
 
+### Modo claro / oscuro
+
+El tema oscuro por defecto es Catppuccin **Mocha**; el claro es Catppuccin
+**Latte**. El cambio es global (barra/shell, kitty, GTK, Qt, btop, fuzzel,
+colores de Hyprland). El wallpaper es independiente del modo y no cambia con
+el toggle — ver sección "Wallpapers" más abajo. Tres formas equivalentes de
+dispararlo:
+
+```bash
+theme-light    # fuerza modo claro (Latte)
+theme-dark     # fuerza modo oscuro (Mocha)
+theme-toggle   # alterna según el modo actual
+```
+
+- **Atajo**: `Super+Shift+T`.
+- **Panel de Caelestia**: la sección de estilo/wallpaper del panel también
+  trae un switch claro/oscuro — funciona igual que los comandos de arriba.
+
+Todos pasan por `caelestia scheme set -m <light|dark>`. El módulo
+`caelestia-scheme.nix` adapta el flavour Catppuccin correcto y reemplaza tanto
+la CLI general como la CLI interna de Caelestia Shell. Los detalles de
+mantenimiento están en [docs/maintainer.md](docs/maintainer.md).
+
+### Monitores externos
+
+`set-monitor` (`modules/home/monitors.nix`) posiciona (izquierda/derecha) y
+rota (paisaje/retrato) un monitor externo recién conectado, sin depender de
+nombres de salida fijos — a diferencia de kanshi, no necesita conocer de
+antemano qué monitor vas a conectar; lee el estado real vía `hyprctl monitors
+-j` en cada invocación. Es puramente manual: no reemplaza la regla global
+`monitor = ", preferred, auto, 1"` de `hyprland.nix`, solo la sobreescribe en
+caliente para la sesión actual — hay que volver a correrlo si reconectas el
+monitor o reinicias Hyprland/la sesión.
+
+```bash
+set-monitor right                  # extiende a la derecha del ancla, sin rotar
+set-monitor left portrait          # a la izquierda, en vertical (90°)
+set-monitor right portrait-inv     # 270° — probar si "portrait" queda al revés
+set-monitor right normal DP-2      # 3+ monitores conectados: nombre explícito
+```
+
+El "ancla" (monitor de referencia) es `eDP-1` (panel interno) si está
+presente, si no el monitor enfocado, si no el de menor id — cubre tanto
+laptops (victus, thinkpad) como `desktop` (sin panel interno). Con más de 2
+monitores conectados y sin nombre explícito, el comando lista
+`nombre / descripción` de cada uno para que elijas.
+
+Atajos de Hyprland para el caso más común (extender sin rotar):
+`Super+Alt+→` = `set-monitor right`, `Super+Alt+←` = `set-monitor left`. Los
+casos con rotación quedan solo como comando de terminal.
+
 ### Wallpapers
 
-`~/Pictures/Wallpapers/` contiene `fondo.gif` (el fondo animado actual, vía
-`mpvpaper`) más subcarpetas por tema (`catppuccin/`, `nord/`, `dracula/`,
-`gruvbox/`, `tokyo-dark/moon/storm/`, `solarized/`, `onedark/`) que combinan
-con los esquemas de color de arriba. Se descargan solas la primera vez desde
+El fondo de pantalla se gestiona de forma nativa por Caelestia
+(`background.wallpaperEnabled = true`, `modules/home/caelestia.nix`): es un
+solo wallpaper estático, compartido por todos los monitores (Caelestia no
+soporta un wallpaper distinto por pantalla, ni animación — solo
+jpg/jpeg/png/webp/svg/tiff, nada de gifs).
+
+Para elegirlo, sin tocar la terminal:
+- **Panel** (Super+D, dashboard) o la página de estilo/wallpaper del panel:
+  botones "Browse" (abre selector de archivos) y "Random" (elige uno al azar
+  de `paths.wallpaperDir`).
+- **Launcher** (Super+R): busca el wallpaper por nombre, igual que una app.
+
+`~/Pictures/Wallpapers/` trae subcarpetas por tema (`catppuccin/`, `nord/`,
+`dracula/`, `gruvbox/`, `tokyo-dark/moon/storm/`, `solarized/`, `onedark/`)
+que combinan con los esquemas de color de arriba — se descargan solas la
+primera vez desde
 [`yukazakiri/themed-wallpapers`](https://github.com/yukazakiri/themed-wallpapers)
-(ver `modules/home/wallpapers.nix`) sin tocar `fondo.gif`. El selector de
-wallpapers del launcher de Caelestia las lista directamente.
+(ver `modules/home/wallpapers.nix`). Cualquier imagen que agregues ahí (o en
+cualquier otra subcarpeta) aparece también en el selector.
+
+Si prefieres terminal de todos modos: `caelestia wallpaper -f <ruta>` fija una
+imagen puntual, `caelestia wallpaper -r` elige una al azar.
 
 ### Plugins de Caelestia
 
@@ -207,6 +311,300 @@ shell compila para registrar sus tipos internos de QML (config, efectos de
 blur, detección de beat del visualizador) — **no es un sistema de
 extensiones para el usuario**. No hay marketplace ni carpeta "drop-in"; para
 agregar algo ahí habría que parchar el QML del shell directamente.
+
+---
+
+## Kiro Gateway + opencode
+
+[`kiro-gateway`](https://github.com/AnthonyNav/kiro-gateway) es un proxy de
+comunidad que expone los modelos de Kiro (Claude Opus/Sonnet/Haiku 4.5+,
+DeepSeek, Qwen, GLM, MiniMax...) como una API OpenAI/Anthropic-compatible, para
+poder usarlos desde **opencode** (ya instalado, ver `home.nix`) u otras
+herramientas que acepten `baseURL` + `apiKey`.
+
+**Diseño reproducible con secretos locales:** el código procede del fork
+`AnthonyNav/kiro-gateway` fijado por `flake.lock`. El venv y los secretos quedan
+fuera del store: `~/.local/share/kiro-gateway/` y
+`~/.config/kiro-gateway/.env`. Nix aporta las unidades de usuario y actualiza
+el código con el resto de la configuración. Las dependencias Python probadas se
+fijan en `modules/home/kiro-gateway-requirements.txt`.
+
+### Bootstrap (una sola vez, o para reproducir en otra máquina)
+
+```bash
+mkdir -p ~/.config/kiro-gateway
+```
+
+Crea `~/.config/kiro-gateway/.env` (`chmod 600`, nunca se versiona):
+
+```bash
+PROXY_API_KEY="$(python3 -c 'import secrets; print(secrets.token_hex(24))')"  # invéntala, es tuya
+KIRO_CREDS_FILE="/home/<usuario>/.aws/sso/cache/kiro-auth-token.json"          # token de Kiro IDE ya logueado
+SERVER_HOST="127.0.0.1"
+SERVER_PORT="8000"
+```
+
+Después ejecuta:
+
+```bash
+kiro-gateway-bootstrap
+```
+
+`KIRO_CREDS_FILE` apunta al token que genera **Kiro IDE** al hacer login
+(no requiere `kiro-cli login` aparte); el gateway lo refresca solo con el
+`refreshToken` que ya trae ese archivo. Si prefieres usar `kiro-cli` en su
+lugar, revisa `.env.example` del repo (Opción 3, vía su SQLite).
+
+El bootstrap crea el venv local desde la revisión bloqueada y arranca el
+gateway. En equipos ya configurados migra automáticamente el `.env` previo de
+`~/dev/shared/kiro-gateway/` la primera vez que se ejecuta.
+
+### Uso diario
+
+```bash
+kgw-status   # ver si está corriendo
+kgw-logs     # seguir logs en vivo
+kgw-restart  # reiniciar (p.ej. tras cambiar .env)
+kgw-up / kgw-down   # arrancar / parar a mano
+```
+
+```bash
+curl http://127.0.0.1:8000/health
+curl http://127.0.0.1:8000/v1/models -H "Authorization: Bearer <tu PROXY_API_KEY>"
+```
+
+**Importante:** `/health` y `/v1/models` (arriba) **no prueban una conexión
+real**. El catálogo es el detectado para la cuenta, pero el chat puede fallar
+por credenciales, región o límites. La prueba real es un mensaje de verdad:
+
+```bash
+opencode run "responde solo con la palabra: funciona" -m kiro/claude-haiku-4.5
+```
+
+Si eso falla (502 / "profileArn is required" / etc.), revisa `kgw-logs` y
+confirma `KIRO_API_REGION` y `PROFILE_ARN` en el `.env` local. La regla de
+validación y el límite de responsabilidad están en
+[docs/maintainer.md](docs/maintainer.md).
+
+### Actualizar OpenCode
+
+OpenCode se instala desde Nix y su versión queda fijada para todos los equipos
+por `flake.lock`. No ejecutes `opencode upgrade`: actualiza el lock del repo,
+valida los hosts y aplica `nix-switch`. Las skills compartidas y el plugin RTK
+se distribuyen mediante Home Manager; reinicia OpenCode después de cambiar una
+skill o plugin.
+
+### Config de opencode
+
+`opencode/opencode.json` es la configuración canónica, distribuida por Home
+Manager como `~/.config/opencode/opencode.json`. Define el provider, modelos
+base, defaults y límites; la clave se resuelve en runtime como
+`{env:PROXY_API_KEY}` y nunca entra al store de Nix.
+
+El comando `opencode` también lo distribuye Home Manager mediante un wrapper:
+lee exclusivamente `PROXY_API_KEY` del `.env` privado del gateway y carga el
+catálogo dinámico desde `~/.local/state/opencode/kiro-models.json`. No crees
+`config.json` ni `opencode.jsonc` locales: tendrían precedencia y anularían la
+configuración declarativa.
+
+**Importante sobre el modelo `auto`:** úsalo con el ID literal `"auto"`, **no**
+`"auto-kiro"`. El alias se resuelve para el listado, pero no para solicitudes
+de chat; el ID real `auto` sí funciona. Ver
+[docs/maintainer.md](docs/maintainer.md) para esta regla de operación.
+
+Kiro Gateway consulta el catalogo real de la cuenta en
+`management.<region>.kiro.dev/ListAvailableModels`, igual que Kiro IDE. Como
+OpenCode necesita una lista explicita para providers OpenAI-compatible, el
+timer de usuario `kiro-opencode-model-sync` agrega al catálogo de estado los
+IDs nuevos cada hora, sin modificar la configuración administrada por Nix. Para
+sincronizar sin esperar al timer (excluye el alias `auto-kiro`; usa siempre
+`auto`):
+
+```bash
+kgw-models-sync
+```
+
+Cuando Kiro expone niveles de razonamiento nativos, el sincronizador agrega las
+variantes correspondientes a OpenCode. Abre `/models`, selecciona Luna, Sol o
+Terra y escoge `high` o `max`; el gateway los reenvia como el campo nativo de
+Kiro, no como razonamiento simulado. Actualmente esos tres modelos ofrecen
+`low`, `medium`, `high`, `xhigh` y `max`.
+
+Para inspeccionar el catalogo que el gateway detecto:
+
+```bash
+curl -s http://127.0.0.1:8000/v1/models -H "Authorization: Bearer <tu PROXY_API_KEY>" | jq -r '.data[].id'
+```
+
+Reinicia OpenCode tras la sincronización para que reconozca los IDs agregados.
+Si
+el gateway no esta disponible, revisa `kgw-status` y `kgw-logs`. Kiro IDE sigue
+siendo una fuente util de diagnostico porque sus logs registran cada respuesta
+real de `ListAvailableModelsCommand`:
+
+```bash
+grep -h '"commandName":"ListAvailableModelsCommand"' ~/.config/Kiro/logs/*/window1/exthost/kiro.kiroAgent/q-client.log | tail -1 | \
+  python3 -c "import sys,json; l=sys.stdin.read(); d=json.loads(l[l.find('{'):]); [print(m['modelId']) for m in d['output']['models']]"
+```
+
+(La plantilla actual incluye los 15 modelos —`auto` más 14— que esa consulta
+devolvió al momento de escribir esto: familia Claude completa desde Sonnet 4
+hasta Opus 4.8/Sonnet 5, DeepSeek, MiniMax, GLM y Qwen. El sincronizador agrega
+modelos posteriores que la cuenta tenga habilitados.)
+
+**Para agregar otro provider** (no solo otro modelo de Kiro): declara su
+entrada bajo `"provider"` en `opencode/opencode.json`, con su propio
+`baseURL`/`apiKey`/`models`.
+
+### Desinstalar
+
+```bash
+# 1. Quita el import de kiro-gateway de profiles/home/development.nix, hm-switch.
+# 2. Borra el venv, secretos y estado local (no están versionados, es seguro):
+rm -rf ~/.local/share/kiro-gateway ~/.config/kiro-gateway ~/.config/opencode
+```
+
+---
+
+## Base de datos y terminal
+
+Todos los hosts reciben clientes de desarrollo, no un servidor de base de datos:
+
+| Herramienta | Uso |
+|---|---|
+| DBeaver | Cliente gráfico universal para SQL y motores con drivers JDBC |
+| Beekeeper Studio | Cliente gráfico ligero para trabajo diario con SQL |
+| MySQL Workbench | Administración y modelado específico de MySQL/MariaDB |
+| `usql` | Cliente universal de terminal para PostgreSQL, MySQL/MariaDB, SQLite, SQL Server, Oracle y otros |
+
+Ejemplos de `usql`:
+
+```bash
+usql postgres://usuario@host/base
+usql mysql://usuario@host/base
+usql sqlite3://$PWD/dev.db
+```
+
+`usql` guarda conexiones nombradas en `~/.config/usql/config.yaml`; ese archivo
+puede contener secretos y no se versiona. Para levantar MariaDB localmente,
+importa de forma explícita `profiles/system/local-mariadb.nix` desde el host que
+lo necesite. El perfil no se activa por defecto.
+
+La terminal incluye `zoxide` (`z <directorio>`), `atuin` para historial local,
+`lazygit`, `delta`, `yazi`, completion visual con `fzf-tab` y búsqueda de
+historial por texto con las flechas arriba/abajo. `Ctrl-R` conserva la búsqueda
+de FZF; Atuin no sincroniza el historial por defecto.
+
+La guía de OpenCode y MCPs opt-in está en
+[docs/opencode.md](docs/opencode.md). El protocolo para medir la red ThinkPad
+está en [docs/thinkpad-network.md](docs/thinkpad-network.md).
+
+---
+
+## Edición 3D / Video
+
+Stack de creación audiovisual para los hosts NVIDIA: `victus` usa su RTX 4050
+mediante PRIME offload y `desktop` usa su RTX 3060 Ti como GPU principal.
+
+| Adobe | Aquí | Instalado vía |
+|---|---|---|
+| Premiere + Color | **DaVinci Resolve** (gratis) | `modules/home/creative-suite.nix` (`davinci-resolve`) |
+| After Effects (compositing) | **Fusion** (dentro de Resolve) | — |
+| Cinema4D / 3D | **Blender** (CUDA/OptiX reales) | `modules/home/blender-gpu.nix` (standalone) |
+| NLE ligero / respaldo | **Kdenlive** | `modules/home/creative-suite.nix` (`kdePackages.kdenlive`) |
+| Photoshop | **Krita** + **GIMP 3** | `modules/home/creative-suite.nix` (`krita`, `gimp`) |
+| Illustrator | **Inkscape** | `modules/home/creative-suite.nix` (`inkscape`) |
+
+**Todo este stack es opt-in por host**: `hosts/victus/home.nix` y
+`hosts/desktop/home.nix` lo importan; `thinkpad` usa el perfil base y no
+instala nada de esto.
+
+**Importante sobre Blender:** el paquete `blender` de nixpkgs se compila
+**sin ningún backend GPU de Cycles** (confirmado en su derivación:
+`WITH_CYCLES_CUDA_BINARIES=FALSE`, `WITH_CYCLES_DEVICE_OPTIX=FALSE`) — con
+él, Preferences > System solo lista "None"/"CUDA" y CUDA no encuentra ningún
+dispositivo, aunque la GPU esté sana. Por eso `modules/home/blender-gpu.nix`
+descarga (una sola vez, versión+hash fijados a mano, checksum SHA-256
+verificado) el **build oficial de blender.org** a `~/.local/opt/blender`,
+que sí trae esos kernels precompilados. El binario standalone es una excepción
+documentada al modelo reproducible; el paquete Nix permanece como respaldo
+CPU-only.
+
+### Lanzadores (definidos en `modules/home/creative-shell.nix`)
+
+```bash
+resolve       # DaVinci Resolve, forzado a la RTX + XWayland (QT_QPA_PLATFORM=xcb)
+blender-gpu   # Blender standalone, forzado a la RTX + fix de LD_LIBRARY_PATH (ver abajo)
+```
+
+`kdenlive`, `krita`, `gimp` e `inkscape` no necesitan `nvidia-offload`: se
+lanzan directo por su nombre normal. `blender` a secas también resuelve ya
+al binario standalone (gana en PATH), pero sin el offload a la dGPU — para
+render en GPU usa siempre `blender-gpu`.
+
+**Nota:** estas funciones/PATH nuevas solo existen en terminales *abiertas
+después* de correr `hm-switch` — si sigues en la misma terminal donde
+corriste el switch, ábrela de nuevo.
+
+**Lanzar Resolve/Blender desde rofi (drun) también funciona**, no solo desde
+terminal: `modules/home/gpu-launchers.nix` sobreescribe los `.desktop` de
+ambas apps (mismo nombre de archivo que el original, prioridad alta vía
+`xdg.desktopEntries` + `lib.hiPrio`) para que también lleven
+`nvidia-offload`/XWayland/`LD_LIBRARY_PATH` — un `.desktop` a secas no pasa
+por zsh, así que sin esto rofi lanzaba las apps sin ninguno de esos fixes
+(Resolve fallaba bajo Wayland nativo; Blender abría el binario CPU-only de
+Nix en vez del standalone). El de Blender usa ruta absoluta a
+`~/.local/opt/blender/blender` a propósito: el PATH de la sesión gráfica
+(el que usa rofi) no es el de zsh, así que un `Exec=blender` a secas ahí
+habría vuelto a resolver al paquete de Nix.
+
+**El fix de `LD_LIBRARY_PATH` en `blender-gpu`, explicado:** el loader
+interno de Blender para CUDA (CUEW) hace `dlopen("libcuda.so")` en runtime.
+NixOS no expone esa librería en una ruta estándar — vive en
+`/run/opengl-driver/lib` — así que sin agregarla al `LD_LIBRARY_PATH` del
+proceso, Blender no la encuentra aunque exista en el sistema. Confirmado:
+sin el fix, Preferences > System solo lista "None"; con él, lista **OptiX**
+y **CUDA** con la RTX 4050 real.
+
+### Flujo de trabajo con Resolve (versión gratis)
+
+**Importante:** la versión gratis de DaVinci Resolve en Linux **no
+importa/exporta H.264/H.265** (limitación de licencia, no del hardware) — el
+metraje típico de cámara/celular necesita transcodificarse antes:
+
+```bash
+# 1. Ingesta: H.264/H.265 -> DNxHR HQ (editable sin problemas en Resolve gratis)
+to-dnxhr clip1.mp4 clip2.mp4
+
+# 2. Edita/corrige color/compón en Resolve, exporta un master DNxHR/ProRes.
+
+# 3. Entrega: master -> H.264 vía NVENC (rápido, en GPU)
+to-h264 master.mov
+```
+
+Si el paso extra molesta a futuro, la salida es comprar **Resolve Studio**
+(~$295 pago único, sí trae esos códecs) — cambiar `davinci-resolve` por
+`davinci-resolve-studio` en `modules/home/creative-suite.nix`.
+
+### Notas
+
+- **Techo real de "alta calidad":** 6 GB de VRAM alcanzan sobrado para 1080p
+  y 4K moderado; vigilar en escenas Blender muy pesadas o grados 4K con
+  muchos nodos.
+- **Primera vez con Resolve:** crea su base de datos de proyectos en disco al
+  primer arranque (puede tardar un poco); si la GUI no abre bajo Hyprland, el
+  lanzador ya fuerza XWayland, que es la causa más común de fallos con apps
+  Qt en compositores Wayland nuevos.
+- **Respaldo si Resolve da problemas:** Kdenlive ingesta H.264 directo con
+  NVENC, sin necesidad de transcodificar — cubre el rol de NLE mientras se
+  resuelve cualquier fricción con Resolve.
+- **natron** (compositor nodal FOSS, alternativo a Fusion) se evaluó pero
+  está marcado `broken` en el pin actual de nixpkgs-unstable — omitido por
+  ahora; Fusion (dentro de Resolve) cubre ese rol.
+- **Actualizar la versión de Blender standalone:** edita `blenderVersion` y
+  `blenderSha256` en `modules/home/blender-gpu.nix` (el hash real se saca del
+  `blender-X.Y.Z.sha256` que publica `download.blender.org/release/`), borra
+  `~/.local/opt/blender` y corre `hm-switch` — se re-descarga y verifica solo.
 
 ---
 
@@ -223,6 +621,7 @@ agregar algo ahí habría que parchar el QML del shell directamente.
 | **Data / Python** | Python 3, pip, Micromamba |
 | **DevOps** | Docker + Compose, GitHub CLI (`gh`) |
 | **IA / Agentes** | Claude Code, Codex (OpenAI CLI), Kiro, Kiro CLI, OpenCode |
+| **3D / Video** | DaVinci Resolve, Blender, Kdenlive, Krita, GIMP, Inkscape, ffmpeg (ver [Edición 3D / Video](#edición-3d--video)) |
 
 ### Herramientas de terminal
 
@@ -247,22 +646,24 @@ ff                           # fastfetch
 nix-switch                   # reconstruir sistema
 hm-switch                    # reconstruir solo perfil de usuario
 nix-clean                    # liberar espacio (garbage collect + optimize)
-pritunl                      # VPN Pritunl (AppImage)
+pritunl                      # abre la GUI de Pritunl VPN
 ```
 
 ### VPN Pritunl
 
-El cliente Pritunl se instala como AppImage (una sola vez):
+El cliente Pritunl (`pritunl-client`) se instala a nivel de **sistema**
+(`modules/system/pritunl.nix`, importado globalmente desde
+`modules/system/core.nix`, así que está disponible en cualquier host del
+repo) — no hace falta descargar nada a mano ni AppImages: nixpkgs ya trae el
+paquete completo (CLI + daemon privilegiado + GUI Electron), compilado desde
+fuente. El daemon (`pritunl-client.service`) arranca solo con el sistema.
 
 ```bash
-curl -fsSL https://github.com/pritunl/pritunl-client-electron/releases/latest/download/Pritunl.AppImage \
-  -o ~/.local/bin/pritunl-client.AppImage && chmod +x ~/.local/bin/pritunl-client.AppImage
-```
-
-Luego, cada vez que se necesite:
-
-```bash
-pritunl
+pritunl                      # alias a la GUI (pritunl-client-electron)
+pritunl-client --help        # CLI real
+pritunl-client add <perfil.ovpn | uri-pritunl://...>
+pritunl-client list
+pritunl-client start <profile-id>
 ```
 
 ### Claude Code
@@ -371,10 +772,14 @@ nix build               # construir el output por defecto
 
 ### Actualizar las dependencias del sistema
 
+Esto se hace en un branch y PR dedicado, nunca con `nixos-update` en una
+máquina de uso diario:
+
 ```bash
 cd ~/nixos-config
-nix flake update        # actualiza nixpkgs, home-manager, catppuccin
-nix-switch              # aplica las actualizaciones
+nix flake update        # actualiza las entradas fijadas para todos los hosts
+nix flake check --no-write-lock-file
+# construye los hosts afectados y abre un PR hacia main
 ```
 
 ---
@@ -388,9 +793,7 @@ nix-switch              # aplica las actualizaciones
 {
   imports = [
     ./hardware-configuration.nix
-    ../../modules/system/core.nix
-    ../../modules/system/ai-helper.nix
-    ../../modules/system/display-manager.nix
+    ../../modules/system
   ];
 
   networking.hostName = "<nombre>";
@@ -411,7 +814,8 @@ nix-switch              # aplica las actualizaciones
 sudo nixos-generate-config --show-hardware-config > hosts/<nombre>/hardware-configuration.nix
 ```
 
-3. El host aparece automáticamente en `nixosConfigurations` (via `hostIfReady` en `flake.nix`).
+3. Agrega el host y su `hosts/<nombre>/home.nix` al registro explícito de
+   workstations en `flake.nix`.
 
 4. Desplegar:
 

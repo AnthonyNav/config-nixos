@@ -3,9 +3,7 @@
 {
   imports = [
     ./hardware-configuration.nix
-    ../../modules/system/core.nix
-    ../../modules/system/ai-helper.nix
-    ../../modules/system/display-manager.nix
+    ../../modules/system
   ];
 
   boot.loader.systemd-boot.enable = true;
@@ -40,6 +38,12 @@
 
     prime = {
       offload.enable = true;
+      # Provee el comando `nvidia-offload <app>`: fija las env vars de PRIME
+      # (__NV_PRIME_RENDER_OFFLOAD, __GLX_VENDOR_LIBRARY_NAME=nvidia, etc.)
+      # para forzar una app puntual a correr en la RTX 4050 en vez del iGPU
+      # AMD. Usado por los lanzadores `resolve`/`blender-gpu` (zsh.nix) del
+      # stack de edición 3D/video — ver README.md, sección "Edición 3D / Video".
+      offload.enableOffloadCmd = true;
       amdgpuBusId = "PCI:6:0:0";
       nvidiaBusId = "PCI:1:0:0";
     };

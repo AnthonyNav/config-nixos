@@ -1,15 +1,15 @@
 { lib, pkgs, ... }:
 
 {
-  # Wallpapers adicionales que combinan con los esquemas de color que ya trae
+  # Wallpapers estáticos que combinan con los esquemas de color que ya trae
   # Caelestia empaquetados (catppuccin, nord, dracula, gruvbox, tokyonight,
   # solarized, onedark...). Fuente: yukazakiri/themed-wallpapers, ~1100
   # wallpapers organizados en carpetas por paleta — coincide casi 1:1 con los
   # esquemas de caelestia-cli. Se descargan solo la primera vez (idempotente:
   # si la carpeta del tema ya existe, no se vuelve a clonar) hacia subcarpetas
-  # dentro de ~/Pictures/Wallpapers/, SIN tocar fondo.gif (el wallpaper animado
-  # actual, que vive suelto en la raíz de esa misma carpeta). El selector de
-  # wallpapers de Caelestia soporta esta estructura por subcarpetas.
+  # dentro de ~/Pictures/Wallpapers/. El selector visual de wallpapers de
+  # Caelestia (panel/launcher, ver modules/home/caelestia.nix y README.md,
+  # "Wallpapers") lista y navega esta estructura por subcarpetas directamente.
   home.activation.fetchThemedWallpapers = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
     wallpapers_dir="$HOME/Pictures/Wallpapers"
     git_bin="${pkgs.git}/bin/git"

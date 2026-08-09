@@ -9,59 +9,170 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    catppuccin.url = "github:catppuccin/nix";
+    catppuccin = {
+      url = "github:catppuccin/nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
 
     caelestia-shell = {
       url = "github:caelestia-dots/shell";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    treefmt-nix = {
+      url = "github:numtide/treefmt-nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
+    kiro-gateway = {
+      url = "github:AnthonyNav/kiro-gateway/91f42a27cbecab5c31c01192e5a1d9018bc7320d";
+      flake = false;
+    };
   };
 
-  outputs = { nixpkgs, home-manager, catppuccin, ... }@inputs:
-  let
-    lib = nixpkgs.lib;
-    system = "x86_64-linux";
-    username = "anthony";
-    specialArgs = { inherit inputs username; };
-    pkgsFor = import nixpkgs {
-      inherit system;
-      config.allowUnfree = true;
-    };
-    mkHost = hostPath:
-      lib.nixosSystem {
-        inherit system specialArgs;
-        modules = [
-          hostPath
-          home-manager.nixosModules.home-manager
-          {
-            home-manager.useGlobalPkgs = true;
-            home-manager.useUserPackages = true;
-            home-manager.backupFileExtension = "hm-backup";
-            home-manager.users.${username} = import ./home.nix;
-            home-manager.extraSpecialArgs = { inherit inputs username; };
-            home-manager.sharedModules = [ catppuccin.homeModules.catppuccin ];
-          }
+  outputs =
+    {
+      self,
+      nixpkgs,
+      home-manager,
+      catppuccin,
+      treefmt-nix,
+      ...
+    }@inputs:
+    let
+      lib = nixpkgs.lib;
+      system = "x86_64-linux";
+      username = "anthony";
+      specialArgs = { inherit inputs username; };
+      pkgsFor = import nixpkgs {
+        localSystem = system;
+        config.allowUnfree = true;
+      };
+      treefmtEval = treefmt-nix.lib.evalModule pkgsFor ./treefmt.nix;
+      desktopStyles = {
+        caelestia = {
+          systemModule = ./desktops/caelestia/system.nix;
+          homeModule = ./desktops/caelestia/home.nix;
+        };
+      };
+      workstations = {
+        victus = {
+          systemModule = ./hosts/victus;
+          homeModules = [ ./hosts/victus/home.nix ];
+          desktopStyle = "caelestia";
+          features = {
+            graphics = "nvidia-prime";
+            creativeNvidia = true;
+            monitorProfile = "dynamic";
+          };
+        };
+        desktop = {
+          systemModule = ./hosts/desktop;
+          homeModules = [ ./hosts/desktop/home.nix ];
+          desktopStyle = "caelestia";
+          features = {
+            graphics = "nvidia";
+            creativeNvidia = true;
+            monitorProfile = "desktop-3";
+          };
+        };
+        thinkpad = {
+          systemModule = ./hosts/thinkpad;
+          homeModules = [ ./hosts/thinkpad/home.nix ];
+          desktopStyle = "caelestia";
+          features = {
+            graphics = "intel";
+            creativeNvidia = false;
+            monitorProfile = "dynamic";
+          };
+        };
+      };
+      mkHost =
+        host:
+        let
+          style =
+            desktopStyles.${host.desktopStyle} or (throw "Unknown desktop style '${host.desktopStyle}'.");
+          hostFeatures = host.features // {
+            desktopStyle = host.desktopStyle;
+          };
+        in
+        lib.nixosSystem {
+          inherit system specialArgs;
+          modules = [
+            style.systemModule
+            host.systemModule
+            home-manager.nixosModules.home-manager
+            {
+              home-manager.useGlobalPkgs = true;
+              home-manager.useUserPackages = true;
+              home-manager.backupFileExtension = "hm-backup";
+              home-manager.users.${username}.imports = [
+                ./home.nix
+                style.homeModule
+              ]
+              ++ host.homeModules;
+              home-manager.extraSpecialArgs = {
+                inherit inputs username;
+                inherit hostFeatures;
+              };
+              home-manager.sharedModules = [ catppuccin.homeModules.catppuccin ];
+            }
+          ];
+        };
+      mkHome =
+        host:
+        let
+          style =
+            desktopStyles.${host.desktopStyle} or (throw "Unknown desktop style '${host.desktopStyle}'.");
+          hostFeatures = host.features // {
+            desktopStyle = host.desktopStyle;
+          };
+        in
+        home-manager.lib.homeManagerConfiguration {
+          pkgs = pkgsFor;
+          extraSpecialArgs = {
+            inherit inputs username;
+            inherit hostFeatures;
+          };
+          modules = [
+            ./home.nix
+            style.homeModule
+            catppuccin.homeModules.catppuccin
+          ]
+          ++ host.homeModules;
+        };
+    in
+    {
+      nixosConfigurations = (lib.mapAttrs (_: mkHost) workstations) // {
+        # ISO instaladora personalizada, no un host real: SSH ya autorizado +
+        # este repo pre-cargado en /etc/nixos-config (ver iso/installer.nix),
+        # para instalar hosts nuevos completamente por SSH desde otra
+        # máquina. Build: nix build .#nixosConfigurations.installer.config.system.build.isoImage
+        installer = lib.nixosSystem {
+          inherit system specialArgs;
+          modules = [
+            "${nixpkgs}/nixos/modules/installer/cd-dvd/installation-cd-minimal.nix"
+            ./iso/installer.nix
+          ];
+        };
+      };
+
+      homeConfigurations = lib.mapAttrs' (
+        name: host: lib.nameValuePair "${username}@${name}" (mkHome host)
+      ) workstations;
+
+      formatter.${system} = treefmtEval.config.build.wrapper;
+      checks.${system}.formatting = treefmtEval.config.build.check self;
+      devShells.${system}.default = pkgsFor.mkShell {
+        packages = with pkgsFor; [
+          treefmtEval.config.build.wrapper
+          nixfmt
+          statix
+          deadnix
+          shellcheck
+          nodejs_22
+          jq
         ];
       };
-    hostIfReady = name: hostPath:
-      lib.optionalAttrs (builtins.pathExists "${toString hostPath}/hardware-configuration.nix") {
-        ${name} = mkHost hostPath;
-      };
-  in {
-    nixosConfigurations =
-      {
-        victus = mkHost ./hosts/victus;
-      }
-      // hostIfReady "thinkpad" ./hosts/thinkpad
-      // hostIfReady "desktop" ./hosts/desktop;
-
-    homeConfigurations.${username} = home-manager.lib.homeManagerConfiguration {
-      pkgs = pkgsFor;
-      extraSpecialArgs = { inherit inputs username; };
-      modules = [
-        ./home.nix
-        catppuccin.homeModules.catppuccin
-      ];
     };
-  };
 }

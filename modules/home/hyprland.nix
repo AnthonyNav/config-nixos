@@ -1,19 +1,25 @@
-{ username, ... }:
+{ lib, ... }:
 
 {
   wayland.windowManager.hyprland = {
     enable = true;
     configType = "hyprlang";
     systemd.enable = true;
-    
+
     settings = {
-      monitor = ", preferred, auto, 1";
+      # mkDefault: hosts con layout de monitores fijo (ver
+      # modules/home/monitors-desktop.nix) sobreescriben esto por completo con
+      # una lista de reglas explícitas — este comodín solo aplica donde nadie
+      # más define `monitor` (victus, thinkpad, o cualquier salida nueva no
+      # contemplada en el override).
+      monitor = lib.mkDefault ", preferred, auto, 1";
 
       "exec-once" = [
         # Caelestia Shell se autoarranca vía su propio servicio systemd --user
         # (programs.caelestia.systemd.enable, ver modules/home/caelestia.nix);
-        # no necesita exec-once aquí.
-        "mpvpaper -o \"no-audio --loop --keepaspect=no --vf=scale=1920:1080\" eDP-1 /home/${username}/Pictures/Wallpapers/fondo.gif"
+        # no necesita exec-once aquí. Tampoco lo necesita el wallpaper: es la
+        # gestión nativa de Caelestia (background.wallpaperEnabled = true),
+        # se pinta sola al arrancar el shell.
         # nm-applet y blueman-applet quitados: eran íconos de bandeja
         # duplicados; Caelestia ya tiene control nativo de red y bluetooth
         # (contenedor statusIcons + sidebar de quick toggles).
@@ -66,40 +72,68 @@
       bind = [
         # Gestión del Sistema y Terminal
         "$mainMod, Return, exec, kitty"
-        "$mainMod, R, exec, caelestia shell drawers toggle launcher"   # launcher nativo de Caelestia (antes rofi -show drun)
-        "$mainMod, D, global, caelestia:dashboard"                     # dashboard (media, clima, info del sistema)
+        "$mainMod, R, exec, caelestia shell drawers toggle launcher" # launcher nativo de Caelestia (antes rofi -show drun)
+        "$mainMod, D, global, caelestia:dashboard" # dashboard (media, clima, info del sistema)
         "$mainMod, C, killactive,"
-        "$mainMod, Q, killactive,"          # alias estándar de i3/sway
+        "$mainMod, Q, killactive," # alias estándar de i3/sway
         "$mainMod, F, fullscreen, 0"
 
         # Sesión y Energía
-        "$mainMod, L, exec, pidof hyprlock || hyprlock"            # bloquear pantalla
-        "$mainMod, Escape, global, caelestia:session"              # menú de sesión nativo de Caelestia (antes wlogout)
-        "$mainMod, M, exit,"                                       # salida de emergencia (sin menú)
+        "$mainMod, L, exec, pidof hyprlock || hyprlock" # bloquear pantalla
+        "$mainMod, Escape, global, caelestia:session" # menú de sesión nativo de Caelestia (antes wlogout)
+        "$mainMod, M, exit," # salida de emergencia (sin menú)
 
         # Modos de Ordenamiento y Ventanas
         "$mainMod, E, togglefloating,"
+        "$mainMod SHIFT, E, centerwindow," # centrar la ventana flotante activa
+        "$mainMod, P, pin," # fijar/desfijar en todos los workspaces
         "$mainMod, G, togglegroup,"
         "$mainMod, Tab, changegroupactive, f"
 
+        # Alt-Tab real: ciclar entre ventanas (incluidas las flotantes) y
+        # traer la enfocada al frente — Caelestia no trae esto (solo un
+        # popout con acciones sobre la ventana ya activa), así que se resuelve
+        # nativamente en Hyprland. $mainMod+Tab (grupos) queda intacto.
+        "ALT, Tab, cyclenext,"
+        "ALT, Tab, bringactivetotop,"
+        "ALT SHIFT, Tab, cyclenext, prev"
+        "ALT SHIFT, Tab, bringactivetotop,"
+
+        # Cajón de ventanas (scratchpad) — esconder/mostrar flotantes con una
+        # tecla. Se ve en la barra de Caelestia (special workspaces).
+        "$mainMod, minus, togglespecialworkspace, scratch"
+        "$mainMod SHIFT, minus, movetoworkspacesilent, special:scratch"
+
         # Lanzadores Rápidos
         "$mainMod, B, exec, firefox"
-        "$mainMod, T, exec, thunar"         # gestor de archivos
+        "$mainMod, T, exec, thunar" # gestor de archivos
+
+        # Modo claro/oscuro global (ver README.md, "Modo claro / oscuro" y
+        # modules/home/caelestia-scheme.nix). Mismo efecto que theme-toggle
+        # (zsh.nix) o el switch del panel de Caelestia.
+        "$mainMod SHIFT, T, exec, theme-toggle"
+
+        # Posiciona un monitor externo recién conectado a la izq/der del
+        # ancla, sin rotar (ver README.md, "Monitores externos" y
+        # modules/home/monitors.nix). Para rotación usa el comando de
+        # terminal: `set-monitor left|right portrait`.
+        "$mainMod ALT, right, exec, set-monitor right"
+        "$mainMod ALT, left, exec, set-monitor left"
 
         # Cheatsheet de atajos (muestra los binds activos de Hyprland via rofi)
         "$mainMod SHIFT, K, exec, hyprctl binds -j | jq -r '.[] | \"\\(.modmask)\\t\\(.key)\\t→\\t\\(.dispatcher) \\(.arg)\"' | column -t | rofi -dmenu -i -p \"Atajos de teclado\""
 
         # Control de Notificaciones (Caelestia Shell, antes SwayNC)
-        "$mainMod, N, exec, caelestia shell drawers toggle sidebar"    # panel de notifs + quick toggles
-        "$mainMod ALT, N, exec, caelestia shell notifs clear"          # limpiar todas las notificaciones
+        "$mainMod, N, exec, caelestia shell drawers toggle sidebar" # panel de notifs + quick toggles
+        "$mainMod ALT, N, exec, caelestia shell notifs clear" # limpiar todas las notificaciones
 
         # Herramientas de Productividad
         "$mainMod, V, exec, cliphist list | rofi -dmenu -p \"Portapapeles\" | cliphist decode | wl-copy"
         "$mainMod SHIFT, P, exec, hyprpicker -a && notify-send \"Color Picker\" \"Código copiado\""
-        "$mainMod SHIFT, C, exec, caelestia shell picker open"           # color picker nativo de Caelestia (alternativa a hyprpicker)
+        "$mainMod SHIFT, C, exec, caelestia shell picker open" # color picker nativo de Caelestia (alternativa a hyprpicker)
         "$mainMod SHIFT, S, exec, grim -g \"$(slurp)\" - | wl-copy && notify-send \"Captura\" \"Área copiada\""
         ", Print, exec, grim ~/Pictures/Screenshots/Captura_$(date +'%Y%m%d_%H%M%S').png && notify-send \"Captura\" \"Guardada\""
-        "$mainMod SHIFT ALT, S, global, caelestia:screenshotFreeze"      # captura con freeze + anotación (swappy)
+        "$mainMod SHIFT ALT, S, global, caelestia:screenshotFreeze" # captura con freeze + anotación (swappy)
 
         # Luz cálida (filtro azul) — alterna el servicio wlsunset ya existente
         # (modules/home/night-light.nix, auto día/noche). Caelestia no trae
@@ -168,6 +202,19 @@
         ", XF86MonBrightnessDown, global, caelestia:brightnessDown"
       ];
 
+      # Arrastre y redimensión de ventanas (sobre todo flotantes) con el
+      # mouse: Super + clic izquierdo mueve, Super + clic derecho redimensiona.
+      bindm = [
+        "$mainMod, mouse:272, movewindow"
+        "$mainMod, mouse:273, resizewindow"
+      ];
+
+      # Nota: no hay bloque de reglas de ventana (windowrule/windowrulev2).
+      # Desde Hyprland 0.55 esa sintaxis hyprlang quedó deprecada a favor de
+      # Lua (hl.window_rule({...})), y configType acá es "hyprlang" para todo
+      # el archivo — migrar solo esto a Lua obligaría a reescribir el resto
+      # de la config (binds, general, decoration...) a ese formato nuevo y
+      # aún inestable. Se deja pendiente como proyecto aparte si hace falta.
     };
 
     # Submap de resize: Super+S activa el modo; flechas redimensionan la

@@ -1,10 +1,23 @@
-{ lib, pkgs, username, ... }:
+{
+  lib,
+  pkgs,
+  username,
+  ...
+}:
 
 {
+  imports = [ ./pritunl.nix ];
+
   networking.networkmanager.enable = true;
   networking.firewall.interfaces.tailscale0 = {
-    allowedTCPPorts = [ 22 22000 ];   # SSH solo accesible desde la red Tailscale
-    allowedUDPPorts = [ 22000 21027 ];
+    allowedTCPPorts = [
+      22
+      22000
+    ]; # SSH solo accesible desde la red Tailscale
+    allowedUDPPorts = [
+      22000
+      21027
+    ];
   };
 
   time.timeZone = "America/Mexico_City";
@@ -12,10 +25,10 @@
   # UI en inglés; formatos regionales (fecha/moneda/unidades) en estilo MX.
   i18n.defaultLocale = "en_US.UTF-8";
   i18n.extraLocaleSettings = {
-    LC_TIME        = "es_MX.UTF-8";
-    LC_MONETARY    = "es_MX.UTF-8";
+    LC_TIME = "es_MX.UTF-8";
+    LC_MONETARY = "es_MX.UTF-8";
     LC_MEASUREMENT = "es_MX.UTF-8";
-    LC_PAPER       = "es_MX.UTF-8";
+    LC_PAPER = "es_MX.UTF-8";
   };
   i18n.supportedLocales = [
     "en_US.UTF-8/UTF-8"
@@ -27,7 +40,10 @@
   # console.keyMap se elimina para que no entre en conflicto con useXkbConfig.
 
   nix.settings = {
-    experimental-features = [ "nix-command" "flakes" ];
+    experimental-features = [
+      "nix-command"
+      "flakes"
+    ];
     auto-optimise-store = true;
     substituters = lib.mkAfter [
       "https://nix-community.cachix.org"
@@ -48,12 +64,19 @@
   nixpkgs.config.allowUnfree = true;
 
   programs.zsh.enable = true;
+  programs.ssh.startAgent = true;
 
   users.users.${username} = {
     isNormalUser = true;
     description = username;
     shell = pkgs.zsh;
-    extraGroups = [ "networkmanager" "wheel" "video" "docker" "kvm" ];
+    extraGroups = [
+      "networkmanager"
+      "wheel"
+      "video"
+      "docker"
+      "kvm"
+    ];
     packages = with pkgs; [
       fastfetch
       neovim
@@ -71,7 +94,7 @@
   # SSH solo escucha en la interfaz Tailscale; acceso únicamente por llave.
   services.openssh = {
     enable = true;
-    openFirewall = false;   # No abre el puerto en internet; solo vía tailscale0
+    openFirewall = false; # No abre el puerto en internet; solo vía tailscale0
     settings = {
       PasswordAuthentication = false;
     };
@@ -89,11 +112,6 @@
   };
 
   hardware.bluetooth.enable = true;
-  # services.blueman.enable: desactivado (rama caelestia). Instalaba blueman-applet
-  # como autostart XDG + servicio systemd activado por D-Bus, independiente de
-  # Hyprland exec-once — por eso quitarlo de ahi no bastaba. Caelestia ya trae
-  # su propio control nativo de bluetooth (statusIcons + sidebar quick toggles).
-  services.blueman.enable = false;
   services.power-profiles-daemon.enable = true;
   virtualisation.docker.enable = true;
 
@@ -129,7 +147,10 @@
     extraPortals = [ pkgs.xdg-desktop-portal-gtk ];
   };
 
-  environment.pathsToLink = [ "/share/applications" "/share/xdg-desktop-portal" ];
+  environment.pathsToLink = [
+    "/share/applications"
+    "/share/xdg-desktop-portal"
+  ];
 
   environment.variables = {
     FLAKE = "/home/${username}/nixos-config";
