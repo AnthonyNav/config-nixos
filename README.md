@@ -63,6 +63,17 @@ nixos-update
 activa el host detectado y actualiza el gateway Kiro si ya está configurado. No
 actualiza inputs de Nix ni mezcla cambios locales.
 
+La primera vez que una máquina recibe esta función, actualiza el checkout de
+`main` y activa la generación una vez con el flujo anterior:
+
+```bash
+git switch main
+git pull --ff-only
+nix-switch
+```
+
+Después de esa migración, usa únicamente `nixos-update`.
+
 `nix-switch` conserva el flujo de desarrollo para aplicar cambios locales, y
 `hm-switch` aplica solo el perfil de usuario. Todos los hosts reciben perfiles
 base, desarrollo y clientes de base de datos; ThinkPad nunca recibe la suite

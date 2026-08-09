@@ -2,6 +2,8 @@
 
 `main` is the only deployment branch. Every workstation updates from it with
 `nixos-update`; do not deploy a host-specific or feature branch directly.
+Machines predating that command need one final `git pull --ff-only` plus
+`nix-switch` migration before using it.
 
 ## Workflow
 
