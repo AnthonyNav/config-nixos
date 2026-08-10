@@ -338,8 +338,10 @@ kiro-gateway-bootstrap
 El comando crea `~/.config/kiro-gateway/` y su `.env` con modo `0600`, genera
 un `PROXY_API_KEY` criptográficamente seguro si hace falta y preserva los
 secretos ya existentes. Detecta primero credenciales JSON válidas de Kiro IDE
-en `~/.aws/sso/cache/` y, si no encuentra una, la base SQLite de `kiro-cli` en
-`~/.local/share/kiro-cli/data.sqlite3`. También migra el `.env` previo de
+en `~/.aws/sso/cache/kiro-auth-token.json` y, si no encuentra una, la base
+SQLite de `kiro-cli` en `~/.local/share/kiro-cli/data.sqlite3`. Nunca elige un
+JSON AWS SSO arbitrario; una ruta de credenciales configurada previamente debe
+seguir siendo válida. También migra el `.env` previo de
 `~/dev/shared/kiro-gateway/` sin mostrar sus secretos.
 
 Después prepara o actualiza el venv desde la revisión ya fijada, inicia las
@@ -386,15 +388,16 @@ skill o plugin.
 ### Config de opencode
 
 `opencode/opencode.json` es la configuración canónica, distribuida por Home
-Manager como `~/.config/opencode/opencode.json`. Solo contiene preferencias que
-funcionan sin Kiro, por lo que `opencode` inicia normalmente aunque no exista
-el `.env` del gateway. Tras un bootstrap exitoso, el overlay local de Kiro
-añade provider, modelos y defaults; la clave se resuelve en runtime como
-`{env:PROXY_API_KEY}` y nunca entra al store de Nix.
+Manager como `~/.config/opencode/opencode.json`. Declara el provider y sus
+modelos semilla, pero no selecciona Kiro como modelo predeterminado, por lo que
+`opencode` inicia normalmente aunque no exista el `.env` del gateway. La clave
+se resuelve en runtime como `{env:PROXY_API_KEY}` y nunca entra al store de Nix.
 
 El comando `opencode` también lo distribuye Home Manager mediante un wrapper:
 solo después de un bootstrap exitoso lee `PROXY_API_KEY` del `.env` privado y
 carga el catálogo dinámico desde `~/.local/state/opencode/kiro-models.json`.
+Ese catálogo solo actualiza `provider.kiro.models`; el sincronizador lo genera
+directamente desde la configuración gestionada mediante `--base-config`.
 No crees `config.json` ni `opencode.jsonc` locales: tendrían precedencia y
 anularían la configuración declarativa.
 

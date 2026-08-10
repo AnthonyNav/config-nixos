@@ -20,7 +20,6 @@
 # al store.
 {
   inputs,
-  lib,
   pkgs,
   ...
 }:
@@ -28,88 +27,6 @@
 let
   gatewaySource = inputs.kiro-gateway;
   gatewayRequirements = ./kiro-gateway-requirements.txt;
-  kiroOpenCodeModelSync = pkgs.writeShellApplication {
-    name = "kiro-opencode-model-sync";
-    runtimeInputs = [
-      pkgs.coreutils
-      pkgs.python3
-    ];
-    text = ''
-            env_file="''${XDG_CONFIG_HOME:-$HOME/.config}/kiro-gateway/.env"
-            catalog="$HOME/.local/state/opencode/kiro-models.json"
-
-            if [[ ! -r "$env_file" || ! -r "$catalog" ]]; then
-              printf 'Kiro model synchronization requires its local environment and OpenCode catalog.\n' >&2
-              exit 1
-            fi
-
-            proxy_api_key="$(python3 - "$env_file" <<'PY'
-      import re
-      import sys
-
-      for line in open(sys.argv[1], encoding="utf-8"):
-          match = re.fullmatch(r"\s*PROXY_API_KEY\s*=\s*(.*?)\s*", line)
-          if not match:
-              continue
-          value = match.group(1)
-          if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
-              value = value[1:-1]
-          print(value, end="")
-          break
-      PY
-            )"
-            if [[ -z "$proxy_api_key" ]]; then
-              printf 'Kiro model synchronization requires a non-empty PROXY_API_KEY.\n' >&2
-              exit 1
-            fi
-
-            temporary_config="$(mktemp "''${XDG_RUNTIME_DIR:-/tmp}/kiro-opencode-models.XXXXXX")"
-            trap 'rm -f "$temporary_config"' EXIT
-
-            PROXY_API_KEY="$proxy_api_key" python3 - "$catalog" "$temporary_config" <<'PY'
-      import json
-      import os
-      import sys
-
-      catalog_path, temporary_path = sys.argv[1:]
-      with open(catalog_path, encoding="utf-8") as file:
-          config = json.load(file)
-
-      config["provider"]["kiro"]["options"]["apiKey"] = os.environ["PROXY_API_KEY"]
-      with open(temporary_path, "w", encoding="utf-8") as file:
-          json.dump(config, file, indent=2)
-          file.write("\n")
-      os.chmod(temporary_path, 0o600)
-      PY
-
-            python3 ${gatewaySource}/scripts/sync-opencode-models.py \
-              --config "$temporary_config" \
-              --wait-seconds 15
-
-            python3 - "$catalog" "$temporary_config" <<'PY'
-      import json
-      import os
-      import sys
-      import tempfile
-
-      catalog_path, temporary_path = sys.argv[1:]
-      with open(temporary_path, encoding="utf-8") as file:
-          config = json.load(file)
-      config["provider"]["kiro"]["options"]["apiKey"] = "{env:PROXY_API_KEY}"
-
-      descriptor, replacement_path = tempfile.mkstemp(prefix=".kiro-models.", dir=os.path.dirname(catalog_path))
-      try:
-          with os.fdopen(descriptor, "w", encoding="utf-8") as file:
-              json.dump(config, file, indent=2)
-              file.write("\n")
-          os.chmod(replacement_path, 0o600)
-          os.replace(replacement_path, catalog_path)
-      except Exception:
-          os.unlink(replacement_path)
-          raise
-      PY
-    '';
-  };
   kiroGatewayBootstrap = pkgs.writeShellApplication {
     name = "kiro-gateway-bootstrap";
     runtimeInputs = [
@@ -131,38 +48,31 @@ let
             marker="$data_dir/requirements.sha256"
             configured_marker="$data_dir/configured"
 
-            has_configured_credentials() {
-              python3 - "$env_file" <<'PY'
-      import re
-      import sys
-
-      try:
-          lines = open(sys.argv[1], encoding="utf-8")
-      except OSError:
-          raise SystemExit(1)
-
-      keys = {"REFRESH_TOKEN", "KIRO_CREDS_FILE", "KIRO_CLI_DB_FILE"}
-      for line in lines:
-          match = re.fullmatch(r"\s*([A-Z_][A-Z0-9_]*)\s*=\s*(.*?)\s*", line)
-          if not match or match.group(1) not in keys:
-              continue
-          value = match.group(2)
-          if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
-              value = value[1:-1]
-          if value:
-              raise SystemExit(0)
-      raise SystemExit(1)
-      PY
-            }
-
-            detect_credentials() {
-              python3 - "$HOME" <<'PY'
+            select_credentials() {
+              python3 - "$env_file" "$HOME" <<'PY'
       import json
+      import re
       import sqlite3
       import sys
       from pathlib import Path
 
-      home = Path(sys.argv[1])
+      env_path, home = map(Path, sys.argv[1:])
+
+      def env_values(path):
+          values = {}
+          try:
+              lines = path.open(encoding="utf-8")
+          except OSError:
+              return values
+          for line in lines:
+              match = re.fullmatch(r"\s*([A-Z_][A-Z0-9_]*)\s*=\s*(.*?)\s*", line)
+              if not match:
+                  continue
+              value = match.group(2)
+              if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
+                  value = value[1:-1]
+              values[match.group(1)] = value
+          return values
 
       def usable_json(path):
           try:
@@ -217,18 +127,35 @@ let
               registration.get("client_id") and registration.get("client_secret") for registration in registrations
           )
 
-      cache_dir = home / ".aws" / "sso" / "cache"
-      candidates = [cache_dir / "kiro-auth-token.json"]
-      if cache_dir.is_dir():
-          candidates.extend(path for path in sorted(cache_dir.glob("*.json")) if path not in candidates)
-      for candidate in candidates:
-          if candidate.is_file() and usable_json(candidate):
-              print(f"json\t{candidate}")
-              raise SystemExit
+      values = env_values(env_path)
+      cli_path = Path(values["KIRO_CLI_DB_FILE"]).expanduser() if values.get("KIRO_CLI_DB_FILE") else None
+      json_path = Path(values["KIRO_CREDS_FILE"]).expanduser() if values.get("KIRO_CREDS_FILE") else None
+      stale = []
+      valid_cli = cli_path is not None and cli_path.is_file() and usable_sqlite(cli_path)
+      valid_json = json_path is not None and json_path.is_file() and usable_json(json_path)
+      if cli_path is not None and not valid_cli:
+          stale.append("KIRO_CLI_DB_FILE")
+      if json_path is not None and not valid_json:
+          stale.append("KIRO_CREDS_FILE")
 
-      database = home / ".local" / "share" / "kiro-cli" / "data.sqlite3"
-      if database.is_file() and usable_sqlite(database):
-          print(f"sqlite\t{database}")
+      # Preserve a valid configured source. This order matches gateway priority.
+      if valid_cli:
+          kind, path = "sqlite", cli_path
+      elif valid_json:
+          kind, path = "json", json_path
+      elif values.get("REFRESH_TOKEN"):
+          kind, path = "refresh", ""
+      else:
+          # Automatic discovery is deliberately limited to Kiro's documented paths.
+          ide_path = home / ".aws" / "sso" / "cache" / "kiro-auth-token.json"
+          cli_path = home / ".local" / "share" / "kiro-cli" / "data.sqlite3"
+          if ide_path.is_file() and usable_json(ide_path):
+              kind, path = "json", ide_path
+          elif cli_path.is_file() and usable_sqlite(cli_path):
+              kind, path = "sqlite", cli_path
+          else:
+              kind, path = "", ""
+      print(f"{kind}|{path}|{','.join(stale)}")
       PY
             }
 
@@ -243,11 +170,10 @@ let
             install -d -m 700 "$config_dir"
             credential_kind=""
             credential_path=""
-            if ! has_configured_credentials; then
-              IFS=$'\t' read -r credential_kind credential_path < <(detect_credentials) || true
-            fi
+            stale_credentials=""
+            IFS='|' read -r credential_kind credential_path stale_credentials < <(select_credentials) || true
 
-            python3 - "$env_file" "$credential_kind" "$credential_path" <<'PY'
+            python3 - "$env_file" "$credential_kind" "$credential_path" "$stale_credentials" <<'PY'
       import json
       import os
       import re
@@ -256,7 +182,8 @@ let
       import tempfile
 
       env_path = os.path.abspath(sys.argv[1])
-      credential_kind, credential_path = sys.argv[2:]
+      credential_kind, credential_path, stale_credentials = sys.argv[2:]
+      stale = set(filter(None, stale_credentials.split(",")))
       try:
           with open(env_path, encoding="utf-8") as file:
               lines = file.readlines()
@@ -272,6 +199,9 @@ let
           value = match.group(3)
           if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
               value = value[1:-1]
+          if match.group(2) in stale:
+              lines[position] = ""
+              continue
           values[match.group(2)] = value
           positions[match.group(2)] = position
 
@@ -281,14 +211,13 @@ let
       }
       if not values.get("PROXY_API_KEY"):
           desired["PROXY_API_KEY"] = secrets.token_urlsafe(32)
-      if not any(values.get(key) for key in ("REFRESH_TOKEN", "KIRO_CREDS_FILE", "KIRO_CLI_DB_FILE")):
-          if credential_kind == "json":
-              desired["KIRO_CREDS_FILE"] = credential_path
-          elif credential_kind == "sqlite":
-              desired["KIRO_CLI_DB_FILE"] = credential_path
+      if credential_kind == "json":
+          desired["KIRO_CREDS_FILE"] = credential_path
+      elif credential_kind == "sqlite":
+          desired["KIRO_CLI_DB_FILE"] = credential_path
 
       for key, value in desired.items():
-          if values.get(key):
+          if values.get(key) and key not in {"KIRO_CREDS_FILE", "KIRO_CLI_DB_FILE"}:
               continue
           rendered = f"{key}={json.dumps(value)}\n"
           if key in positions:
@@ -307,7 +236,9 @@ let
           raise
       PY
 
-            if ! has_configured_credentials; then
+            IFS='|' read -r credential_kind credential_path stale_credentials < <(select_credentials) || true
+            rm -f "$configured_marker"
+            if [[ -z "$credential_kind" ]]; then
               if [[ "''${1:-}" == "--if-configured" ]]; then
                 exit 0
               fi
@@ -328,7 +259,6 @@ let
               printf '%s\n' "$requirements_digest" > "$marker"
             fi
 
-            rm -f "$configured_marker"
             systemctl --user start kiro-gateway.path
             systemctl --user restart kiro-gateway.service
             systemctl --user start kiro-opencode-model-sync.service
@@ -387,7 +317,8 @@ in
 
     Service = {
       Type = "oneshot";
-      ExecStart = lib.getExe kiroOpenCodeModelSync;
+      EnvironmentFile = "-%h/.config/kiro-gateway/.env";
+      ExecStart = "%h/.local/share/kiro-gateway/venv/bin/python ${gatewaySource}/scripts/sync-opencode-models.py --base-config %h/.config/opencode/opencode.json --config %h/.local/state/opencode/kiro-models.json --wait-seconds 15";
     };
   };
 
