@@ -25,7 +25,7 @@
     };
 
     kiro-gateway = {
-      url = "github:AnthonyNav/kiro-gateway/91f42a27cbecab5c31c01192e5a1d9018bc7320d";
+      url = "github:AnthonyNav/kiro-gateway/5562ad43b6bd4ce05a663130c574402cef0e2f32";
       flake = false;
     };
   };
