@@ -11,7 +11,7 @@
       "models": {
         "auto": { "name": "Auto (Kiro elige y ahorra tokens)" },
         "claude-sonnet-5": { "name": "Claude Sonnet 5 (preview)" },
-        "claude-opus-4.8": { "name": "Claude Opus 4.8" },
+        "claude-opus-4.8": { "name": "Claude Opus 4.8 (preview)" },
         "claude-opus-4.7": { "name": "Claude Opus 4.7" },
         "claude-opus-4.6": { "name": "Claude Opus 4.6" },
         "claude-sonnet-4.6": { "name": "Claude Sonnet 4.6" },
@@ -27,8 +27,6 @@
       }
     }
   },
-  "model": "kiro/auto",
-  "small_model": "kiro/claude-haiku-4.5",
   "tool_output": {
     "max_lines": 200,
     "max_bytes": 8192

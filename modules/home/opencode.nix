@@ -1,44 +1,48 @@
 { lib, pkgs, ... }:
 
 let
-  modelCatalogSeed = pkgs.writeText "opencode-kiro-models.json" (
-    builtins.toJSON {
-      provider.kiro.models = { };
-    }
-  );
-
   opencodeWithKiro = pkgs.writeShellApplication {
     name = "opencode";
-    runtimeInputs = [ pkgs.opencode ];
+    runtimeInputs = [
+      pkgs.opencode
+      pkgs.python3
+    ];
     text = ''
-      gateway_env="''${XDG_CONFIG_HOME:-$HOME/.config}/kiro-gateway/.env"
-      if [[ ! -r "$gateway_env" ]]; then
-        printf 'OpenCode requires a readable Kiro Gateway environment file: %s\n' "$gateway_env" >&2
-        exit 1
-      fi
+            gateway_env="''${XDG_CONFIG_HOME:-$HOME/.config}/kiro-gateway/.env"
+            data_dir="''${XDG_DATA_HOME:-$HOME/.local/share}/kiro-gateway"
+            catalog="$HOME/.local/state/opencode/kiro-models.json"
 
-      # Read only the proxy credential in a subprocess; Kiro credentials stay private.
-      proxy_api_key="$(
-        set -a
-        # shellcheck source=/dev/null
-        source "$gateway_env"
-        printf '%s' "$PROXY_API_KEY"
-      )"
-      if [[ -z "$proxy_api_key" ]]; then
-        printf 'PROXY_API_KEY is missing from %s\n' "$gateway_env" >&2
-        exit 1
-      fi
+            # Kiro is loaded only after a successful bootstrap. Do not execute .env as shell code.
+            if [[ -f "$data_dir/configured" && -r "$gateway_env" && -r "$catalog" ]]; then
+              proxy_api_key="$(python3 - "$gateway_env" <<'PY'
+      import re
+      import sys
 
-      export PROXY_API_KEY="$proxy_api_key"
-      export OPENCODE_CONFIG="$HOME/.local/state/opencode/kiro-models.json"
-      exec ${lib.getExe pkgs.opencode} "$@"
+      for line in open(sys.argv[1], encoding="utf-8"):
+          match = re.fullmatch(r"\s*PROXY_API_KEY\s*=\s*(.*?)\s*", line)
+          if not match:
+              continue
+          value = match.group(1)
+          if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
+              value = value[1:-1]
+          print(value, end="")
+          break
+      PY
+              )"
+              if [[ -n "$proxy_api_key" ]]; then
+                export PROXY_API_KEY="$proxy_api_key"
+                export OPENCODE_CONFIG="$catalog"
+              fi
+            fi
+
+            exec ${lib.getExe pkgs.opencode} "$@"
     '';
   };
 in
 
 {
-  # La configuración base, las skills y el plugin viven en el repo. La clave de
-  # Kiro se resuelve en runtime desde el .env privado del gateway.
+  # La configuración base incluye el provider Kiro sin hacerlo predeterminado.
+  # El wrapper solo expone su credencial y catálogo después del bootstrap.
   xdg.configFile = {
     "opencode/opencode.json".source = ../../opencode/opencode.json;
     "opencode/skills/graphify/SKILL.md".source = ../../opencode/skills/graphify/SKILL.md;
@@ -63,14 +67,4 @@ in
       "$HOME/.config/opencode/package-lock.json"
   '';
 
-  # OpenCode merges this mutable catalog after the Nix-managed base config.
-  # It only contains discovered model metadata, never credentials.
-  home.activation.initializeOpenCodeKiroCatalog = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-    catalog_dir="$HOME/.local/state/opencode"
-    catalog="$catalog_dir/kiro-models.json"
-    if [[ ! -e "$catalog" ]]; then
-      $DRY_RUN_CMD ${pkgs.coreutils}/bin/mkdir -p "$catalog_dir"
-      $DRY_RUN_CMD ${pkgs.coreutils}/bin/install -m 600 ${modelCatalogSeed} "$catalog"
-    fi
-  '';
 }

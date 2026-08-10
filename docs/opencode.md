@@ -18,11 +18,14 @@ managed files under `~/.config/opencode/` automatically.
 
 ## Local Configuration And Secrets
 
-`opencode/opencode.json` is the Nix-managed provider configuration. Its Kiro
-key is the `{env:PROXY_API_KEY}` runtime placeholder, resolved by the managed
-`opencode` wrapper from `~/.config/kiro-gateway/.env`. Gateway source is pinned
-by `flake.lock`; its venv stays local under `~/.local/share/kiro-gateway/`.
-Do not add tokens, OAuth data, or database passwords to Git.
+`opencode/opencode.json` declares Kiro's provider and seed models without
+making Kiro the default model, so OpenCode starts without its gateway. After
+`kiro-gateway-bootstrap` succeeds, the managed wrapper exposes the generated
+models catalog and resolves `{env:PROXY_API_KEY}` at runtime from
+`~/.config/kiro-gateway/.env`; the key never enters Nix. Gateway source is
+pinned by `flake.lock`; its venv stays local under
+`~/.local/share/kiro-gateway/`. Do not add tokens, OAuth data, or database
+passwords to Git.
 
 The managed plugin and skills work without changing the local Kiro config.
 Edit the repository configuration, retain its `$schema`, and validate JSON
@@ -35,9 +38,10 @@ jq empty opencode/opencode.json
 Kiro Gateway discovers the models available to the signed-in account from
 Kiro's control-plane API. OpenCode custom providers still require an explicit
 `models` map, so the `kiro-opencode-model-sync` user timer writes newly
-detected IDs to `~/.local/state/opencode/kiro-models.json` every hour. OpenCode
-merges that catalog after the Nix-managed base configuration. The gateway alias
-`auto-kiro` is excluded: use the actual Kiro model ID `auto`. Run
+detected IDs to `~/.local/state/opencode/kiro-models.json` every hour using the
+Nix-managed config as `--base-config`. OpenCode merges that catalog only after
+Kiro has bootstrapped successfully. The gateway alias `auto-kiro` is excluded:
+use the actual Kiro model ID `auto`. Run
 `kgw-models-sync` to refresh it now, then restart OpenCode.
 
 When Kiro advertises native reasoning levels for a model, the sync also creates

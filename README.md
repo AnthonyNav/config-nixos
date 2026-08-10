@@ -332,32 +332,23 @@ fijan en `modules/home/kiro-gateway-requirements.txt`.
 ### Bootstrap (una sola vez, o para reproducir en otra máquina)
 
 ```bash
-mkdir -p ~/.config/kiro-gateway
-```
-
-Crea `~/.config/kiro-gateway/.env` (`chmod 600`, nunca se versiona):
-
-```bash
-PROXY_API_KEY="$(python3 -c 'import secrets; print(secrets.token_hex(24))')"  # invéntala, es tuya
-KIRO_CREDS_FILE="/home/<usuario>/.aws/sso/cache/kiro-auth-token.json"          # token de Kiro IDE ya logueado
-SERVER_HOST="127.0.0.1"
-SERVER_PORT="8000"
-```
-
-Después ejecuta:
-
-```bash
 kiro-gateway-bootstrap
 ```
 
-`KIRO_CREDS_FILE` apunta al token que genera **Kiro IDE** al hacer login
-(no requiere `kiro-cli login` aparte); el gateway lo refresca solo con el
-`refreshToken` que ya trae ese archivo. Si prefieres usar `kiro-cli` en su
-lugar, revisa `.env.example` del repo (Opción 3, vía su SQLite).
+El comando crea `~/.config/kiro-gateway/` y su `.env` con modo `0600`, genera
+un `PROXY_API_KEY` criptográficamente seguro si hace falta y preserva los
+secretos ya existentes. Detecta primero credenciales JSON válidas de Kiro IDE
+en `~/.aws/sso/cache/kiro-auth-token.json` y, si no encuentra una, la base
+SQLite de `kiro-cli` en `~/.local/share/kiro-cli/data.sqlite3`. Nunca elige un
+JSON AWS SSO arbitrario; una ruta de credenciales configurada previamente debe
+seguir siendo válida. También migra el `.env` previo de
+`~/dev/shared/kiro-gateway/` sin mostrar sus secretos.
 
-El bootstrap crea el venv local desde la revisión bloqueada y arranca el
-gateway. En equipos ya configurados migra automáticamente el `.env` previo de
-`~/dev/shared/kiro-gateway/` la primera vez que se ejecuta.
+Después prepara o actualiza el venv desde la revisión ya fijada, inicia las
+unidades de usuario y sincroniza los modelos hacia OpenCode. Si aún no has
+iniciado sesión en Kiro IDE o `kiro-cli`, crea el `.env` seguro, explica el
+paso pendiente y termina sin iniciar un gateway incompleto. Inicia sesión y
+vuelve a ejecutar el mismo comando; es idempotente.
 
 ### Uso diario
 
@@ -397,15 +388,18 @@ skill o plugin.
 ### Config de opencode
 
 `opencode/opencode.json` es la configuración canónica, distribuida por Home
-Manager como `~/.config/opencode/opencode.json`. Define el provider, modelos
-base, defaults y límites; la clave se resuelve en runtime como
-`{env:PROXY_API_KEY}` y nunca entra al store de Nix.
+Manager como `~/.config/opencode/opencode.json`. Declara el provider y sus
+modelos semilla, pero no selecciona Kiro como modelo predeterminado, por lo que
+`opencode` inicia normalmente aunque no exista el `.env` del gateway. La clave
+se resuelve en runtime como `{env:PROXY_API_KEY}` y nunca entra al store de Nix.
 
 El comando `opencode` también lo distribuye Home Manager mediante un wrapper:
-lee exclusivamente `PROXY_API_KEY` del `.env` privado del gateway y carga el
-catálogo dinámico desde `~/.local/state/opencode/kiro-models.json`. No crees
-`config.json` ni `opencode.jsonc` locales: tendrían precedencia y anularían la
-configuración declarativa.
+solo después de un bootstrap exitoso lee `PROXY_API_KEY` del `.env` privado y
+carga el catálogo dinámico desde `~/.local/state/opencode/kiro-models.json`.
+Ese catálogo solo actualiza `provider.kiro.models`; el sincronizador lo genera
+directamente desde la configuración gestionada mediante `--base-config`.
+No crees `config.json` ni `opencode.jsonc` locales: tendrían precedencia y
+anularían la configuración declarativa.
 
 **Importante sobre el modelo `auto`:** úsalo con el ID literal `"auto"`, **no**
 `"auto-kiro"`. El alias se resuelve para el listado, pero no para solicitudes
