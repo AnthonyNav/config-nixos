@@ -278,7 +278,10 @@ in
     };
 
     Service = {
-      WorkingDirectory = "${gatewaySource}";
+      # El gateway crea credentials.json y state.json relativos al directorio
+      # de trabajo; el código fijado en el store no admite escrituras.
+      WorkingDirectory = "%h/.local/share/kiro-gateway";
+      UMask = "0077";
       # Secretos (PROXY_API_KEY, ruta a las credenciales de Kiro) fuera del
       # store, cargados en runtime desde este archivo.
       EnvironmentFile = "-%h/.config/kiro-gateway/.env";
