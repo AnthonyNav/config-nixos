@@ -8,6 +8,10 @@
 
   networking.hostName = "thinkpad";
 
+  # Prioriza latencia y throughput estables en redes congestionadas. Se limita
+  # a este host porque el coste de bateria y el adaptador varian por equipo.
+  networking.networkmanager.wifi.powersave = false;
+
   boot.loader.systemd-boot.enable = true;
   boot.loader.systemd-boot.configurationLimit = 5;
   boot.loader.efi.canTouchEfiVariables = true;

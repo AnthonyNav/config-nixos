@@ -1,4 +1,4 @@
-{ lib, ... }:
+{ config, lib, ... }:
 
 {
   wayland.windowManager.hyprland = {
@@ -79,7 +79,7 @@
         "$mainMod, F, fullscreen, 0"
 
         # Sesión y Energía
-        "$mainMod, L, exec, pidof hyprlock || hyprlock" # bloquear pantalla
+        "$mainMod, L, exec, ${config.programs.caelestia.cli.package}/bin/caelestia shell lock lock"
         "$mainMod, Escape, global, caelestia:session" # menú de sesión nativo de Caelestia (antes wlogout)
         "$mainMod, M, exit," # salida de emergencia (sin menú)
 

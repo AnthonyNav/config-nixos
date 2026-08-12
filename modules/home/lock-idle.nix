@@ -1,65 +1,20 @@
-{ ... }:
+{ config, ... }:
 
+let
+  lockCommand = "${config.programs.caelestia.cli.package}/bin/caelestia shell lock lock";
+in
 {
-  # Pantalla de bloqueo (hyprlock) — activar con Super+L o automáticamente.
-  programs.hyprlock = {
-    enable = true;
-    settings = {
-      general = {
-        disable_loading_bar = true;
-        hide_cursor = true;
-        grace = 5; # segundos de gracia antes de pedir contraseña
-      };
+  # Caelestia es el unico session locker. Ejecutar Hyprlock en paralelo hace
+  # competir dos clientes ext-session-lock y termina derribando Quickshell.
+  programs.hyprlock.enable = false;
 
-      background = [
-        {
-          monitor = "";
-          path = "screenshot";
-          blur_passes = 3;
-          blur_size = 7;
-          brightness = 0.5;
-        }
-      ];
-
-      input-field = [
-        {
-          monitor = "";
-          size = "300, 50";
-          outline_thickness = 2;
-          inner_color = "rgb(30, 30, 46)"; # Catppuccin Mocha base
-          outer_color = "rgb(203, 166, 247)"; # Catppuccin Mocha mauve
-          font_color = "rgb(205, 214, 244)"; # text
-          fade_on_empty = true;
-          placeholder_text = "<i>Password...</i>";
-          hide_input = false;
-          position = "0, -80";
-          halign = "center";
-          valign = "center";
-        }
-      ];
-
-      label = [
-        {
-          monitor = "";
-          text = "$TIME";
-          color = "rgb(205, 214, 244)";
-          font_size = 64;
-          font_family = "JetBrainsMono Nerd Font";
-          position = "0, 160";
-          halign = "center";
-          valign = "center";
-        }
-      ];
-    };
-  };
-
-  # Gestión de inactividad (hypridle) — escalonado seguro.
+  # Hypridle conserva la politica de tiempos, brillo, DPMS y suspension.
   services.hypridle = {
     enable = true;
     settings = {
       general = {
-        lock_cmd = "pidof hyprlock || hyprlock";
-        before_sleep_cmd = "loginctl lock-session";
+        lock_cmd = lockCommand;
+        before_sleep_cmd = lockCommand;
         after_sleep_cmd = "hyprctl dispatch dpms on";
       };
 
@@ -71,12 +26,12 @@
           on-resume = "brightnessctl -r";
         }
         {
-          # 5 min → bloquear sesión (hyprlock debe estar corriendo ANTES del dpms off)
+          # 5 min → bloquear antes de apagar las pantallas.
           timeout = 300;
-          on-timeout = "loginctl lock-session";
+          on-timeout = lockCommand;
         }
         {
-          # 5 min 30 s → apagar pantalla; hyprlock ya está renderizando y puede despertar limpiamente
+          # 5 min 30 s → apagar pantalla; el lock ya esta renderizando.
           timeout = 330;
           on-timeout = "hyprctl dispatch dpms off";
           on-resume = "hyprctl dispatch dpms on";

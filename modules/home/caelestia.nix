@@ -1,4 +1,10 @@
-{ inputs, pkgs, ... }:
+{
+  config,
+  inputs,
+  lib,
+  pkgs,
+  ...
+}:
 
 let
   # Tras cada cambio de esquema (comando, atajo o el switch claro/oscuro del
@@ -32,6 +38,22 @@ let
       *) dconf write /org/gnome/desktop/interface/gtk-theme "'adw-gtk3-dark'" ;;
     esac
   '';
+
+  # Valores iniciales, no una politica inmutable. Caelestia necesita escribir
+  # shell.json para que los cambios hechos desde Nexus sobrevivan al reinicio.
+  caelestiaShellDefaults = pkgs.writeText "caelestia-shell-defaults.json" (
+    builtins.toJSON {
+      background.wallpaperEnabled = true;
+      bar = {
+        popouts.statusIcons = true;
+        status.showBattery = true;
+      };
+      dashboard.performance.showBattery = true;
+      general.idle.timeouts = [ ];
+      nexus.networkRescanInterval = 60000;
+      paths.wallpaperDir = "~/Pictures/Wallpapers";
+    }
+  );
 in
 {
   # Caelestia Shell — desktop shell sobre quickshell (barra, launcher,
@@ -53,40 +75,24 @@ in
       };
     };
 
-    settings = {
-      # Caelestia trae su PROPIA gestión de inactividad (lock/dpms/suspend
-      # vía general.idle.timeouts). La desactivamos por completo para que
-      # NO compita con hypridle+hyprlock (modules/home/lock-idle.nix), que
-      # ya tiene el fix de orden DPMS aplicado y probado.
-      general.idle.timeouts = [ ];
-
-      paths = {
-        wallpaperDir = "~/Pictures/Wallpapers";
-      };
-
-      # Gestión nativa de wallpaper de Caelestia: un solo fondo estático
-      # (jpg/png/webp/svg/tiff, sin animación) compartido por todas las
-      # pantallas — elegido a mano desde el selector visual del panel/launcher
-      # en vez de un script propio (ver README.md, "Wallpapers"). Antes usaba
-      # mpvpaper con gifs animados y overrides por monitor; se retiró porque
-      # Caelestia no soporta ni animación ni wallpapers distintos por
-      # pantalla, y el usuario prefirió el flujo 100% visual sin terminal a
-      # cambio de esas dos cosas.
-      background.wallpaperEnabled = true;
-
-      bar.status = {
-        showBattery = true;
-        # showBluetooth queda en su default (true): este es el bluetooth del
-        # contenedor statusIcons (wifi + bluetooth + rendimiento), el que sí
-        # queremos conservar. El duplicado real era el ícono de blueman-applet
-        # en la bandeja del sistema (tray), antes del reloj — ver hyprland.nix.
-      };
-      # El icono de batería vive dentro de statusIcons; al abrir ese popout,
-      # Caelestia muestra el porcentaje y el tiempo restante.
-      bar.popouts.statusIcons = true;
-
-      # También deja visible la tarjeta de batería en el dashboard de Caelestia.
-      dashboard.performance.showBattery = true;
-    };
   };
+
+  # El modulo upstream enlaza `settings` al store y vuelve shell.json de solo
+  # lectura. Al dejar `programs.caelestia.settings` vacio y sembrar este archivo
+  # una sola vez, Nexus puede persistir cambios sin que cada switch los borre.
+  home.activation.bootstrapCaelestiaShellConfig = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
+    config_file="${config.xdg.configHome}/caelestia/shell.json"
+
+    if [ -L "$config_file" ]; then
+      target="$(${pkgs.coreutils}/bin/readlink "$config_file" || true)"
+      case "$target" in
+        /nix/store/*) $DRY_RUN_CMD ${pkgs.coreutils}/bin/rm -f "$config_file" ;;
+      esac
+    fi
+
+    if [ ! -e "$config_file" ]; then
+      $DRY_RUN_CMD ${pkgs.coreutils}/bin/install -Dm600 \
+        ${caelestiaShellDefaults} "$config_file"
+    fi
+  '';
 }
