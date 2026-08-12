@@ -289,9 +289,9 @@ in
         # Los modelos pesados pueden tardar mas de 15 s en producir el primer
         # evento. Cancelarlos pronto reinicia todo el trabajo y rompe el SSE de
         # OpenCode; un solo reintento cubre solicitudes realmente atascadas.
-        "FIRST_TOKEN_TIMEOUT=90"
+        "FIRST_TOKEN_TIMEOUT=180"
         "FIRST_TOKEN_MAX_RETRIES=2"
-        "STREAMING_READ_TIMEOUT=600"
+        "STREAMING_READ_TIMEOUT=1800"
       ];
       # Nota: NO se fija LD_LIBRARY_PATH aquí — nix-ld (modules/system/ai-helper.nix)
       # ya expone NIX_LD/NIX_LD_LIBRARY_PATH globalmente vía PAM, y systemd --user
