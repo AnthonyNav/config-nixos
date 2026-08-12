@@ -50,6 +50,12 @@ forwards the model-specific native Kiro field rather than using its fake
 reasoning fallback. The current GPT Luna, Sol, and Terra models support
 `low`, `medium`, `high`, `xhigh`, and `max`.
 
+The managed service allows 90 seconds for a model to begin streaming, 600
+seconds between stream reads, and at most two total attempts. Kiro's upstream
+15-second default can cancel complex generations before their first event;
+repeated cancellation makes responses slower and surfaces in OpenCode as a
+mid-task disconnect. Inspect `kgw-logs` for `FirstTokenTimeout` if it recurs.
+
 ## Optional MCP Servers
 
 MCP servers are intentionally not enabled globally. They add tool schemas and

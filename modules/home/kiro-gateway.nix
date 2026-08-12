@@ -285,6 +285,14 @@ in
       # Secretos (PROXY_API_KEY, ruta a las credenciales de Kiro) fuera del
       # store, cargados en runtime desde este archivo.
       EnvironmentFile = "-%h/.config/kiro-gateway/.env";
+      Environment = [
+        # Los modelos pesados pueden tardar mas de 15 s en producir el primer
+        # evento. Cancelarlos pronto reinicia todo el trabajo y rompe el SSE de
+        # OpenCode; un solo reintento cubre solicitudes realmente atascadas.
+        "FIRST_TOKEN_TIMEOUT=90"
+        "FIRST_TOKEN_MAX_RETRIES=2"
+        "STREAMING_READ_TIMEOUT=600"
+      ];
       # Nota: NO se fija LD_LIBRARY_PATH aquí — nix-ld (modules/system/ai-helper.nix)
       # ya expone NIX_LD/NIX_LD_LIBRARY_PATH globalmente vía PAM, y systemd --user
       # hereda esas variables (confirmado con `systemctl --user show-environment`),
