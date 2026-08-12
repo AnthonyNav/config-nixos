@@ -12,9 +12,25 @@ Every workstation receives these files through Home Manager:
 - `opencode/skills/nixos-maintenance`: applies this repository's NixOS change
   and validation rules.
 - `opencode/skills/network-diagnostics`: follows the ThinkPad Wi-Fi protocol.
+- `opencode/agents/orchestrator.md`: coordinates the reusable `/work` workflow
+  without editing files directly.
+- `opencode/agents/implementer.md`: applies only an approved contract.
+- `opencode/agents/reviewer.md`: independently reviews the real diff and
+  validation results without editing.
+- `opencode/commands/work.md`: provides `/work fast|controlled|architecture`.
+- `opencode/skills/task-contract` and `opencode/skills/risk-classification`:
+  define the contract and risk gates used by `/work`.
 
 Restart OpenCode after changing a skill or plugin. OpenCode discovers the
-managed files under `~/.config/opencode/` automatically.
+managed agents, commands, skills, and plugins under `~/.config/opencode/`
+automatically. The pinned OpenCode `1.18.13` package does not include the
+built-in `scout` subagent; the orchestrator uses `webfetch` for external
+research in that version instead.
+
+Run `/work <mode> <task>` from an interactive OpenCode session. LOW tasks can
+continue in `fast` or `controlled`; MEDIUM and HIGH tasks use approval gates,
+and `architecture` always stops before editing. Do not use `--auto` when a
+workflow gate or GitHub publication approval is required.
 
 ## Local Configuration And Secrets
 

@@ -125,14 +125,22 @@ by all three workstations. Build the NixOS and Home Manager outputs for
 ## OpenCode
 
 OpenCode is installed from Nix and its version is pinned by `flake.lock`.
-`opencode/opencode.json`, shared skills, the RTK plugin, and the `opencode`
-wrapper are deployed by `modules/home/opencode.nix`. OpenCode starts without
+`opencode/opencode.json`, agents, commands, shared skills, the RTK plugin, and
+the `opencode` wrapper are deployed by `modules/home/opencode.nix`. OpenCode starts without
 requiring Kiro as its default model. After a successful
 `kiro-gateway-bootstrap`, the wrapper reads only `PROXY_API_KEY` from the
 private gateway `.env` and merges its models catalog; the key must never enter
 Nix. `~/.local/state/opencode/kiro-models.json` is the mutable catalog generated
 by the gateway and must not be hand-edited. Restart OpenCode after a
 configuration, skill, plugin, or catalog change.
+
+The reusable `/work` command delegates approved implementation to the hidden
+`implementer` subagent and independent review to `reviewer`; only the primary
+`orchestrator` may request GitHub publication, and it must show the exact
+operation and obtain explicit approval first. Implementer and reviewer deny
+GitHub publication, commits, deployment, and system activation. OpenCode
+`1.18.13` does not provide the built-in `scout` subagent; external research
+falls back to `webfetch` without adding another custom agent.
 
 See `docs/opencode.md` for managed skills, context limits, and opt-in MCP
 examples. Do not enable a credential-bearing MCP globally or commit its token.

@@ -35,5 +35,21 @@
     "auto": true,
     "prune": true,
     "tail_turns": 6
+  },
+  "permission": {
+    "bash": {
+      "git push*": "deny",
+      "git *push*": "deny",
+      "git *send-pack*": "deny",
+      "git *receive-pack*": "deny",
+      "rtk git push*": "deny",
+      "rtk git *push*": "deny",
+      "rtk gh*": "deny",
+      "*git push*": "deny",
+      "*git *push*": "deny",
+      "*gh*": "deny",
+      "gh*": "deny",
+      "*github*": "deny"
+    }
   }
 }

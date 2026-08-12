@@ -45,12 +45,18 @@ in
   # El wrapper solo expone su credencial y catálogo después del bootstrap.
   xdg.configFile = {
     "opencode/opencode.json".source = ../../opencode/opencode.json;
-    "opencode/skills/graphify/SKILL.md".source = ../../opencode/skills/graphify/SKILL.md;
-    "opencode/skills/pre-pr-review/SKILL.md".source = ../../opencode/skills/pre-pr-review/SKILL.md;
-    "opencode/skills/nixos-maintenance/SKILL.md".source =
-      ../../opencode/skills/nixos-maintenance/SKILL.md;
-    "opencode/skills/network-diagnostics/SKILL.md".source =
-      ../../opencode/skills/network-diagnostics/SKILL.md;
+    "opencode/agents" = {
+      source = ../../opencode/agents;
+      recursive = true;
+    };
+    "opencode/commands" = {
+      source = ../../opencode/commands;
+      recursive = true;
+    };
+    "opencode/skills" = {
+      source = ../../opencode/skills;
+      recursive = true;
+    };
     "opencode/plugins/rtk.js".source = ../../opencode/plugins/rtk.js;
   };
 
@@ -60,11 +66,17 @@ in
     # Estos eran los artefactos locales que ahora administra el perfil.
     $DRY_RUN_CMD ${pkgs.coreutils}/bin/rm -rf \
       "$HOME/.claude/skills/graphify" \
-      "$HOME/.config/opencode/skills/pre-pr-review" \
       "$HOME/.config/opencode/plugins/rtk.ts" \
       "$HOME/.config/opencode/node_modules" \
       "$HOME/.config/opencode/package.json" \
       "$HOME/.config/opencode/package-lock.json"
+
+    # Remove the old whole-directory link before switching to recursive links.
+    if [[ -L "$HOME/.config/opencode/skills" ]]; then
+      $DRY_RUN_CMD ${pkgs.coreutils}/bin/rm -f "$HOME/.config/opencode/skills"
+    else
+      $DRY_RUN_CMD ${pkgs.coreutils}/bin/rm -rf "$HOME/.config/opencode/skills/pre-pr-review"
+    fi
   '';
 
 }
