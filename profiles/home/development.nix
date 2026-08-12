@@ -70,10 +70,8 @@
 
   programs.atuin = {
     enable = true;
-    enableZshIntegration = true;
-    flags = [
-      "--disable-ctrl-r"
-      "--disable-up-arrow"
-    ];
+    # El binario queda disponible, pero no instala hooks SQLite en cada shell.
+    # Ctrl-R y las flechas ya pertenecen a fzf/history-substring-search.
+    enableZshIntegration = false;
   };
 }

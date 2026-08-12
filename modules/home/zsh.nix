@@ -9,6 +9,17 @@
 
     # Autocompletado case-insensitive + menú navegable
     completionInit = ''
+      # NixOS expone las funciones estandar de Zsh mediante varios perfiles que
+      # resuelven al mismo store path. Conserva una copia y todas las
+      # site/vendor completions para evitar escanear miles de duplicados.
+      fpath=(
+        ${pkgs.zsh}/share/zsh/$ZSH_VERSION/functions
+        ''${fpath:#*/share/zsh/$ZSH_VERSION/functions}
+      )
+
+      autoload -Uz compinit
+      compinit -d "$HOME/.zcompdump"
+
       zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}' 'r:|=*' 'l:|=* r:|=*'
       zstyle ':completion:*' menu select
     '';

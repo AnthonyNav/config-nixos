@@ -63,7 +63,14 @@
 
   nixpkgs.config.allowUnfree = true;
 
-  programs.zsh.enable = true;
+  programs.zsh = {
+    enable = true;
+    # Home Manager inicializa completions una sola vez despues de deduplicar
+    # las rutas equivalentes que NIX_PROFILES agrega a fpath.
+    enableGlobalCompInit = false;
+    # Starship define el prompt del usuario; evita preparar primero el de SUSE.
+    promptInit = "";
+  };
   programs.ssh.startAgent = true;
 
   users.users.${username} = {
