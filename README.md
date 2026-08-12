@@ -144,7 +144,7 @@ La tecla modificadora principal es `Super` (tecla Windows).
 
 | Atajo | Acción |
 |---|---|
-| `Super + L` | Bloquear pantalla (hyprlock) |
+| `Super + L` | Bloquear pantalla (Caelestia Lock) |
 | `Super + Escape` | Menú de sesión (Caelestia) — apagar, reiniciar, suspender, cerrar sesión |
 | `Super + M` | Salir de Hyprland sin menú (emergencia) |
 
@@ -225,8 +225,8 @@ propia, sino que Caelestia renderiza sus colores en caliente cada vez que
 corres `caelestia scheme set` (o eliges "Scheme"/"Variant" desde el
 launcher). El motor vive en `modules/home/theme-sync.nix` (plantilla tipo
 pywal + `postHook` que recarga kitty vía socket de control remoto). Nota:
-hyprlock, Rofi y Starship siguen fijos en Catppuccin Mocha real —
-sincronizarlos requeriría más trabajo y queda pendiente como mejora futura.
+Rofi y Starship siguen fijos en Catppuccin Mocha real; sincronizarlos
+requeriría más trabajo y queda pendiente como mejora futura.
 
 ### Modo claro / oscuro
 
@@ -250,6 +250,24 @@ Todos pasan por `caelestia scheme set -m <light|dark>`. El módulo
 `caelestia-scheme.nix` adapta el flavour Catppuccin correcto y reemplaza tanto
 la CLI general como la CLI interna de Caelestia Shell. Los detalles de
 mantenimiento están en [docs/maintainer.md](docs/maintainer.md).
+
+### Red y configuración de Nexus
+
+Caelestia usa NetworkManager mediante `nmcli`. El paquete lleva un parche local
+en `modules/home/caelestia-scheme.nix` que comparte un único flujo entre Nexus y
+el popout de la barra: solicita la contraseña antes de cambiar de red, activa
+perfiles guardados por UUID, no fija BSSID y no borra perfiles cuando un intento
+falla. Esto permite roaming entre puntos de acceso que publican el mismo SSID.
+
+`~/.config/caelestia/shell.json` es intencionalmente mutable. Home Manager
+instala valores iniciales sólo cuando el archivo no existe; después los cambios
+hechos desde Nexus persisten entre reinicios y actualizaciones. Las plantillas,
+wrappers y políticas que sí forman parte del sistema continúan declaradas en
+Nix.
+
+Caelestia Lock es el único locker de la sesión. Hypridle conserva los tiempos de
+atenuación, DPMS y suspensión, pero tanto `Super+L` como el bloqueo automático
+delegan en Caelestia para evitar dos clientes `ext-session-lock` concurrentes.
 
 ### Monitores externos
 
@@ -484,10 +502,12 @@ puede contener secretos y no se versiona. Para levantar MariaDB localmente,
 importa de forma explícita `profiles/system/local-mariadb.nix` desde el host que
 lo necesite. El perfil no se activa por defecto.
 
-La terminal incluye `zoxide` (`z <directorio>`), `atuin` para historial local,
-`lazygit`, `delta`, `yazi`, completion visual con `fzf-tab` y búsqueda de
-historial por texto con las flechas arriba/abajo. `Ctrl-R` conserva la búsqueda
-de FZF; Atuin no sincroniza el historial por defecto.
+La terminal incluye `zoxide` (`z <directorio>`), `lazygit`, `delta`, `yazi`,
+completion visual con `fzf-tab` y búsqueda de historial por texto con las
+flechas arriba/abajo. `Ctrl-R` usa FZF. El binario de Atuin permanece disponible
+para uso manual, pero su integración Zsh está desactivada para no instalar
+hooks SQLite redundantes en cada terminal. Zsh deduplica las funciones estándar
+de `fpath` antes de ejecutar `compinit` una sola vez.
 
 La guía de OpenCode y MCPs opt-in está en
 [docs/opencode.md](docs/opencode.md). El protocolo para medir la red ThinkPad

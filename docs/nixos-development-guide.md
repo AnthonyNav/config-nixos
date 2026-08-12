@@ -111,6 +111,17 @@ For a Home Manager-only change, build the matching activation package:
 nix build --no-write-lock-file .#homeConfigurations."anthony@victus".activationPackage
 ```
 
+Changes to shared desktop or shell modules must cover all workstations:
+
+```sh
+for host in thinkpad victus desktop; do
+  nix build --no-link --no-write-lock-file \
+    ".#nixosConfigurations.$host.config.system.build.toplevel"
+  nix build --no-link --no-write-lock-file \
+    ".#homeConfigurations.\"anthony@$host\".activationPackage"
+done
+```
+
 Only then apply locally with `nix-switch` or `hm-switch`. Once the PR is merged,
 each workstation receives it with `nixos-update`. If an activation goes wrong,
 select an earlier boot generation or run `sudo nixos-rebuild switch --rollback`.

@@ -63,9 +63,16 @@ development before opening a PR.
 - Caelestia owns files it dynamically renders, including GTK output, Kitty
   colors, and rendered template targets. Home Manager manages the Kitty
   template source, not the Caelestia-rendered output.
+- `~/.config/caelestia/shell.json` is mutable. Home Manager seeds it once from
+  `modules/home/caelestia.nix`; do not restore `programs.caelestia.settings`,
+  because the upstream module would replace it with a read-only store symlink
+  and Nexus could no longer persist changes.
 - Caelestia is the shell; Hyprland owns window navigation, scratchpad,
   mouse move/resize, and Alt-Tab. Verify syntax against the installed
   Hyprland before adding window or layer rules.
+- Caelestia Lock is the only session locker. Hypridle owns idle timing, DPMS,
+  and suspend, but must not start Hyprlock alongside Caelestia's
+  `ext-session-lock` client.
 - Kiro Gateway source is pinned as the `kiro-gateway` flake input. Its `.env`
   remains local in `~/.config/kiro-gateway/` with mode `0600` and its venv in
   `~/.local/share/kiro-gateway/`; Nix manages the provider and seed models but
@@ -80,6 +87,13 @@ development before opening a PR.
 - Use Kiro model ID `auto`, never `auto-kiro`.
 - The Catppuccin mode wrapper must override both the Caelestia CLI and shell
   package. The shell has its own wrapped internal PATH.
+- The Caelestia Wi-Fi patch is shared by all desktop hosts. Preserve its
+  invariants when rebasing it: no preventive disconnect, saved profiles by
+  UUID, one callback per command, no BSSID pin, and no automatic profile delete
+  after authentication failure.
+- NixOS global Zsh must leave `compinit` and prompt setup to Home Manager. The
+  Home Manager completion block deduplicates standard Zsh function directories
+  while retaining site and vendor completions.
 - Keep `catppuccin.hyprland.enable = false` while
   `wayland.windowManager.hyprland.configType = "hyprlang"`. Catppuccin emits
   a Lua `colors._var` block that Hyprlang rejects as unknown
@@ -103,6 +117,10 @@ When changing a shared profile, evaluate all hosts. When changing NVIDIA or
 creative behavior, build both `victus` and `desktop`; PRIME and direct NVIDIA
 are different runtime paths. Keep Wi-Fi experiments in
 `hosts/thinkpad/default.nix` and follow `docs/thinkpad-network.md`.
+
+Caelestia, Hyprland, lock/idle, Zsh, and development-profile changes are shared
+by all three workstations. Build the NixOS and Home Manager outputs for
+`thinkpad`, `victus`, and `desktop` before activation.
 
 ## OpenCode
 

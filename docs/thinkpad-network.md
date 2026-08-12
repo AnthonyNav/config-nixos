@@ -1,10 +1,18 @@
 # ThinkPad Network Diagnostics
 
-The ThinkPad has development tools and network diagnostics, but no permanent
-Wi-Fi workaround is enabled yet. Slow performance in a busy environment can be
-caused by RF congestion, AP band steering, the adapter driver or firmware,
-power saving, VPN routing, MTU, DNS, or the Internet path. Measure before
-changing NixOS options.
+The ThinkPad has development tools and network diagnostics. NetworkManager
+power saving is disabled for this host because measurements showed high LAN
+latency and retry counts even with excellent signal. Slow performance in a busy
+environment can still be caused by RF congestion, AP band steering, the adapter
+driver or firmware, VPN routing, MTU, DNS, or the Internet path.
+
+The shared Caelestia package is patched in `modules/home/caelestia-scheme.nix`.
+Nexus and the bar request credentials before changing networks, activate saved
+profiles by UUID, perform a single connection attempt, and never pin a visible
+network to the BSSID selected during the scan. A fixed
+`802-11-wireless.bssid` prevents NetworkManager from roaming between access
+points with the same SSID. Existing mutable profiles must be repaired once with
+`nmcli`; passwords and connection profiles do not belong in this repository.
 
 ## Baseline
 
@@ -69,7 +77,7 @@ same benchmark matrix.
 
 ### NetworkManager Power Save
 
-Test only after recording a baseline:
+The retained host-scoped setting is:
 
 ```nix
 networking.networkmanager.wifi.powersave = false;
@@ -78,6 +86,31 @@ networking.networkmanager.wifi.powersave = false;
 This can improve sustained throughput or latency but consumes more battery.
 Keep it only if repeated LAN results improve without worse packet loss or p95
 gateway latency.
+
+### Saved Profile Roaming
+
+Check that a multi-AP network is not pinned and does not have competing
+profiles:
+
+```sh
+nmcli -f NAME,UUID,TYPE,AUTOCONNECT connection show
+nmcli -f connection.id,802-11-wireless.ssid,802-11-wireless.bssid,802-11-wireless.powersave connection show <profile>
+```
+
+Clear an unwanted pin without changing the saved password, then reconnect:
+
+```sh
+nmcli connection modify <profile> 802-11-wireless.bssid ""
+nmcli connection down <profile>
+nmcli connection up <profile>
+```
+
+Caelestia must not disconnect the current network merely by opening or
+cancelling its password page. A submitted connection necessarily asks the
+single Wi-Fi radio to move to the target AP, so test invalid and valid passwords
+only when a brief interruption is acceptable. After connecting through Nexus,
+verify that exactly one profile exists and `802-11-wireless.bssid` remains
+empty.
 
 ### Regulatory Domain
 
