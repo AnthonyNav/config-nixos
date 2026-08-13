@@ -41,6 +41,7 @@
     gdb
     dotnet-sdk_8
     grpcurl
+    awscli2
     httpie
     cloudflared
     zoxide
