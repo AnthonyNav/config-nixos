@@ -126,21 +126,33 @@ by all three workstations. Build the NixOS and Home Manager outputs for
 
 OpenCode is installed from Nix and its version is pinned by `flake.lock`.
 `opencode/opencode.json`, agents, commands, shared skills, the RTK plugin, and
-the `opencode` wrapper are deployed by `modules/home/opencode.nix`. OpenCode starts without
-requiring Kiro as its default model. After a successful
-`kiro-gateway-bootstrap`, the wrapper reads only `PROXY_API_KEY` from the
-private gateway `.env` and merges its models catalog; the key must never enter
-Nix. `~/.local/state/opencode/kiro-models.json` is the mutable catalog generated
-by the gateway and must not be hand-edited. Restart OpenCode after a
-configuration, skill, plugin, or catalog change.
+the `opencode` and `opencode-work` wrappers are deployed by
+`modules/home/opencode.nix`. OpenCode starts without requiring Kiro as its
+default model. After a successful `kiro-gateway-bootstrap`, both wrappers read
+only `PROXY_API_KEY` from the private gateway `.env`; normal `opencode` also
+merges the generated models catalog, while isolated `opencode-work` retains the
+immutable seed catalog. The key must never enter Nix.
+`~/.local/state/opencode/kiro-models.json` is mutable generated state and must
+not be hand-edited. Restart OpenCode after a
+configuration, agent, command, skill, plugin, or catalog change.
 
-The reusable `/work` command delegates approved implementation to the hidden
-`implementer` subagent and independent review to `reviewer`; only the primary
-`orchestrator` may request GitHub publication, and it must show the exact
-operation and obtain explicit approval first. Implementer and reviewer deny
-GitHub publication, commits, deployment, and system activation. OpenCode
-`1.18.13` does not provide the built-in `scout` subagent; external research
-falls back to `webfetch` without adding another custom agent.
+Run `/work` only inside `opencode-work`. That launcher isolates global and
+project config, external plugins, Claude compatibility instructions and skills,
+LSPs, formatters, and late caller overrides before loading the deny-by-default
+control plane and seed provider config from the Nix store. `/work` can only
+inspect and produce a contract; the user must invoke `/work-apply <revision>`
+to expose the managed implementer. The apply agent rechecks clean tracked
+state, ignored-state integrity, and symlink absence before delegating
+independent review. Neither command commits, publishes, deploys, or activates.
+
+`nix build --no-link .#checks.x86_64-linux.opencode-workflow` executes the real
+wrapper and validates config isolation, effective tools, exact allowlists, and
+resistance to global/project plugins, conflicting managed names, and late
+environment overrides.
+
+Activation fails rather than deleting user data when either legacy
+`~/.claude/skills/graphify` or `~/.config/opencode/plugins/rtk.ts` remains.
+Review and archive or remove the reported path manually before retrying.
 
 See `docs/opencode.md` for managed skills, context limits, and opt-in MCP
 examples. Do not enable a credential-bearing MCP globally or commit its token.

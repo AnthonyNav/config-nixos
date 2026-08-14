@@ -1,12 +1,12 @@
 ---
-description: Run the reusable inspect, contract, risk gate, implementation, validation, and review workflow.
-agent: orchestrator
+description: Inspect a clean repository and produce a versioned contract for explicit application.
+agent: managed-orchestrator
 ---
 
-Run the `/work` workflow as the `orchestrator` for these raw arguments:
+Produce a managed `/work` contract for these raw arguments:
 
 `$ARGUMENTS`
 
-Parse the mode and task according to the orchestrator instructions. Do not
-edit files in this command; the orchestrator must delegate approved edits to
-`implementer` and must apply the required human gates before doing so.
+Parse the mode and task according to `managed-orchestrator`. Capture a clean
+baseline and produce a ready contract, but never implement it. Only the user's
+later `/work-apply <revision>` invocation may cross the approval boundary.

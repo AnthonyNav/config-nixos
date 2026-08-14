@@ -33,11 +33,12 @@ escalated by the detected risk, but risk may never be downgraded automatically.
 
 ## Gates
 
-- LOW may continue without approval in `fast` or `controlled` after the
-  contract is shown.
-- MEDIUM requires a human approval gate in `controlled`, and escalates
-  `fast` to that gate.
-- HIGH always requires a human approval gate before editing. Escalate `fast`
-  to the architecture/high-risk gate and show the risky decisions.
-- `architecture` always investigates, shows architectural decisions, and
-  stops for approval before editing regardless of the classified level.
+- LOW may produce a ready contract in `fast`.
+- MEDIUM escalates `fast` to `controlled`.
+- HIGH escalates any lower mode to `architecture` and must expose every risky
+  decision in the contract.
+- `controlled` resolves required alternatives and decisions before declaring
+  the contract ready.
+- `architecture` always investigates and records architectural decisions.
+- No mode edits directly. Approval is the user's separate invocation of
+  `/work-apply <revision>` for the exact ready revision.

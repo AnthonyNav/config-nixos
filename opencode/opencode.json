@@ -37,19 +37,20 @@
     "tail_turns": 6
   },
   "permission": {
+    "github_*": "deny",
     "bash": {
-      "git push*": "deny",
-      "git *push*": "deny",
-      "git *send-pack*": "deny",
-      "git *receive-pack*": "deny",
-      "rtk git push*": "deny",
-      "rtk git *push*": "deny",
-      "rtk gh*": "deny",
-      "*git push*": "deny",
-      "*git *push*": "deny",
-      "*gh*": "deny",
-      "gh*": "deny",
-      "*github*": "deny"
+      "git push": "deny",
+      "git push *": "deny",
+      "git -C * push": "deny",
+      "git -C * push *": "deny",
+      "git send-pack *": "deny",
+      "git receive-pack *": "deny",
+      "rtk git push": "deny",
+      "rtk git push *": "deny",
+      "gh": "deny",
+      "gh *": "deny",
+      "rtk gh": "deny",
+      "rtk gh *": "deny"
     }
   }
 }
