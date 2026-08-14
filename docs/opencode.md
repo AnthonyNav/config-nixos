@@ -12,28 +12,96 @@ Every workstation receives these files through Home Manager:
 - `opencode/skills/nixos-maintenance`: applies this repository's NixOS change
   and validation rules.
 - `opencode/skills/network-diagnostics`: follows the ThinkPad Wi-Fi protocol.
+- `opencode/agents/managed-inspector.md`: captures the immutable Git baseline
+  and attributable post-change diff through an exact read-only allowlist.
+- `opencode/agents/managed-orchestrator.md`: coordinates `/work` without Bash
+  or any implementation capability.
+- `opencode/agents/managed-apply-orchestrator.md`: crosses the human approval
+  boundary only when the user invokes `/work-apply <revision>`.
+- `opencode/agents/managed-implementer.md`: applies only an approved contract
+  and can run only the repository's explicit validation commands.
+- `opencode/agents/managed-reviewer.md`: independently reviews the attributable
+  diff without Bash, editing, skills, or subagents.
+- `opencode/commands/work.md` and `work-apply.md`: separate contract creation
+  from explicitly approved application.
+- `opencode/skills/task-contract` and `opencode/skills/risk-classification`:
+  mirror the managed contract and risk criteria for ordinary sessions; the
+  isolated agents embed their security-critical rules directly.
 
-Restart OpenCode after changing a skill or plugin. OpenCode discovers the
-managed files under `~/.config/opencode/` automatically.
+Restart OpenCode after changing configuration, an agent, command, skill, or
+plugin. The normal `opencode` executable retains project configuration and the
+managed skills and plugins under `~/.config/opencode/`. The separate
+`opencode-work` executable loads the workflow control plane from an immutable
+Nix store path and isolates both global and project config. It disables
+external plugins, Claude compatibility instructions and skills, LSPs,
+formatters, and caller-supplied late config overrides; only the immutable seed
+provider config and managed workflow are loaded.
+
+Start an interactive `opencode-work` session, then run
+`/work <mode> <task>`:
+
+- `fast` produces a minimal contract and is valid only for LOW-risk work.
+- `controlled` records alternatives and decisions for normal shared work.
+- `architecture` investigates and records cross-cutting decisions.
+
+`/work` requires a non-main branch, stable HEAD, a completely clean tracked
+tree, supported hashing for ignored state, and no symlink anywhere outside
+`.git`. It can inspect and produce a versioned contract ID, but cannot invoke
+an editing agent. After reading a ready contract, the user
+explicitly approves that exact unambiguous revision, for example
+`/work-apply C1-a1b2c3d4-opencode`, in the same session. The apply command
+rechecks the baseline before exposing the implementer. A new decision stops the
+run and requires a new `/work` revision followed by another explicit
+`/work-apply` invocation.
+
+Implementation returns `completed`, `needs-decision`, `validation-failed`, or
+`partial`. Review returns `approved` only with a complete attributable diff and
+successful evidence for every required check. For Nix changes, the implementer
+uses the immutable `opencode-work-format-nix` helper, which formats only changed
+tracked `.nix` files with the pinned `nixfmt`; it never executes the
+repository-selected `formatter` output. Another managed helper marks files
+created after the clean baseline as intent-to-add, without staging content, so
+Git diffs, formatting, and pure flake evaluation include them. The inspector
+also requires the ignored-file digest to remain unchanged.
+
+The managed agents and isolated process use deny-by-default permissions.
+Neither command commits, publishes, deploys, or activates; they only report an
+exact proposal for a separate manual action. The global Git and GitHub denies
+remain defense-in-depth guardrails for ordinary `opencode`, not a sandbox for
+arbitrary shell wrappers. Do not use `--auto` for a workflow requiring a human
+decision.
 
 ## Local Configuration And Secrets
 
 `opencode/opencode.json` declares Kiro's provider and seed models without
 making Kiro the default model, so OpenCode starts without its gateway. After
-`kiro-gateway-bootstrap` succeeds, the managed wrapper exposes the generated
-models catalog and resolves `{env:PROXY_API_KEY}` at runtime from
-`~/.config/kiro-gateway/.env`; the key never enters Nix. Gateway source is
-pinned by `flake.lock`; its venv stays local under
+`kiro-gateway-bootstrap` succeeds, the normal wrapper exposes the generated
+models catalog and both wrappers resolve `{env:PROXY_API_KEY}` at runtime from
+`~/.config/kiro-gateway/.env`; the key never enters Nix. `opencode-work` keeps
+the immutable seed catalog instead of loading mutable generated config.
+Gateway source is pinned by `flake.lock`; its venv stays local under
 `~/.local/share/kiro-gateway/`. Do not add tokens, OAuth data, or database
 passwords to Git.
 
 The managed plugin and skills work without changing the local Kiro config.
-Edit the repository configuration, retain its `$schema`, and validate JSON
-before applying Home Manager:
+Edit the repository configuration, retain its `$schema`, and validate the JSON
+and resolved workflow before applying Home Manager:
 
 ```sh
 jq empty opencode/opencode.json
+nix build --no-link .#checks.x86_64-linux.opencode-workflow
 ```
+
+The workflow check executes the actual `opencode-work` wrapper from Nix. It
+loads OpenCode `1.18.13`, compares exact task and Bash allowlists, verifies both
+commands, injects late environment overrides, and places sentinel plugins and
+conflicting managed names in global and project config. The check fails if any
+external plugin runs or replaces the isolated control plane.
+
+Home Manager no longer deletes legacy OpenCode files. Activation fails with a
+path-specific message if `~/.claude/skills/graphify` or
+`~/.config/opencode/plugins/rtk.ts` still exists; review and archive or remove
+that obsolete artifact manually before retrying activation.
 
 Kiro Gateway discovers the models available to the signed-in account from
 Kiro's control-plane API. OpenCode custom providers still require an explicit

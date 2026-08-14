@@ -49,6 +49,10 @@
         config.allowUnfree = true;
       };
       treefmtEval = treefmt-nix.lib.evalModule pkgsFor ./treefmt.nix;
+      opencodePackages = import ./modules/home/opencode-packages.nix {
+        inherit lib;
+        pkgs = pkgsFor;
+      };
       desktopStyles = {
         caelestia = {
           systemModule = ./desktops/caelestia/system.nix;
@@ -162,7 +166,26 @@
       ) workstations;
 
       formatter.${system} = treefmtEval.config.build.wrapper;
-      checks.${system}.formatting = treefmtEval.config.build.check self;
+      checks.${system} = {
+        formatting = treefmtEval.config.build.check self;
+        opencode-workflow =
+          pkgsFor.runCommand "opencode-workflow-check"
+            {
+              nativeBuildInputs = [
+                pkgsFor.git
+                pkgsFor.jq
+                pkgsFor.opencode
+              ];
+            }
+            ''
+              ${pkgsFor.bash}/bin/bash ${./opencode/tests/check-workflow.sh} \
+                ${lib.getExe opencodePackages.workflow} \
+                ${lib.getExe opencodePackages.managedTreeState} \
+                ${lib.getExe opencodePackages.managedPrepareNewFiles} \
+                ${lib.getExe opencodePackages.managedNixFormatter}
+              touch "$out"
+            '';
+      };
       devShells.${system}.default = pkgsFor.mkShell {
         packages = with pkgsFor; [
           treefmtEval.config.build.wrapper
