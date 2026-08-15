@@ -17,7 +17,7 @@
   # de versión: cambiar blenderVersion/blenderSha256 abajo (hash real,
   # publicado por blender.org en blender-X.Y.Z.sha256) y borrar
   # ~/.local/opt/blender para forzar la re-descarga en el siguiente
-  # `hm-switch`.
+  # `nix-home-switch`.
   home.activation.fetchBlenderStandalone =
     let
       blenderVersion = "5.1.2";

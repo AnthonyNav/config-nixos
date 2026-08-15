@@ -13,8 +13,8 @@ Describe the user-visible configuration change and why it belongs in this reposi
 
 ## Validation
 
-- [ ] `nix fmt`
-- [ ] `nix flake check --no-build --no-write-lock-file`
+- [ ] `nix-format`
+- [ ] `nix-check` or `nix-check all`
 - [ ] Relevant host build(s)
 - [ ] Real-session validation, when graphical behavior changed
 

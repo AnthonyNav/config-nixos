@@ -14,7 +14,7 @@ description: Use when changing this NixOS flake, profiles, hosts, inputs, or Hom
 5. Test NVIDIA behavior on both `victus` and `desktop`; PRIME and direct NVIDIA
    are different paths.
 6. Do not activate a configuration solely to test evaluation. Use
-   `nix-switch` only after validation succeeds.
+   `nix-switch` only from clean, published `main` after validation succeeds.
 
 Read `docs/maintainer.md` for ownership boundaries and
 `docs/nixos-development-guide.md` for the validation commands.

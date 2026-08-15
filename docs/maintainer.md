@@ -21,42 +21,45 @@ long-lived branch per desktop implementation.
 
 ## Commands
 
-Validate every flake output without writing the lock file:
+Format and fully validate the current workstation without activation:
 
 ```sh
-nix flake check --no-build --no-write-lock-file
+nix-format
+nix-check
 ```
 
-Format the Nix sources and enter the reproducible maintenance shell:
+Validate and build every NixOS and Home Manager workstation output:
 
 ```sh
-nix fmt
-nix develop
+nix-check all
 ```
 
-Apply the complete configuration for the current host:
+Build a narrower scope without activation when appropriate:
 
 ```sh
-nix-switch
+nix-config build system thinkpad
+nix-config build home thinkpad
+nix-config build all thinkpad
 ```
 
 Receive the reviewed configuration from `main`, validate it, and apply it:
 
 ```sh
-nixos-update
+nix-update
 ```
 
-Apply only the Home Manager profile for the current host:
+Apply an already published `main` without updating Git:
 
 ```sh
-hm-switch
+nix-switch
+nix-home-switch
 ```
 
-`hm-switch` selects `anthony@$(hostnamectl --static)`. It must not be changed
-back to a generic profile because that would omit host-specific features.
-`nixos-update` rejects dirty trees, non-`main` branches, and divergent local
-history. It is the only normal deployment command; `nix-switch` is for local
-development before opening a PR.
+`nix-home-switch` selects `anthony@$(hostnamectl --static)` and must not use a
+generic profile because that would omit host-specific features. Every switch
+requires clean `main` to equal freshly fetched `origin/main`; feature branches
+may format, check, and build, but never activate. `nix-update` is the only
+normal command that modifies Git before deployment. See `docs/nix-config.md`.
 
 ## Non-Negotiable Invariants
 
