@@ -49,21 +49,21 @@ sudo nixos-generate-config --show-hardware-config > hosts/<nombre>/hardware-conf
 
 ```bash
 # `nix-switch` aún no existe en una instalación nueva.
-sudo nixos-rebuild switch --flake "path:$PWD#victus"
+sudo nixos-rebuild switch --flake ".#victus"
 ```
 
 ### Actualizar una máquina existente
 
 ```bash
-nixos-update
+nix-update
 ```
 
-`nixos-update` es el único flujo de despliegue diario: exige un árbol limpio en
+`nix-update` es el único flujo de despliegue diario: exige un árbol limpio en
 `main`, obtiene `origin/main` solo mediante fast-forward, valida el flake,
 activa el host detectado y actualiza el gateway Kiro si ya está configurado. No
 actualiza inputs de Nix ni mezcla cambios locales.
 
-La primera vez que una máquina recibe esta función, actualiza el checkout de
+La primera vez que una máquina recibe estos comandos, actualiza el checkout de
 `main` y activa la generación una vez con el flujo anterior:
 
 ```bash
@@ -72,12 +72,13 @@ git pull --ff-only
 nix-switch
 ```
 
-Después de esa migración, usa únicamente `nixos-update`.
+Después de esa migración, usa únicamente `nix-update`.
 
-`nix-switch` conserva el flujo de desarrollo para aplicar cambios locales, y
-`hm-switch` aplica solo el perfil de usuario. Todos los hosts reciben perfiles
-base, desarrollo y clientes de base de datos; ThinkPad nunca recibe la suite
-creativa NVIDIA.
+`nix-switch` y `nix-home-switch` activan respectivamente el sistema completo o
+solo Home Manager, pero únicamente desde un `main` limpio que coincida
+exactamente con `origin/main`. En ramas de desarrollo usa `nix-format`,
+`nix-check` y `nix-config build`; nunca actives la rama. Consulta
+[docs/nix-config.md](docs/nix-config.md) para el catálogo completo.
 
 ### Limpiar el portapapeles
 
@@ -398,10 +399,10 @@ validación y el límite de responsabilidad están en
 ### Actualizar OpenCode
 
 OpenCode se instala desde Nix y su versión queda fijada para todos los equipos
-por `flake.lock`. No ejecutes `opencode upgrade`: actualiza el lock del repo,
-valida los hosts y aplica `nix-switch`. Las skills compartidas y el plugin RTK
-se distribuyen mediante Home Manager; reinicia OpenCode después de cambiar una
-skill o plugin.
+por `flake.lock`. No ejecutes `opencode upgrade`: actualiza el lock con
+`nix-input-update`, abre el PR correspondiente y, tras el merge, aplica
+`nix-update`. Las skills compartidas y el plugin RTK se distribuyen mediante
+Home Manager; reinicia OpenCode después de cambiar una skill o plugin.
 
 ### Config de opencode
 
@@ -471,7 +472,7 @@ entrada bajo `"provider"` en `opencode/opencode.json`, con su propio
 ### Desinstalar
 
 ```bash
-# 1. Quita el import de kiro-gateway de profiles/home/development.nix, hm-switch.
+# 1. Quita el import de kiro-gateway de profiles/home/development.nix y ejecuta nix-home-switch.
 # 2. Borra el venv, secretos y estado local (no están versionados, es seguro):
 rm -rf ~/.local/share/kiro-gateway ~/.config/kiro-gateway ~/.config/opencode
 ```
@@ -557,7 +558,7 @@ al binario standalone (gana en PATH), pero sin el offload a la dGPU — para
 render en GPU usa siempre `blender-gpu`.
 
 **Nota:** estas funciones/PATH nuevas solo existen en terminales *abiertas
-después* de correr `hm-switch` — si sigues en la misma terminal donde
+después* de correr `nix-home-switch` — si sigues en la misma terminal donde
 corriste el switch, ábrela de nuevo.
 
 **Lanzar Resolve/Blender desde rofi (drun) también funciona**, no solo desde
@@ -618,7 +619,7 @@ Si el paso extra molesta a futuro, la salida es comprar **Resolve Studio**
 - **Actualizar la versión de Blender standalone:** edita `blenderVersion` y
   `blenderSha256` en `modules/home/blender-gpu.nix` (el hash real se saca del
   `blender-X.Y.Z.sha256` que publica `download.blender.org/release/`), borra
-  `~/.local/opt/blender` y corre `hm-switch` — se re-descarga y verifica solo.
+  `~/.local/opt/blender` y corre `nix-home-switch` — se re-descarga y verifica solo.
 
 ---
 
@@ -650,7 +651,7 @@ Si el paso extra molesta a futuro, la salida es comprar **Resolve Studio**
 | `jq` | Procesar JSON |
 | `7z`, `zip`, `zstd`, `rar` | Compresión/descompresión de múltiples formatos |
 
-### Aliases útiles
+### Comandos y aliases útiles
 
 ```bash
 ls / ll / la / lla / tree   # eza con iconos
@@ -658,8 +659,11 @@ v                            # neovim
 c                            # clear
 ff                           # fastfetch
 nix-switch                   # reconstruir sistema
-hm-switch                    # reconstruir solo perfil de usuario
-nix-clean                    # liberar espacio (garbage collect + optimize)
+nix-home-switch              # reconstruir solo perfil de usuario
+nix-update                   # actualizar main y desplegar el host actual
+nix-check                    # validar y construir el host actual
+nix-check all                # validar y construir todos los hosts
+nix-clean                    # borrar generaciones con más de 30 días
 pritunl                      # abre la GUI de Pritunl VPN
 ```
 
@@ -778,7 +782,7 @@ shellHook = ''
 
 ```bash
 nix flake show          # ver outputs del flake actual
-nix flake update        # actualizar todas las dependencias (actualiza flake.lock)
+nix flake update        # primitiva; en este repo prefiere nix-input-update
 nix flake metadata      # info de entradas y revisiones
 nix develop             # entrar al devShell manualmente (sin direnv)
 nix build               # construir el output por defecto
@@ -786,14 +790,13 @@ nix build               # construir el output por defecto
 
 ### Actualizar las dependencias del sistema
 
-Esto se hace en un branch y PR dedicado, nunca con `nixos-update` en una
+Esto se hace en un branch y PR dedicado, nunca con `nix-update` en una
 máquina de uso diario:
 
 ```bash
 cd ~/nixos-config
-nix flake update        # actualiza las entradas fijadas para todos los hosts
-nix flake check --no-write-lock-file
-# construye los hosts afectados y abre un PR hacia main
+nix-input-update        # actualiza flake.lock y valida todos los hosts
+# revisa los cambios y abre un PR hacia main
 ```
 
 ---
@@ -842,7 +845,7 @@ sudo nixos-rebuild switch --flake .#<nombre>
 ## Comandos de mantenimiento
 
 ```bash
-# Liberar generaciones viejas y optimizar el store
+# Liberar generaciones con más de 30 días y optimizar el store
 nix-clean
 
 # Ver cuánto ocupa el store de Nix

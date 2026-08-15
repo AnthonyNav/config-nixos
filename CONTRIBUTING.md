@@ -1,7 +1,7 @@
 # Contributing
 
 `main` is the only deployment branch. Every workstation updates from it with
-`nixos-update`; do not deploy a host-specific or feature branch directly.
+`nix-update`; do not deploy a host-specific or feature branch directly.
 Machines predating that command need one final `git pull --ff-only` plus
 `nix-switch` migration before using it.
 
@@ -13,7 +13,7 @@ Machines predating that command need one final `git pull --ff-only` plus
 3. Run `nix fmt` and the validations required by the affected scope.
 4. Open a pull request to `main`. Do not push directly to `main`.
 5. Wait for CI and review, then merge the PR. Machines receive the change with
-   `nixos-update`.
+   `nix-update`.
 
 Use concise commit messages in the existing style, for example
 `feat(home): add a shared command` or `fix(thinkpad): restore Wi-Fi roaming`.
@@ -24,17 +24,15 @@ Keep flake input updates in their own PR; they affect every host.
 Run for every Nix change:
 
 ```sh
-nix fmt
-nix flake check --no-build --no-write-lock-file
+nix-format
+nix-check
 ```
 
 Build every host after changing shared profiles, `flake.nix`, a desktop style,
 or a common module:
 
 ```sh
-nix build --no-write-lock-file .#nixosConfigurations.victus.config.system.build.toplevel
-nix build --no-write-lock-file .#nixosConfigurations.desktop.config.system.build.toplevel
-nix build --no-write-lock-file .#nixosConfigurations.thinkpad.config.system.build.toplevel
+nix-check all
 ```
 
 For a host-only change, build that host. For NVIDIA or creative changes, build
@@ -52,6 +50,6 @@ and the Python constraints live in `modules/home/kiro-gateway-requirements.txt`.
 
 Enable branch protection for `main` in GitHub: require a pull request, one
 approval, and the `Flake checks / check` plus all `Flake checks / plan-host-build`
-jobs. CI evaluates and plans a build for every NixOS host; full NixOS host
-builds remain required local validation. Disallow force pushes and direct
-pushes.
+jobs. CI executes repository checks and plans both NixOS and Home Manager for
+every workstation; full builds remain required local validation. Disallow force
+pushes and direct pushes.

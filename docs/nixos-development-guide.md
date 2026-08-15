@@ -85,46 +85,42 @@ to host overlays, not `home.nix`.
 
 ## 5. Validate Before Switching
 
-Run this after any flake or module change:
+Format and validate the current workstation after a Nix change:
 
 ```sh
-nix flake check --no-build --no-write-lock-file
+nix-format
+nix-check
 ```
 
-Format Nix files and use the repository's reproducible maintenance shell:
+The raw commands remain available inside the reproducible maintenance shell:
 
 ```sh
-nix fmt
 nix develop
+nix fmt
+nix flake check --no-build --no-write-lock-file
 ```
 
 For a host-specific change, build without switching first:
 
 ```sh
-nix build --no-write-lock-file \
-  .#nixosConfigurations.victus.config.system.build.toplevel
+nix-config build system victus
 ```
 
 For a Home Manager-only change, build the matching activation package:
 
 ```sh
-nix build --no-write-lock-file .#homeConfigurations."anthony@victus".activationPackage
+nix-config build home victus
 ```
 
 Changes to shared desktop or shell modules must cover all workstations:
 
 ```sh
-for host in thinkpad victus desktop; do
-  nix build --no-link --no-write-lock-file \
-    ".#nixosConfigurations.$host.config.system.build.toplevel"
-  nix build --no-link --no-write-lock-file \
-    ".#homeConfigurations.\"anthony@$host\".activationPackage"
-done
+nix-check all
 ```
 
-Only then apply locally with `nix-switch` or `hm-switch`. Once the PR is merged,
-each workstation receives it with `nixos-update`. If an activation goes wrong,
-select an earlier boot generation or run `sudo nixos-rebuild switch --rollback`.
+Do not activate a feature branch. Once the PR is merged, each workstation
+receives it with `nix-update`. If activation goes wrong, inspect candidates with
+`nix-generations` and run `nix-rollback`.
 
 ## 6. Update Deliberately
 
@@ -133,8 +129,7 @@ Keep it separate from functional refactors in its own PR. Do not run this as
 part of a normal workstation update:
 
 ```sh
-nix flake update
-nix flake check --no-write-lock-file
+nix-input-update
 ```
 
 Build all hosts before switching any of them. Test NVIDIA changes on both
