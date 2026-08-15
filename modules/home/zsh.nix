@@ -33,9 +33,6 @@
       lla = "eza -la --icons=always --color=always --group-directories-first";
       tree = "eza --tree --icons=always";
 
-      # Atajos maestros para NixOS y tu Flake
-      nix-clean = "sudo nix-collect-garbage -d && nix-collect-garbage -d && nix-store --optimize";
-
       # Comodidad diaria
       v = "nvim";
       c = "clear";
@@ -79,18 +76,6 @@
       bindkey '^[OD' backward-word
       bindkey '^[OC' forward-word
       source ${pkgs.zsh-fzf-tab}/share/fzf-tab/fzf-tab.plugin.zsh
-
-      nix-switch() {
-        sudo nixos-rebuild switch --flake "path:$HOME/nixos-config#$(hostnamectl --static)"
-      }
-
-      hm-switch() {
-        if command -v home-manager >/dev/null 2>&1; then
-          home-manager switch --flake "path:$HOME/nixos-config#$(id -un)@$(hostnamectl --static)"
-        else
-          nix run github:nix-community/home-manager -- switch --flake "path:$HOME/nixos-config#$(id -un)@$(hostnamectl --static)"
-        fi
-      }
 
       night-soft() {
         pkill wlsunset 2>/dev/null || true

@@ -91,6 +91,11 @@
           };
         };
       };
+      workstationNames = builtins.attrNames workstations;
+      nixConfigPackages = import ./modules/home/nix-config-packages.nix {
+        inherit lib username workstationNames;
+        pkgs = pkgsFor;
+      };
       mkHost =
         host:
         let
@@ -116,7 +121,11 @@
               ]
               ++ host.homeModules;
               home-manager.extraSpecialArgs = {
-                inherit inputs username;
+                inherit
+                  inputs
+                  username
+                  workstationNames
+                  ;
                 inherit hostFeatures;
               };
               home-manager.sharedModules = [ catppuccin.homeModules.catppuccin ];
@@ -135,7 +144,11 @@
         home-manager.lib.homeManagerConfiguration {
           pkgs = pkgsFor;
           extraSpecialArgs = {
-            inherit inputs username;
+            inherit
+              inputs
+              username
+              workstationNames
+              ;
             inherit hostFeatures;
           };
           modules = [
@@ -147,6 +160,8 @@
         };
     in
     {
+      lib.workstationNames = workstationNames;
+
       nixosConfigurations = (lib.mapAttrs (_: mkHost) workstations) // {
         # ISO instaladora personalizada, no un host real: SSH ya autorizado +
         # este repo pre-cargado en /etc/nixos-config (ver iso/installer.nix),
@@ -166,8 +181,30 @@
       ) workstations;
 
       formatter.${system} = treefmtEval.config.build.wrapper;
+      packages.${system}.nix-config = nixConfigPackages.nixConfig;
+      apps.${system}.nix-config = {
+        type = "app";
+        program = lib.getExe nixConfigPackages.nixConfig;
+        meta.description = "Validate, build, and deploy this NixOS configuration";
+      };
       checks.${system} = {
         formatting = treefmtEval.config.build.check self;
+        nix-config =
+          pkgsFor.runCommand "nix-config-check"
+            {
+              nativeBuildInputs = [
+                pkgsFor.bash
+                pkgsFor.git
+                pkgsFor.shellcheck
+                nixConfigPackages.nixConfig
+              ];
+            }
+            ''
+              shellcheck ${./scripts/nix-config.sh} ${./scripts/tests/check-nix-config.sh}
+              bash ${./scripts/tests/check-nix-config.sh} ${./scripts/nix-config.sh}
+              nix-config --help >/dev/null
+              touch "$out"
+            '';
         opencode-workflow =
           pkgsFor.runCommand "opencode-workflow-check"
             {
