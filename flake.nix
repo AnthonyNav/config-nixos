@@ -128,7 +128,9 @@
         in
         lib.nixosSystem {
           inherit system;
-          specialArgs = specialArgs // { inherit hostFeatures; };
+          specialArgs = specialArgs // {
+            inherit hostFeatures;
+          };
           modules = [
             style.systemModule
             host.systemModule
