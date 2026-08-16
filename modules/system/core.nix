@@ -13,7 +13,7 @@
     allowedTCPPorts = [
       22
       22000
-    ]; # SSH solo accesible desde la red Tailscale
+    ]; # SSH y Syncthing solo aceptan tráfico entrante por Tailscale.
     allowedUDPPorts = [
       22000
       21027
@@ -88,22 +88,24 @@
       fastfetch
       neovim
     ];
-    # SSH: acceso solo por llave (Fase A).
-    # IMPORTANTE: añade aquí la llave pública de cada dispositivo desde el que
-    # te conectas (ej. otro laptop, tablet con Blink Shell).
-    # Después de verificar que el login por llave funciona, activa Fase B
-    # (PasswordAuthentication = false) en services.openssh abajo.
+    # Solo se versiona la llave pública; la llave privada vive fuera del repo.
+    # El comentario de la llave no contiene correo personal para que el repo
+    # pueda publicarse sin añadir PII innecesaria.
     openssh.authorizedKeys.keys = [
-      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMSZBAoRb/gxevgsIFbtcg/hPx+gvv0tfj25KtubL0xd anthonydevxp@gmail.com"
+      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMSZBAoRb/gxevgsIFbtcg/hPx+gvv0tfj25KtubL0xd anthony@config-nixos"
     ];
   };
 
-  # SSH solo escucha en la interfaz Tailscale; acceso únicamente por llave.
+  # sshd puede escuchar en el host, pero el firewall no abre 22 globalmente:
+  # solo tailscale0 lo acepta. Además se deshabilitan contraseña, keyboard-
+  # interactive y login de root en los hosts instalados.
   services.openssh = {
     enable = true;
-    openFirewall = false; # No abre el puerto en internet; solo vía tailscale0
+    openFirewall = false;
     settings = {
       PasswordAuthentication = false;
+      KbdInteractiveAuthentication = false;
+      PermitRootLogin = "no";
     };
   };
 
