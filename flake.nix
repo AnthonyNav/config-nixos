@@ -68,6 +68,10 @@
             graphics = "nvidia-prime";
             creativeNvidia = true;
             monitorProfile = "dynamic";
+            inputSharing = {
+              enable = true;
+              peers = [ ];
+            };
           };
         };
         desktop = {
@@ -78,6 +82,19 @@
             graphics = "nvidia";
             creativeNvidia = true;
             monitorProfile = "desktop-3";
+            inputSharing = {
+              enable = true;
+              peers = [
+                {
+                  host = "victus";
+                  position = "left";
+                }
+                {
+                  host = "thinkpad";
+                  position = "right";
+                }
+              ];
+            };
           };
         };
         thinkpad = {
@@ -88,6 +105,10 @@
             graphics = "intel";
             creativeNvidia = false;
             monitorProfile = "dynamic";
+            inputSharing = {
+              enable = true;
+              peers = [ ];
+            };
           };
         };
       };
@@ -106,7 +127,8 @@
           };
         in
         lib.nixosSystem {
-          inherit system specialArgs;
+          inherit system;
+          specialArgs = specialArgs // { inherit hostFeatures; };
           modules = [
             style.systemModule
             host.systemModule
@@ -182,6 +204,7 @@
 
       formatter.${system} = treefmtEval.config.build.wrapper;
       packages.${system}.nix-config = nixConfigPackages.nixConfig;
+      packages.${system}.gitleaks = pkgsFor.gitleaks;
       apps.${system}.nix-config = {
         type = "app";
         program = lib.getExe nixConfigPackages.nixConfig;
@@ -200,7 +223,7 @@
               ];
             }
             ''
-              shellcheck ${./scripts/nix-config.sh} ${./scripts/tests/check-nix-config.sh}
+              shellcheck ${./scripts/nix-config.sh} ${./scripts/tests/check-nix-config.sh} ${./scripts/input-share-reconcile.sh}
               bash ${./scripts/tests/check-nix-config.sh} ${./scripts/nix-config.sh}
               nix-config --help >/dev/null
               touch "$out"
@@ -230,6 +253,7 @@
           statix
           deadnix
           shellcheck
+          gitleaks
           nodejs_22
           jq
         ];
