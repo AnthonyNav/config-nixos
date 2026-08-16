@@ -2,5 +2,24 @@ result
 result-*
 .direnv/
 graphify-out/
+
+# Runtime secrets and credentials must stay outside the repository.
 *.env
 *.env.*
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.ovpn
+credentials.json
+credentials*.json
+auth-token.json
+id_rsa
+id_ed25519
+id_ecdsa
+id_dsa
+secrets/
+.private/
+gitleaks-report.*
