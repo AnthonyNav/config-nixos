@@ -24,6 +24,7 @@ in
     ../../modules/home/rofi.nix
     ../../modules/home/night-light.nix
     ../../modules/home/lock-idle.nix
+    ../../modules/home/input-sharing.nix
     ../../modules/home/caelestia.nix
     ../../modules/home/caelestia-scheme.nix
     ../../modules/home/theme-mode.nix
