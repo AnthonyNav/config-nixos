@@ -203,8 +203,10 @@
       ) workstations;
 
       formatter.${system} = treefmtEval.config.build.wrapper;
-      packages.${system}.nix-config = nixConfigPackages.nixConfig;
-      packages.${system}.gitleaks = pkgsFor.gitleaks;
+      packages.${system} = {
+        nix-config = nixConfigPackages.nixConfig;
+        gitleaks = pkgsFor.gitleaks;
+      };
       apps.${system}.nix-config = {
         type = "app";
         program = lib.getExe nixConfigPackages.nixConfig;
