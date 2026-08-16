@@ -49,6 +49,7 @@ jobs:
           sudo rm -rf /usr/share/dotnet
           sudo rm -rf /opt/ghc
           sudo rm -rf /usr/local/.ghcup
+          sudo rm -rf /opt/hostedtoolcache
           sudo apt-get clean
           sudo rm -rf /var/lib/apt/lists/*
           docker system prune -af || true
@@ -62,10 +63,10 @@ jobs:
         run: df -h
 
       - name: Build NixOS system
-        run: nix build --no-link --no-write-lock-file .#nixosConfigurations.${{ matrix.host }}.config.system.build.toplevel
+        run: nix build --max-jobs 1 --no-link --no-write-lock-file .#nixosConfigurations.${{ matrix.host }}.config.system.build.toplevel
 
       - name: Build Home Manager
-        run: nix build --no-link --no-write-lock-file '.#homeConfigurations."anthony@${{ matrix.host }}".activationPackage'
+        run: nix build --max-jobs 1 --no-link --no-write-lock-file '.#homeConfigurations."anthony@${{ matrix.host }}".activationPackage'
 
       - name: Disk usage
         if: always()
