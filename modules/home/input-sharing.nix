@@ -87,6 +87,11 @@ in
       Service = {
         Type = "oneshot";
         ExecStart = lib.getExe inputShareReconcile;
+        # Tailscale may become usable a few seconds after the graphical session.
+        # Exit 75 from the reconciler leaves the old topology untouched; systemd
+        # retries until the peer list can be resolved successfully.
+        Restart = "on-failure";
+        RestartSec = 5;
       };
       Install.WantedBy = [ "graphical-session.target" ];
     };
