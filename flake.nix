@@ -59,77 +59,39 @@
           homeModule = ./desktops/caelestia/home.nix;
         };
       };
-      workstations = {
-        victus = {
-          systemModule = ./hosts/victus;
-          homeModules = [ ./hosts/victus/home.nix ];
-          desktopStyle = "caelestia";
-          features = {
-            graphics = "nvidia-prime";
-            creativeNvidia = true;
-            monitorProfile = "dynamic";
-            inputSharing = {
-              enable = true;
-              peers = [ ];
-            };
-          };
-        };
-        desktop = {
-          systemModule = ./hosts/desktop;
-          homeModules = [ ./hosts/desktop/home.nix ];
-          desktopStyle = "caelestia";
-          features = {
-            graphics = "nvidia";
-            creativeNvidia = true;
-            monitorProfile = "desktop-3";
-            inputSharing = {
-              enable = true;
-              peers = [
-                {
-                  host = "victus";
-                  position = "left";
-                }
-                {
-                  host = "thinkpad";
-                  position = "right";
-                }
-              ];
-            };
-          };
-        };
-        thinkpad = {
-          systemModule = ./hosts/thinkpad;
-          homeModules = [ ./hosts/thinkpad/home.nix ];
-          desktopStyle = "caelestia";
-          features = {
-            graphics = "intel";
-            creativeNvidia = false;
-            monitorProfile = "dynamic";
-            inputSharing = {
-              enable = true;
-              peers = [ ];
-            };
-          };
-        };
-      };
+      workstations = import ./inventory/workstations.nix;
       workstationNames = builtins.attrNames workstations;
+      fleetInventory = lib.mapAttrs (
+        name: host: {
+          inherit name;
+          inherit (host)
+            role
+            desktopStyle
+            connectivity
+            features
+            ;
+        }
+      ) workstations;
       nixConfigPackages = import ./modules/home/nix-config-packages.nix {
         inherit lib username workstationNames;
         pkgs = pkgsFor;
       };
       mkHost =
-        host:
+        name: host:
         let
           style =
             desktopStyles.${host.desktopStyle} or (throw "Unknown desktop style '${host.desktopStyle}'.");
           hostFeatures = host.features // {
+            hostName = name;
+            role = host.role;
+            connectivity = host.connectivity;
             desktopStyle = host.desktopStyle;
           };
         in
         lib.nixosSystem {
           inherit system;
           specialArgs = specialArgs // {
-            inherit hostFeatures;
+            inherit fleetInventory hostFeatures;
           };
           modules = [
             style.systemModule
@@ -146,6 +108,7 @@
               ++ host.homeModules;
               home-manager.extraSpecialArgs = {
                 inherit
+                  fleetInventory
                   inputs
                   username
                   workstationNames
@@ -157,11 +120,14 @@
           ];
         };
       mkHome =
-        host:
+        name: host:
         let
           style =
             desktopStyles.${host.desktopStyle} or (throw "Unknown desktop style '${host.desktopStyle}'.");
           hostFeatures = host.features // {
+            hostName = name;
+            role = host.role;
+            connectivity = host.connectivity;
             desktopStyle = host.desktopStyle;
           };
         in
@@ -169,6 +135,7 @@
           pkgs = pkgsFor;
           extraSpecialArgs = {
             inherit
+              fleetInventory
               inputs
               username
               workstationNames
@@ -184,9 +151,11 @@
         };
     in
     {
-      lib.workstationNames = workstationNames;
+      lib = {
+        inherit fleetInventory workstationNames;
+      };
 
-      nixosConfigurations = (lib.mapAttrs (_: mkHost) workstations) // {
+      nixosConfigurations = (lib.mapAttrs mkHost workstations) // {
         # ISO instaladora personalizada, no un host real: SSH ya autorizado +
         # este repo pre-cargado en /etc/nixos-config (ver iso/installer.nix),
         # para instalar hosts nuevos completamente por SSH desde otra
@@ -201,7 +170,7 @@
       };
 
       homeConfigurations = lib.mapAttrs' (
-        name: host: lib.nameValuePair "${username}@${name}" (mkHome host)
+        name: host: lib.nameValuePair "${username}@${name}" (mkHome name host)
       ) workstations;
 
       formatter.${system} = treefmtEval.config.build.wrapper;

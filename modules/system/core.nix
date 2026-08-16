@@ -1,20 +1,37 @@
 {
+  hostFeatures,
   lib,
   pkgs,
   username,
   ...
 }:
 
+let
+  connectivity = hostFeatures.connectivity or { };
+  tailscaleEnabled = connectivity.tailscale or false;
+  sshEnabled = connectivity.ssh or false;
+  syncthingEnabled = connectivity.syncthing or false;
+in
 {
   imports = [ ./pritunl.nix ];
 
+  assertions = [
+    {
+      assertion = !sshEnabled || tailscaleEnabled;
+      message = "connectivity.ssh requires connectivity.tailscale because SSH is exposed only on tailscale0.";
+    }
+    {
+      assertion = !syncthingEnabled || tailscaleEnabled;
+      message = "connectivity.syncthing requires connectivity.tailscale because Syncthing is exposed only on tailscale0.";
+    }
+  ];
+
   networking.networkmanager.enable = true;
-  networking.firewall.interfaces.tailscale0 = {
-    allowedTCPPorts = [
-      22
-      22000
-    ]; # SSH y Syncthing solo aceptan tráfico entrante por Tailscale.
-    allowedUDPPorts = [
+  networking.firewall.interfaces.tailscale0 = lib.mkIf tailscaleEnabled {
+    allowedTCPPorts =
+      lib.optionals sshEnabled [ 22 ]
+      ++ lib.optionals syncthingEnabled [ 22000 ];
+    allowedUDPPorts = lib.optionals syncthingEnabled [
       22000
       21027
     ];
@@ -99,7 +116,7 @@
   # sshd puede escuchar en el host, pero el firewall no abre 22 globalmente:
   # solo tailscale0 lo acepta. Además se deshabilitan contraseña, keyboard-
   # interactive y login de root en los hosts instalados.
-  services.openssh = {
+  services.openssh = lib.mkIf sshEnabled {
     enable = true;
     openFirewall = false;
     settings = {
@@ -109,9 +126,9 @@
     };
   };
 
-  services.tailscale.enable = true;
+  services.tailscale.enable = tailscaleEnabled;
 
-  services.syncthing = {
+  services.syncthing = lib.mkIf syncthingEnabled {
     enable = true;
     user = username;
     group = "users";
