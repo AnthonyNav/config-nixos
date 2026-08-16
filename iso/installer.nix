@@ -1,16 +1,12 @@
 { inputs, ... }:
 
 {
-  # SSH funcional desde el primer arranque del live USB: misma llave que ya
-  # autoriza a este equipo en modules/system/core.nix, para poder manejar
-  # toda la instalación de un host nuevo (ej. thinkpad) por SSH desde otra
-  # máquina, sin tocar el teclado ni configurar nada a mano. El ISO oficial de
-  # NixOS solo trae password vacío (root/nixos) — services.openssh ya está
-  # habilitado por profiles/installation-device.nix, pero sin una llave
-  # autorizada no hay forma de entrar por SSH sin antes correr `passwd` en la
-  # consola local.
+  # SSH funcional desde el primer arranque del live USB: misma llave pública
+  # que autoriza a los hosts instalados, para poder manejar toda la instalación
+  # de un host nuevo por SSH desde otra máquina. La clave privada nunca forma
+  # parte de este repo ni de la ISO.
   users.users.root.openssh.authorizedKeys.keys = [
-    "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMSZBAoRb/gxevgsIFbtcg/hPx+gvv0tfj25KtubL0xd anthonydevxp@gmail.com"
+    "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMSZBAoRb/gxevgsIFbtcg/hPx+gvv0tfj25KtubL0xd anthony@config-nixos"
   ];
 
   # Copia de este mismo repo (el checkout que construyó esta ISO), disponible
