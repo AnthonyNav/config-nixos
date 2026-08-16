@@ -38,6 +38,40 @@ jobs:
         host: ${{ fromJSON(needs.check.outputs.hosts) }}
     steps:
       - uses: actions/checkout@v5
+
+      - name: Free disk space
+        shell: bash
+        run: |
+          echo "=== Disk before cleanup ==="
+          df -h
+
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /usr/local/.ghcup
+          sudo apt-get clean
+          sudo rm -rf /var/lib/apt/lists/*
+          docker system prune -af || true
+
+          echo "=== Disk after cleanup ==="
+          df -h
+
       - uses: cachix/install-nix-action@v31
-      - run: nix build --no-link --no-write-lock-file .#nixosConfigurations.${{ matrix.host }}.config.system.build.toplevel
-      - run: nix build --no-link --no-write-lock-file '.#homeConfigurations."anthony@${{ matrix.host }}".activationPackage'
+
+      - name: Disk space before NixOS build
+        run: df -h
+
+      - name: Build NixOS system
+        run: nix build --no-link --no-write-lock-file .#nixosConfigurations.${{ matrix.host }}.config.system.build.toplevel
+
+      - name: Build Home Manager
+        run: nix build --no-link --no-write-lock-file '.#homeConfigurations."anthony@${{ matrix.host }}".activationPackage'
+
+      - name: Disk usage
+        if: always()
+        shell: bash
+        run: |
+          echo "=== Final filesystem usage ==="
+          df -h
+          echo "=== Nix store usage ==="
+          sudo du -sh /nix/store 2>/dev/null || true
