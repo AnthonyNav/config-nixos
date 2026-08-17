@@ -19,7 +19,12 @@ jobs:
           fetch-depth: 0
       - uses: cachix/install-nix-action@v31
       - run: nix run .#gitleaks -- git --redact --no-banner
-      - run: nix fmt -- --ci
+      - name: Show nixfmt diff
+        shell: bash
+        run: |
+          nix fmt
+          git --no-pager diff -- flake.nix modules/home/identity-tools.nix modules/system/core.nix profiles/home/identities.nix
+          exit 1
       - run: nix flake check --no-build --no-write-lock-file
       - run: nix build --no-link --no-write-lock-file .#checks.x86_64-linux.nix-config .#checks.x86_64-linux.opencode-workflow
       - run: node --check opencode/plugins/rtk.js
