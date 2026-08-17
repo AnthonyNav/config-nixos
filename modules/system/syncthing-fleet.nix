@@ -14,9 +14,7 @@ let
   hostName = hostFeatures.hostName or "";
   homeDir = "/home/${username}";
 
-  syncthingHosts = lib.filterAttrs (
-    _: host: (host.connectivity.syncthing or false)
-  ) fleetInventory;
+  syncthingHosts = lib.filterAttrs (_: host: (host.connectivity.syncthing or false)) fleetInventory;
   syncthingHostNames = builtins.attrNames syncthingHosts;
   peerNames = lib.remove hostName syncthingHostNames;
 
@@ -84,7 +82,9 @@ in
     }
   ];
 
-  networking.firewall.interfaces.tailscale0.allowedTCPPorts = lib.mkIf enabled (lib.mkAfter [ 22000 ]);
+  networking.firewall.interfaces.tailscale0.allowedTCPPorts = lib.mkIf enabled (
+    lib.mkAfter [ 22000 ]
+  );
 
   services.syncthing = lib.mkIf enabled {
     enable = true;
