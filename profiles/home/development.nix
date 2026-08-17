@@ -6,6 +6,7 @@
     ../../modules/home/nix-config.nix
     ../../modules/home/kiro-gateway.nix
     ../../modules/home/opencode.nix
+    ../../modules/home/opencode-remote.nix
   ];
 
   home.packages = with pkgs; [
