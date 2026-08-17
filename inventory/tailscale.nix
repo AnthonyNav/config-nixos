@@ -21,6 +21,7 @@
         dst = [ "autogroup:self" ];
         ip = [
           "tcp:22" # Tailscale SSH / OpenSSH break-glass after disabling TS SSH.
+          "tcp:443" # Private Tailscale Serve HTTPS for remote OpenCode Web.
           "tcp:22000" # Syncthing fleet transport.
           "udp:4242" # Lan Mouse input-sharing transport.
         ];

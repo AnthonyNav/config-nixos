@@ -9,11 +9,14 @@ let
   policy = import ../../inventory/tailscale.nix { inherit username; };
   connectivity = hostFeatures.connectivity or { };
   inputSharing = hostFeatures.inputSharing or { };
+  opencodeRemote = hostFeatures.opencodeRemote or { };
   tailscaleEnabled = connectivity.tailscale or false;
   sshEnabled = connectivity.ssh or false;
   syncthingEnabled = connectivity.syncthing or false;
   inputSharingEnabled = inputSharing.enable or false;
-  requiresIncoming = sshEnabled || syncthingEnabled || inputSharingEnabled;
+  opencodeRemoteEnabled = opencodeRemote.enable or false;
+  requiresIncoming =
+    sshEnabled || syncthingEnabled || inputSharingEnabled || opencodeRemoteEnabled;
   hostName = hostFeatures.hostName or "";
 in
 {
@@ -27,6 +30,10 @@ in
       message = "connectivity.syncthing requires connectivity.tailscale.";
     }
     {
+      assertion = !opencodeRemoteEnabled || tailscaleEnabled;
+      message = "features.opencodeRemote requires connectivity.tailscale.";
+    }
+    {
       assertion = !tailscaleEnabled || hostName != "";
       message = "A Tailscale-enabled fleet host must have a declared hostName.";
     }
@@ -36,7 +43,7 @@ in
     }
     {
       assertion = !requiresIncoming || policy.node.allowIncoming;
-      message = "SSH, Syncthing and input sharing require incoming Tailscale connections.";
+      message = "SSH, Syncthing, input sharing and remote OpenCode require incoming Tailscale connections.";
     }
   ];
 

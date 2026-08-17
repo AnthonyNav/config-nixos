@@ -10,6 +10,7 @@
     ./pritunl.nix
     ./tailscale-fleet.nix
     ./syncthing-fleet.nix
+    ./opencode-remote.nix
   ];
 
   networking.networkmanager.enable = true;
