@@ -1,4 +1,5 @@
 {
+  config,
   hostFeatures,
   lib,
   pkgs,
@@ -8,12 +9,17 @@
 
 let
   policy = import ../../inventory/opencode-remote.nix;
+  tailscalePolicy = (import ../../inventory/tailscale.nix { inherit username; }).tailnetPolicy;
   connectivity = hostFeatures.connectivity or { };
   remote = hostFeatures.opencodeRemote or { };
   enabled = remote.enable or false;
   tailscaleEnabled = connectivity.tailscale or false;
   httpsPort = policy.serve.httpsPort;
-  backendUrl = "http://${policy.backend.hostname}:${toString policy.backend.port}";
+  backendPort = policy.backend.port;
+  backendUrl = "http://${policy.backend.hostname}:${toString backendPort}";
+  grant = builtins.head tailscalePolicy.grants;
+  globalTcpPorts = config.networking.firewall.allowedTCPPorts or [ ];
+  tailscaleTcpPorts = config.networking.firewall.interfaces.tailscale0.allowedTCPPorts or [ ];
 in
 {
   assertions = lib.optionals enabled [
@@ -24,6 +30,26 @@ in
     {
       assertion = policy.backend.hostname == "127.0.0.1";
       message = "Remote OpenCode must remain localhost-only behind Tailscale Serve.";
+    }
+    {
+      assertion = backendPort != httpsPort;
+      message = "Remote OpenCode backend and Tailscale Serve ports must remain distinct.";
+    }
+    {
+      assertion = config.users.users.${username}.linger;
+      message = "Remote OpenCode requires systemd user linger for boot-time persistence.";
+    }
+    {
+      assertion = builtins.elem httpsPort tailscaleTcpPorts;
+      message = "Remote OpenCode HTTPS must be allowed on tailscale0.";
+    }
+    {
+      assertion = !(builtins.elem backendPort globalTcpPorts) && !(builtins.elem backendPort tailscaleTcpPorts);
+      message = "Remote OpenCode backend port must never be exposed through the NixOS firewall.";
+    }
+    {
+      assertion = builtins.elem "tcp:${toString httpsPort}" grant.ip;
+      message = "The declared tailnet policy must authorize Remote OpenCode HTTPS.";
     }
   ];
 
