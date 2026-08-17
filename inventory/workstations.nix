@@ -13,6 +13,9 @@
       graphics = "nvidia-prime";
       creativeNvidia = true;
       monitorProfile = "dynamic";
+      opencodeRemote = {
+        enable = true;
+      };
       inputSharing = {
         enable = true;
         peers = [ ];
@@ -34,6 +37,9 @@
       graphics = "nvidia";
       creativeNvidia = true;
       monitorProfile = "desktop-3";
+      opencodeRemote = {
+        enable = true;
+      };
       inputSharing = {
         enable = true;
         peers = [
@@ -64,6 +70,9 @@
       graphics = "intel";
       creativeNvidia = false;
       monitorProfile = "dynamic";
+      opencodeRemote = {
+        enable = true;
+      };
       inputSharing = {
         enable = true;
         peers = [ ];
