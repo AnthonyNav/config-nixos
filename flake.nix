@@ -185,6 +185,34 @@
       };
       checks.${system} = {
         formatting = treefmtEval.config.build.check self;
+        identity-policy =
+          let
+            homeConfig = self.homeConfigurations."${username}@thinkpad".config;
+            gitSettings = homeConfig.programs.git.settings;
+            sshSettings = homeConfig.programs.ssh.settings;
+          in
+          assert gitSettings.user.useConfigOnly;
+          assert gitSettings.url."git@github.com-personal:AnthonyNav/".insteadOf == [
+            "https://github.com/AnthonyNav/"
+            "git@github.com:AnthonyNav/"
+            "ssh://git@github.com/AnthonyNav/"
+          ];
+          assert gitSettings.url."git@github.com-work:kigo/".insteadOf == [
+            "https://github.com/kigo/"
+            "git@github.com:kigo/"
+            "ssh://git@github.com/kigo/"
+          ];
+          assert gitSettings.url."https://github.com/".insteadOf == [
+            "git@github.com:"
+            "ssh://git@github.com/"
+          ];
+          assert sshSettings."github.com".IdentityFile == "none";
+          assert sshSettings."github.com-personal".IdentityFile == "/home/${username}/.ssh/id_personal";
+          assert sshSettings."github.com-work".IdentityFile == "/home/${username}/.ssh/id_work";
+          assert sshSettings."github.com-kigo".IdentityFile == "/home/${username}/.ssh/id_work";
+          pkgsFor.runCommand "identity-policy-check" { } ''
+            touch "$out"
+          '';
         nix-config =
           pkgsFor.runCommand "nix-config-check"
             {
