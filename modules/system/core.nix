@@ -13,7 +13,10 @@ let
   syncthingEnabled = connectivity.syncthing or false;
 in
 {
-  imports = [ ./pritunl.nix ];
+  imports = [
+    ./pritunl.nix
+    ./syncthing-fleet.nix
+  ];
 
   assertions = [
     {
@@ -28,11 +31,7 @@ in
 
   networking.networkmanager.enable = true;
   networking.firewall.interfaces.tailscale0 = lib.mkIf tailscaleEnabled {
-    allowedTCPPorts = lib.optionals sshEnabled [ 22 ] ++ lib.optionals syncthingEnabled [ 22000 ];
-    allowedUDPPorts = lib.optionals syncthingEnabled [
-      22000
-      21027
-    ];
+    allowedTCPPorts = lib.optionals sshEnabled [ 22 ];
   };
 
   time.timeZone = "America/Mexico_City";
@@ -125,15 +124,6 @@ in
   };
 
   services.tailscale.enable = tailscaleEnabled;
-
-  services.syncthing = lib.mkIf syncthingEnabled {
-    enable = true;
-    user = username;
-    group = "users";
-    dataDir = "/home/${username}";
-    configDir = "/home/${username}/.config/syncthing";
-    openDefaultPorts = false;
-  };
 
   hardware.bluetooth.enable = true;
   services.power-profiles-daemon.enable = true;
