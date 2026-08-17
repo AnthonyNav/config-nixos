@@ -44,7 +44,8 @@ in
       message = "Remote OpenCode HTTPS must be allowed on tailscale0.";
     }
     {
-      assertion = !(builtins.elem backendPort globalTcpPorts) && !(builtins.elem backendPort tailscaleTcpPorts);
+      assertion =
+        !(builtins.elem backendPort globalTcpPorts) && !(builtins.elem backendPort tailscaleTcpPorts);
       message = "Remote OpenCode backend port must never be exposed through the NixOS firewall.";
     }
     {
