@@ -242,10 +242,11 @@
             sshRule = builtins.head tailnetPolicy.ssh;
           in
           assert tailscaleConfig.enable;
-          assert tailscaleConfig.extraSetFlags == [
-            "--hostname=thinkpad"
-            "--ssh"
-          ];
+          assert
+            tailscaleConfig.extraSetFlags == [
+              "--hostname=thinkpad"
+              "--ssh"
+            ];
           assert systemConfig.services.openssh.enable;
           assert builtins.elem 22 tailscaleFirewall.allowedTCPPorts;
           assert grant.src == [ "autogroup:member" ];
