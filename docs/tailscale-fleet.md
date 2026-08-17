@@ -17,6 +17,8 @@ The current network policy is deliberately narrow:
 - TCP `22` is allowed for SSH
 - TCP `22000` is allowed for the declared Syncthing fleet
 - UDP `4242` is allowed for Lan Mouse input sharing
+- incoming Tailscale connections are explicitly enabled on fleet nodes instead
+  of depending on the mutable `shields-up` client preference
 - Tailscale SSH uses `check` mode, requires periodic reauthentication and permits
   only the local `anthony` account
 - root login remains disabled in the fallback OpenSSH daemon
@@ -27,10 +29,10 @@ repository.
 ## Local desired state
 
 For every host with `connectivity.tailscale = true`, NixOS enables `tailscaled`
-and reapplies the declared machine name with:
+and reapplies the declared machine name and incoming-connection policy with:
 
 ```text
-tailscale set --hostname=<fleet-host>
+tailscale set --hostname=<fleet-host> --shields-up=false
 ```
 
 For every host with `connectivity.ssh = true`, it also reapplies:
@@ -41,8 +43,9 @@ tailscale set --ssh
 
 The generated `tailscaled-set` unit retries after failure. This matters on a new
 machine because the first NixOS activation can happen before the node has joined
-the tailnet. After the one-time Tailscale login succeeds, the desired hostname
-and SSH mode are applied without requiring another NixOS activation.
+the tailnet. After the one-time Tailscale login succeeds, the desired hostname,
+incoming-connection policy and SSH mode are applied without requiring another
+NixOS activation.
 
 ## Tailnet control-plane policy
 
@@ -88,8 +91,11 @@ ssh desktop
 ssh victus
 ```
 
-This path exists for tools that expect the standard `ssh` executable, including
-future `nixos-rebuild --target-host` fleet deployment.
+Those aliases use `tailscale nc` as their `ProxyCommand`, so the standard SSH
+client is still forced through the local Tailscale daemon rather than depending
+on system DNS, a stored Tailscale IP or an alternate network path. This exists
+for tools that expect the standard `ssh` executable, including future
+`nixos-rebuild --target-host` fleet deployment.
 
 ## New machine bootstrap
 
@@ -101,10 +107,12 @@ sudo tailscale up
 ```
 
 Complete the browser authentication. The retrying `tailscaled-set` unit then
-converges the declared machine name and Tailscale SSH setting automatically.
+converges the declared machine name, incoming-connection policy and Tailscale SSH
+setting automatically.
 
-No machine-specific Tailscale IP is recorded in Git. MagicDNS names follow the
-fleet host names (`desktop`, `thinkpad`, `victus`).
+No machine-specific Tailscale IP is recorded in Git. Fleet access uses the
+canonical declared host names (`desktop`, `thinkpad`, `victus`) and lets the
+Tailscale daemon resolve them at runtime.
 
 ## Break-glass OpenSSH
 
@@ -119,7 +127,8 @@ sudo tailscale set --ssh=false
 
 Standard OpenSSH can then receive tailnet port 22 using the versioned authorized
 public key. Password authentication, keyboard-interactive authentication and
-root login remain disabled.
+root login remain disabled. The generated SSH aliases still traverse Tailscale
+through `tailscale nc`.
 
 Re-enable the declared state afterwards with:
 
@@ -134,9 +143,9 @@ or by activating the NixOS configuration again.
 | State | Owner |
 |---|---|
 | fleet host names and connectivity capabilities | `inventory/workstations.nix` |
-| allowed tailnet ports and SSH policy | `inventory/tailscale.nix` |
+| allowed tailnet ports, incoming policy and SSH policy | `inventory/tailscale.nix` |
 | Tailscale daemon/SSH desired state | NixOS |
-| SSH client host aliases | Home Manager |
+| SSH client host aliases and Tailscale proxying | Home Manager |
 | node identity/private key | local Tailscale runtime state |
 | tailnet policy API credential | external secret, not currently required by repo |
 | control-plane policy application | explicit external action |

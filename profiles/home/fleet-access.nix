@@ -9,9 +9,11 @@
 let
   sshHosts = lib.filterAttrs (_: host: (host.connectivity.ssh or false)) fleetInventory;
   sshHostNames = builtins.attrNames sshHosts;
+  sshProxyCommand = "${lib.getExe pkgs.tailscale} nc %h %p";
 
   sshSettings = lib.mapAttrs (_: _: {
     User = username;
+    ProxyCommand = sshProxyCommand;
     ServerAliveInterval = 15;
     ServerAliveCountMax = 3;
   }) sshHosts;
@@ -114,8 +116,10 @@ in
   ];
 
   # Normal `ssh thinkpad` remains available for tools such as nixos-rebuild,
-  # while `fleet-ssh thinkpad` is preferred interactively because `tailscale
-  # ssh` validates the destination host key through the coordination server.
+  # but is forced through tailscaled instead of depending on host DNS or a raw
+  # network path. `fleet-ssh thinkpad` remains preferred interactively because
+  # `tailscale ssh` also validates the destination host key through the
+  # coordination server.
   programs.ssh.settings = sshSettings;
 
   home.packages = [ fleetSsh ];

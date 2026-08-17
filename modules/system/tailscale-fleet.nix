@@ -8,9 +8,12 @@
 let
   policy = import ../../inventory/tailscale.nix { inherit username; };
   connectivity = hostFeatures.connectivity or { };
+  inputSharing = hostFeatures.inputSharing or { };
   tailscaleEnabled = connectivity.tailscale or false;
   sshEnabled = connectivity.ssh or false;
   syncthingEnabled = connectivity.syncthing or false;
+  inputSharingEnabled = inputSharing.enable or false;
+  requiresIncoming = sshEnabled || syncthingEnabled || inputSharingEnabled;
   hostName = hostFeatures.hostName or "";
 in
 {
@@ -31,6 +34,10 @@ in
       assertion = !sshEnabled || policy.node.enableSsh;
       message = "SSH-capable fleet hosts require Tailscale SSH in the declared fleet policy.";
     }
+    {
+      assertion = !requiresIncoming || policy.node.allowIncoming;
+      message = "SSH, Syncthing and input sharing require incoming Tailscale connections.";
+    }
   ];
 
   # Port 22 remains reachable only on the tailnet. Tailscale SSH intercepts
@@ -46,6 +53,7 @@ in
     openFirewall = false;
     extraSetFlags =
       lib.optionals policy.node.forceHostname [ "--hostname=${hostName}" ]
+      ++ lib.optionals policy.node.allowIncoming [ "--shields-up=false" ]
       ++ lib.optionals (sshEnabled && policy.node.enableSsh) [ "--ssh" ];
   };
 

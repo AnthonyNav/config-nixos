@@ -4,6 +4,7 @@
   node = {
     forceHostname = true;
     enableSsh = true;
+    allowIncoming = true;
   };
 
   # This is the desired tailnet control-plane policy. It is intentionally
