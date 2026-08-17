@@ -207,10 +207,10 @@
               "git@github.com:"
               "ssh://git@github.com/"
             ];
-          assert sshSettings."github.com".IdentityFile == "none";
-          assert sshSettings."github.com-personal".IdentityFile == "/home/${username}/.ssh/id_personal";
-          assert sshSettings."github.com-work".IdentityFile == "/home/${username}/.ssh/id_work";
-          assert sshSettings."github.com-kigo".IdentityFile == "/home/${username}/.ssh/id_work";
+          assert sshSettings."github.com".data.IdentityFile == "none";
+          assert sshSettings."github.com-personal".data.IdentityFile == "/home/${username}/.ssh/id_personal";
+          assert sshSettings."github.com-work".data.IdentityFile == "/home/${username}/.ssh/id_work";
+          assert sshSettings."github.com-kigo".data.IdentityFile == "/home/${username}/.ssh/id_work";
           pkgsFor.runCommand "identity-policy-check" { } ''
             touch "$out"
           '';
