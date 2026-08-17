@@ -214,6 +214,29 @@
           pkgsFor.runCommand "identity-policy-check" { } ''
             touch "$out"
           '';
+        syncthing-policy =
+          let
+            systemConfig = self.nixosConfigurations.thinkpad.config;
+            syncthingConfig = systemConfig.services.syncthing;
+            tailscaleFirewall = systemConfig.networking.firewall.interfaces.tailscale0;
+            syncthingPolicy = import ./inventory/syncthing.nix;
+          in
+          assert syncthingConfig.enable;
+          assert !syncthingConfig.overrideDevices;
+          assert !syncthingConfig.overrideFolders;
+          assert syncthingConfig.settings.options.listenAddresses == [ "tcp://0.0.0.0:22000" ];
+          assert !syncthingConfig.settings.options.globalAnnounceEnabled;
+          assert !syncthingConfig.settings.options.localAnnounceEnabled;
+          assert !syncthingConfig.settings.options.relaysEnabled;
+          assert !syncthingConfig.settings.options.natEnabled;
+          assert builtins.elem 22000 tailscaleFirewall.allowedTCPPorts;
+          assert !(builtins.elem 22000 (tailscaleFirewall.allowedUDPPorts or [ ]));
+          assert !(builtins.elem 21027 (tailscaleFirewall.allowedUDPPorts or [ ]));
+          assert syncthingPolicy.folders.shared.id == "fleet-shared";
+          assert syncthingPolicy.folders.shared.relativePath == "Sync/Fleet";
+          pkgsFor.runCommand "syncthing-policy-check" { } ''
+            touch "$out"
+          '';
         nix-config =
           pkgsFor.runCommand "nix-config-check"
             {
@@ -225,7 +248,11 @@
               ];
             }
             ''
-              shellcheck ${./scripts/nix-config.sh} ${./scripts/tests/check-nix-config.sh} ${./scripts/input-share-reconcile.sh}
+              shellcheck \
+                ${./scripts/nix-config.sh} \
+                ${./scripts/tests/check-nix-config.sh} \
+                ${./scripts/input-share-reconcile.sh} \
+                ${./scripts/syncthing-fleet-reconcile.sh}
               bash ${./scripts/tests/check-nix-config.sh} ${./scripts/nix-config.sh}
               nix-config --help >/dev/null
               touch "$out"
