@@ -15,8 +15,7 @@ let
   syncthingEnabled = connectivity.syncthing or false;
   inputSharingEnabled = inputSharing.enable or false;
   opencodeRemoteEnabled = opencodeRemote.enable or false;
-  requiresIncoming =
-    sshEnabled || syncthingEnabled || inputSharingEnabled || opencodeRemoteEnabled;
+  requiresIncoming = sshEnabled || syncthingEnabled || inputSharingEnabled || opencodeRemoteEnabled;
   hostName = hostFeatures.hostName or "";
 in
 {
