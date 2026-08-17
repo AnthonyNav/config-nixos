@@ -70,6 +70,15 @@
           features
           ;
       }) workstations;
+      tailscalePolicyConfig = import ./inventory/tailscale.nix { inherit username; };
+      tailnetPolicy = tailscalePolicyConfig.tailnetPolicy;
+      tailnetPolicyFile = pkgsFor.writeText "tailnet-policy.json" (builtins.toJSON tailnetPolicy);
+      tailscalePolicyPrinter = pkgsFor.writeShellApplication {
+        name = "tailscale-policy";
+        text = ''
+          ${pkgsFor.jq}/bin/jq . ${tailnetPolicyFile}
+        '';
+      };
       nixConfigPackages = import ./modules/home/nix-config-packages.nix {
         inherit lib username workstationNames;
         pkgs = pkgsFor;
@@ -150,7 +159,7 @@
     in
     {
       lib = {
-        inherit fleetInventory workstationNames;
+        inherit fleetInventory tailnetPolicy workstationNames;
       };
 
       nixosConfigurations = (lib.mapAttrs mkHost workstations) // {
@@ -175,11 +184,19 @@
       packages.${system} = {
         nix-config = nixConfigPackages.nixConfig;
         gitleaks = pkgsFor.gitleaks;
+        tailscale-policy = tailscalePolicyPrinter;
       };
-      apps.${system}.nix-config = {
-        type = "app";
-        program = lib.getExe nixConfigPackages.nixConfig;
-        meta.description = "Validate, build, and deploy this NixOS configuration";
+      apps.${system} = {
+        nix-config = {
+          type = "app";
+          program = lib.getExe nixConfigPackages.nixConfig;
+          meta.description = "Validate, build, and deploy this NixOS configuration";
+        };
+        tailscale-policy = {
+          type = "app";
+          program = lib.getExe tailscalePolicyPrinter;
+          meta.description = "Render the declared Tailscale tailnet policy";
+        };
       };
       checks.${system} = {
         formatting = treefmtEval.config.build.check self;
@@ -212,6 +229,41 @@
           assert sshSettings."github.com-work".data.IdentityFile == "/home/${username}/.ssh/id_work";
           assert sshSettings."github.com-kigo".data.IdentityFile == "/home/${username}/.ssh/id_work";
           pkgsFor.runCommand "identity-policy-check" { } ''
+            touch "$out"
+          '';
+        tailscale-policy =
+          let
+            systemConfig = self.nixosConfigurations.thinkpad.config;
+            homeConfig = self.homeConfigurations."${username}@thinkpad".config;
+            tailscaleConfig = systemConfig.services.tailscale;
+            tailscaleFirewall = systemConfig.networking.firewall.interfaces.tailscale0;
+            fleetSshSettings = homeConfig.programs.ssh.settings;
+            grant = builtins.head tailnetPolicy.grants;
+            sshRule = builtins.head tailnetPolicy.ssh;
+          in
+          assert tailscaleConfig.enable;
+          assert tailscaleConfig.extraSetFlags == [
+            "--hostname=thinkpad"
+            "--ssh"
+          ];
+          assert systemConfig.services.openssh.enable;
+          assert builtins.elem 22 tailscaleFirewall.allowedTCPPorts;
+          assert grant.src == [ "autogroup:member" ];
+          assert grant.dst == [ "autogroup:self" ];
+          assert builtins.elem "tcp:22" grant.ip;
+          assert builtins.elem "tcp:22000" grant.ip;
+          assert builtins.elem "udp:4242" grant.ip;
+          assert !(builtins.elem "*" grant.ip);
+          assert sshRule.action == "check";
+          assert sshRule.src == [ "autogroup:member" ];
+          assert sshRule.dst == [ "autogroup:self" ];
+          assert sshRule.users == [ username ];
+          assert sshRule.checkPeriod == "12h";
+          assert fleetSshSettings.thinkpad.data.User == username;
+          assert fleetSshSettings.desktop.data.User == username;
+          assert fleetSshSettings.victus.data.User == username;
+          pkgsFor.runCommand "tailscale-policy-check" { } ''
+            ${lib.getExe tailscalePolicyPrinter} >/dev/null
             touch "$out"
           '';
         syncthing-policy =
