@@ -1,38 +1,18 @@
 {
-  hostFeatures,
   lib,
   pkgs,
   username,
   ...
 }:
 
-let
-  connectivity = hostFeatures.connectivity or { };
-  tailscaleEnabled = connectivity.tailscale or false;
-  sshEnabled = connectivity.ssh or false;
-  syncthingEnabled = connectivity.syncthing or false;
-in
 {
   imports = [
     ./pritunl.nix
+    ./tailscale-fleet.nix
     ./syncthing-fleet.nix
   ];
 
-  assertions = [
-    {
-      assertion = !sshEnabled || tailscaleEnabled;
-      message = "connectivity.ssh requires connectivity.tailscale because SSH is exposed only on tailscale0.";
-    }
-    {
-      assertion = !syncthingEnabled || tailscaleEnabled;
-      message = "connectivity.syncthing requires connectivity.tailscale because Syncthing is exposed only on tailscale0.";
-    }
-  ];
-
   networking.networkmanager.enable = true;
-  networking.firewall.interfaces.tailscale0 = lib.mkIf tailscaleEnabled {
-    allowedTCPPorts = lib.optionals sshEnabled [ 22 ];
-  };
 
   time.timeZone = "America/Mexico_City";
 
@@ -109,21 +89,6 @@ in
       "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMSZBAoRb/gxevgsIFbtcg/hPx+gvv0tfj25KtubL0xd anthony@config-nixos"
     ];
   };
-
-  # sshd puede escuchar en el host, pero el firewall no abre 22 globalmente:
-  # solo tailscale0 lo acepta. Además se deshabilitan contraseña, keyboard-
-  # interactive y login de root en los hosts instalados.
-  services.openssh = lib.mkIf sshEnabled {
-    enable = true;
-    openFirewall = false;
-    settings = {
-      PasswordAuthentication = false;
-      KbdInteractiveAuthentication = false;
-      PermitRootLogin = "no";
-    };
-  };
-
-  services.tailscale.enable = tailscaleEnabled;
 
   hardware.bluetooth.enable = true;
   services.power-profiles-daemon.enable = true;
