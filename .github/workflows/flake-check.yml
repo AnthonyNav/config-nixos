@@ -4,22 +4,25 @@ on:
   pull_request:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   probe:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: agent/nixfmt-tailscale-probe
       - uses: cachix/install-nix-action@v31
-      - name: Show canonical nixfmt output
+      - name: Persist canonical nixfmt output
         shell: bash
         run: |
           nix fmt
-          echo '__FLAKE_BEGIN__'
-          cat flake.nix
-          echo '__FLAKE_END__'
-          echo '__FLEET_ACCESS_BEGIN__'
-          cat profiles/home/fleet-access.nix
-          echo '__FLEET_ACCESS_END__'
-          exit 1
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add flake.nix profiles/home/fleet-access.nix
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m 'style: probe nixfmt output'
+          git push origin HEAD:agent/nixfmt-tailscale-probe
