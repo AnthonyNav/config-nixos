@@ -240,11 +240,14 @@
             fleetSshSettings = homeConfig.programs.ssh.settings;
             grant = builtins.head tailnetPolicy.grants;
             sshRule = builtins.head tailnetPolicy.ssh;
+            expectedProxyCommand = "${lib.getExe pkgsFor.tailscale} nc %h %p";
           in
           assert tailscaleConfig.enable;
+          assert tailscalePolicyConfig.node.allowIncoming;
           assert
             tailscaleConfig.extraSetFlags == [
               "--hostname=thinkpad"
+              "--shields-up=false"
               "--ssh"
             ];
           assert systemConfig.services.openssh.enable;
@@ -263,6 +266,9 @@
           assert fleetSshSettings.thinkpad.data.User == username;
           assert fleetSshSettings.desktop.data.User == username;
           assert fleetSshSettings.victus.data.User == username;
+          assert fleetSshSettings.thinkpad.data.ProxyCommand == expectedProxyCommand;
+          assert fleetSshSettings.desktop.data.ProxyCommand == expectedProxyCommand;
+          assert fleetSshSettings.victus.data.ProxyCommand == expectedProxyCommand;
           pkgsFor.runCommand "tailscale-policy-check" { } ''
             ${lib.getExe tailscalePolicyPrinter} >/dev/null
             touch "$out"
