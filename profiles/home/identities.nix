@@ -13,33 +13,26 @@ let
   rootPath = root: "${homeDir}/${root}";
   sshKeyPath = identity: "${homeDir}/${identity.sshKey}";
 
-  mkGitInclude =
-    identity: root:
-    {
-      condition = "gitdir:${rootPath root}";
-      contents.user = identity.git;
-    };
+  mkGitInclude = identity: root: {
+    condition = "gitdir:${rootPath root}";
+    contents.user = identity.git;
+  };
 
   gitIncludes = lib.concatLists (
-    lib.mapAttrsToList (
-      _: identity: map (mkGitInclude identity) identity.roots
-    ) identities
+    lib.mapAttrsToList (_: identity: map (mkGitInclude identity) identity.roots) identities
   );
 
   namespaceEntries = lib.concatLists (
     lib.mapAttrsToList (
       _: identity:
-      map (
-        namespace:
-        {
-          name = "git@${identity.github.alias}:${namespace}/";
-          value.insteadOf = [
-            "https://github.com/${namespace}/"
-            "git@github.com:${namespace}/"
-            "ssh://git@github.com/${namespace}/"
-          ];
-        }
-      ) identity.github.namespaces
+      map (namespace: {
+        name = "git@${identity.github.alias}:${namespace}/";
+        value.insteadOf = [
+          "https://github.com/${namespace}/"
+          "git@github.com:${namespace}/"
+          "ssh://git@github.com/${namespace}/"
+        ];
+      }) identity.github.namespaces
     ) identities
   );
 
@@ -69,7 +62,9 @@ let
     )
   );
 
-  allNamespaces = lib.concatLists (lib.mapAttrsToList (_: identity: identity.github.namespaces) identities);
+  allNamespaces = lib.concatLists (
+    lib.mapAttrsToList (_: identity: identity.github.namespaces) identities
+  );
   allRoots = lib.concatLists (lib.mapAttrsToList (_: identity: identity.roots) identities);
   allSshAliases = lib.concatLists (
     lib.mapAttrsToList (

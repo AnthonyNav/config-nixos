@@ -15,8 +15,7 @@ let
 
   keyChecks = lib.concatStringsSep "\n" (
     lib.mapAttrsToList (
-      name: identity:
-      ''check_readable "SSH key ${name}" ${lib.escapeShellArg (sshKeyPath identity)}''
+      name: identity: ''check_readable "SSH key ${name}" ${lib.escapeShellArg (sshKeyPath identity)}''
     ) identities
   );
 
@@ -52,7 +51,7 @@ let
       let
         probeRoot = rootPath (builtins.head identity.roots);
       in
-      ''probe_identity ${lib.escapeShellArg name} ${lib.escapeShellArg probeRoot} ${lib.escapeShellArg identity.git.email}''
+      "probe_identity ${lib.escapeShellArg name} ${lib.escapeShellArg probeRoot} ${lib.escapeShellArg identity.git.email}"
     ) identities
   );
 
@@ -62,7 +61,7 @@ let
         name: identity:
         map (
           alias:
-          ''check_ssh_alias ${lib.escapeShellArg "${name} alias ${alias}"} ${lib.escapeShellArg alias} ${lib.escapeShellArg (sshKeyPath identity)}''
+          "check_ssh_alias ${lib.escapeShellArg "${name} alias ${alias}"} ${lib.escapeShellArg alias} ${lib.escapeShellArg (sshKeyPath identity)}"
         ) ([ identity.github.alias ] ++ identity.github.compatibilityAliases)
       ) identities
     )

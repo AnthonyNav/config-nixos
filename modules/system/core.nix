@@ -28,9 +28,7 @@ in
 
   networking.networkmanager.enable = true;
   networking.firewall.interfaces.tailscale0 = lib.mkIf tailscaleEnabled {
-    allowedTCPPorts =
-      lib.optionals sshEnabled [ 22 ]
-      ++ lib.optionals syncthingEnabled [ 22000 ];
+    allowedTCPPorts = lib.optionals sshEnabled [ 22 ] ++ lib.optionals syncthingEnabled [ 22000 ];
     allowedUDPPorts = lib.optionals syncthingEnabled [
       22000
       21027
