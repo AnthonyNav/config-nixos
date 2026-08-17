@@ -6,48 +6,18 @@
 }:
 
 let
+  policy = import ../../inventory/identities.nix;
+  identities = policy.identities;
   homeDir = "/home/${username}";
-  identities = {
-    personal = {
-      git = {
-        name = "Antonio Zempoaltecatl";
-        email = "anthonydevxp@gmail.com";
-      };
-      githubAlias = "github.com-personal";
-      sshKey = "${homeDir}/.ssh/id_personal";
-      roots = [
-        "${homeDir}/personal/"
-        "${homeDir}/nixos-config/"
-      ];
-    };
 
-    work = {
-      git = {
-        name = "Antonio Zempoaltecatl";
-        email = "antonio.zempoaltecatl@cargomovil.com";
-      };
-      githubAlias = "github.com-work";
-      sshKey = "${homeDir}/.ssh/id_work";
-      roots = [ "${homeDir}/work/" ];
-    };
-  };
+  rootPath = root: "${homeDir}/${root}";
+  sshKeyPath = identity: "${homeDir}/${identity.sshKey}";
 
   mkGitInclude =
     identity: root:
     {
-      condition = "gitdir:${root}";
-      contents = {
-        user = identity.git;
-        url = {
-          "git@${identity.githubAlias}:" = {
-            insteadOf = [
-              "git@github.com:"
-              "ssh://git@github.com/"
-              "https://github.com/"
-            ];
-          };
-        };
-      };
+      condition = "gitdir:${rootPath root}";
+      contents.user = identity.git;
     };
 
   gitIncludes = lib.concatLists (
@@ -55,23 +25,91 @@ let
       _: identity: map (mkGitInclude identity) identity.roots
     ) identities
   );
+
+  namespaceEntries = lib.concatLists (
+    lib.mapAttrsToList (
+      _: identity:
+      map (
+        namespace:
+        {
+          name = "git@${identity.github.alias}:${namespace}/";
+          value.insteadOf = [
+            "https://github.com/${namespace}/"
+            "git@github.com:${namespace}/"
+            "ssh://git@github.com/${namespace}/"
+          ];
+        }
+      ) identity.github.namespaces
+    ) identities
+  );
+
+  namespaceRouting = lib.listToAttrs namespaceEntries;
+  fallbackRouting = {
+    "https://github.com/".insteadOf = [
+      "git@github.com:"
+      "ssh://git@github.com/"
+    ];
+  };
+
+  mkSshAlias =
+    identity: alias:
+    lib.nameValuePair alias {
+      HostName = "github.com";
+      IdentityFile = sshKeyPath identity;
+      IdentitiesOnly = true;
+      User = "git";
+    };
+
+  sshAliases = lib.listToAttrs (
+    lib.concatLists (
+      lib.mapAttrsToList (
+        _: identity:
+        map (mkSshAlias identity) ([ identity.github.alias ] ++ identity.github.compatibilityAliases)
+      ) identities
+    )
+  );
+
+  allNamespaces = lib.concatLists (lib.mapAttrsToList (_: identity: identity.github.namespaces) identities);
+  allRoots = lib.concatLists (lib.mapAttrsToList (_: identity: identity.roots) identities);
+  allSshAliases = lib.concatLists (
+    lib.mapAttrsToList (
+      _: identity: [ identity.github.alias ] ++ identity.github.compatibilityAliases
+    ) identities
+  );
 in
 
 {
+  imports = [ ../../modules/home/identity-tools.nix ];
+
   assertions = [
     {
       assertion = identities.personal.sshKey != identities.work.sshKey;
       message = "Personal and work GitHub identities must use different SSH keys.";
     }
+    {
+      assertion = builtins.length allNamespaces == builtins.length (lib.unique allNamespaces);
+      message = "A GitHub namespace may belong to only one identity.";
+    }
+    {
+      assertion = builtins.length allRoots == builtins.length (lib.unique allRoots);
+      message = "A Git identity root may belong to only one identity.";
+    }
+    {
+      assertion = builtins.length allSshAliases == builtins.length (lib.unique allSshAliases);
+      message = "GitHub SSH aliases must be unique across identities.";
+    }
+    {
+      assertion = policy.githubFallback == "https";
+      message = "Unknown GitHub namespaces must fall back to HTTPS.";
+    }
   ];
 
-  # Canonical roots make Git identity selection deterministic. Repositories
+  # Canonical roots make commit identity selection deterministic. Repositories
   # outside these roots have no user.name/user.email and therefore cannot
   # create commits while user.useConfigOnly is enabled.
   home.activation.ensureGitIdentityRoots = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
     $DRY_RUN_CMD ${pkgs.coreutils}/bin/mkdir -p \
-      ${lib.escapeShellArg "${homeDir}/personal"} \
-      ${lib.escapeShellArg "${homeDir}/work"}
+      ${lib.concatMapStringsSep " \\\n      " (root: lib.escapeShellArg (rootPath root)) allRoots}
   '';
 
   programs.ssh = {
@@ -80,36 +118,13 @@ in
     settings = {
       "*".AddKeysToAgent = "yes";
 
-      # Never let the generic GitHub hostname choose whichever identity happens
-      # to be available in ssh-agent. Git repositories under a managed root
-      # rewrite GitHub remotes to one of the explicit aliases below.
+      # The generic GitHub hostname is deliberately unusable over SSH. Git URL
+      # routing below either selects an explicit identity alias by namespace or
+      # converts an unknown SSH-style GitHub URL to HTTPS.
       "github.com" = {
         HostName = "github.com";
         IdentityFile = "none";
         IdentityAgent = "none";
-        IdentitiesOnly = true;
-        User = "git";
-      };
-
-      "github.com-personal" = {
-        HostName = "github.com";
-        IdentityFile = identities.personal.sshKey;
-        IdentitiesOnly = true;
-        User = "git";
-      };
-
-      "github.com-work" = {
-        HostName = "github.com";
-        IdentityFile = identities.work.sshKey;
-        IdentitiesOnly = true;
-        User = "git";
-      };
-
-      # Backward-compatible alias for existing corporate remotes. New work
-      # repositories should use github.com-work.
-      "github.com-kigo" = {
-        HostName = "github.com";
-        IdentityFile = identities.work.sshKey;
         IdentitiesOnly = true;
         User = "git";
       };
@@ -120,13 +135,15 @@ in
         IdentitiesOnly = true;
         User = "anthony";
       };
-    };
+    }
+    // sshAliases;
   };
 
   programs.git = {
     enable = true;
     settings = {
       user.useConfigOnly = true;
+      url = fallbackRouting // namespaceRouting;
     };
     includes = gitIncludes;
   };

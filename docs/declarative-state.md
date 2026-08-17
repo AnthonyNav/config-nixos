@@ -12,6 +12,10 @@ selection. `flake.nix` derives NixOS/Home Manager configurations and exposes the
 path-free `lib.fleetInventory` view for modules that need information about
 other declared hosts.
 
+`inventory/identities.nix` is the canonical Git identity and GitHub-routing
+policy. Home Manager consumes it; modules must not duplicate account names,
+email addresses, namespaces, SSH aliases or key paths.
+
 Connectivity is capability-driven:
 
 - `connectivity.tailscale` enables the Tailscale service.
@@ -57,46 +61,93 @@ pairing procedure must remain documented.
 
 ## Personal and work Git identities
 
-Git identity selection is directory-scoped and fail-closed:
+Commit identity and repository authentication are independent policies.
 
-- `~/personal/` uses the personal Git identity and `~/.ssh/id_personal`.
+### Commit identity
+
+Commit author selection is directory-scoped and fail-closed:
+
+- `~/personal/` uses the personal Git identity.
 - `~/nixos-config/` is an explicit personal exception.
-- `~/work/` uses the work Git identity and `~/.ssh/id_work`.
+- `~/work/` uses the work Git identity.
 - repositories outside those roots receive no default `user.name` or
   `user.email`; `user.useConfigOnly=true` prevents an accidental commit with a
   fallback identity.
 
-The generic SSH host `github.com` intentionally has no usable identity. Managed
-repositories rewrite common GitHub SSH/HTTPS remote forms to one of the
-explicit aliases:
+### GitHub authentication
+
+Repository access is namespace-scoped and is deliberately independent of the
+checkout directory. This is required because package managers may clone private
+Git dependencies into caches or temporary directories outside `~/work/`.
+
+The declared policy is:
 
 ```text
-github.com-personal -> ~/.ssh/id_personal
-github.com-work     -> ~/.ssh/id_work
-github.com-kigo     -> ~/.ssh/id_work  (compatibility alias)
+github.com/AnthonyNav/* -> github.com-personal -> ~/.ssh/id_personal
+github.com/kigo/*       -> github.com-work     -> ~/.ssh/id_work
+all other GitHub repos  -> HTTPS
 ```
 
-For a new clone, select the account explicitly because the destination Git
-repository does not exist yet when the initial network connection is made:
+`github.com-kigo` remains as a compatibility SSH alias for existing corporate
+remotes, but new configuration should use canonical GitHub URLs rather than
+embedding local aliases into project files.
+
+The URL rewrite policy accepts standard HTTPS, SCP-style SSH and `ssh://` GitHub
+forms. Git selects the longest matching `insteadOf` prefix, so the declared
+`AnthonyNav/` and `kigo/` routes take precedence over the generic SSH-to-HTTPS
+fallback.
+
+Projects and dependency manifests should therefore retain portable URLs such as:
+
+```text
+https://github.com/kigo/private-sdk.git
+https://github.com/AnthonyNav/example.git
+https://github.com/NixOS/nixpkgs.git
+```
+
+No `github.com-work` or `github.com-personal` alias needs to be committed to a
+`package.json`, `go.mod`, `pubspec.yaml`, `.gitmodules` or similar project file.
+The same routing applies when Git is invoked from a package-manager cache or a
+temporary directory.
+
+### Daily Git usage
+
+Normal Git commands do not change:
 
 ```sh
-git clone git@github.com-personal:AnthonyNav/REPOSITORY.git ~/personal/REPOSITORY
-git clone git@github.com-work:ORG/REPOSITORY.git ~/work/REPOSITORY
+cd ~/personal
+git clone https://github.com/AnthonyNav/REPOSITORY.git
+
+git pull
+git commit -m "feat: example"
+git push
 ```
-
-Existing work repositories outside `~/work/` should be moved into the canonical
-root before applying this Home Manager generation. Existing remotes inside a
-managed root do not need to be rewritten manually; the conditional Git config
-maps standard `github.com` SSH/HTTPS forms to the correct alias.
-
-Useful verification after activation:
 
 ```sh
-git -C ~/nixos-config config user.email
-git -C ~/nixos-config config --get-regexp '^url\..*\.insteadof$'
-ssh -G github.com-personal | grep -Ei '^(hostname|user|identityfile) '
-ssh -G github.com-work | grep -Ei '^(hostname|user|identityfile) '
+cd ~/work
+git clone https://github.com/kigo/REPOSITORY.git
+
+git pull
+git commit -m "feat: example"
+git push
 ```
+
+The URL chooses the authentication identity; the checkout root chooses the
+commit identity.
+
+### Verification
+
+Run after activating Home Manager:
+
+```sh
+identity-doctor
+```
+
+The command performs local checks only. It verifies required SSH key paths,
+commit identity selection under the canonical roots, SSH aliases, namespace URL
+rewrites, the public HTTPS fallback and the fail-closed Git identity setting.
+It uses `git ls-remote --get-url` to expand `insteadOf` rules without contacting
+the remote repository.
 
 ## Change rule
 
