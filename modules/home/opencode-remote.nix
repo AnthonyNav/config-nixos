@@ -65,6 +65,7 @@ let
 
   opencodeRemote = pkgs.writeShellApplication {
     name = "opencode-remote";
+    excludeShellChecks = [ "SC2016" ];
     runtimeInputs = [
       pkgs.curl
       pkgs.jq
