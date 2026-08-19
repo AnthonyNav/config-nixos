@@ -53,7 +53,7 @@ let
               --rotate)
                 generate_secret
                 systemctl --user try-restart opencode-remote.service || true
-                printf 'OpenCode Remote password rotated. Run `opencode-remote credentials` to view the new value.\n'
+                printf 'OpenCode Remote password rotated. Run opencode-remote credentials to view the new value.\n'
                 ;;
               *)
                 printf 'Usage: opencode-remote-bootstrap [--if-missing|--rotate]\n' >&2
