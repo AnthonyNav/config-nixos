@@ -7,6 +7,7 @@
 
 {
   imports = [
+    ./memory-resilience.nix
     ./pritunl.nix
     ./tailscale-fleet.nix
     ./syncthing-fleet.nix
@@ -106,12 +107,6 @@
     jack.enable = true;
   };
 
-  # Rendimiento y vida útil del SSD
-  zramSwap = {
-    enable = true;
-    algorithm = "zstd";
-    memoryPercent = 50;
-  };
   services.fstrim.enable = true;
 
   # Actualizaciones de firmware/BIOS vía LVFS (fwupdmgr update)
