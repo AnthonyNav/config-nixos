@@ -1,5 +1,15 @@
 { pkgs, ... }:
 
+let
+  claude-code = pkgs.claude-code.overrideAttrs (_: rec {
+    version = "2.1.237";
+    src = pkgs.fetchurl {
+      url = "https://downloads.claude.ai/claude-code-releases/${version}/linux-x64/claude";
+      sha256 = "73975167f0108693cf6fd6614994781657ebb8456ebef5d247458734abfb3916";
+    };
+  });
+in
+
 {
   imports = [
     ../../modules/home/zsh.nix

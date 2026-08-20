@@ -37,10 +37,6 @@
       v = "nvim";
       c = "clear";
       ff = "fastfetch";
-      # Claude Code sigue disponible, pero la versión de Nix evita que una
-      # instalación local autoactualizable desincronice los workstations.
-      claude = "${pkgs.claude-code}/bin/claude";
-
       # Pritunl VPN: el cliente real (CLI + daemon + GUI) se instala a nivel
       # de sistema, reproducible desde nixpkgs (ver modules/system/pritunl.nix)
       # — ya no es el AppImage manual que este alias reemplaza. `pritunl` abre
