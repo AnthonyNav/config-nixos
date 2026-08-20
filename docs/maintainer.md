@@ -160,8 +160,9 @@ Review and archive or remove the reported path manually before retrying.
 See `docs/opencode.md` for managed skills, context limits, and opt-in MCP
 examples. Do not enable a credential-bearing MCP globally or commit its token.
 
-Claude Code remains installed as a secondary CLI. Its local permissions file
-is not part of this repository.
+Claude Code remains installed as a secondary CLI. Its local configuration under
+`~/.claude` is not managed by this repository, preserving the upstream
+first-run experience.
 
 ## Contributions
 

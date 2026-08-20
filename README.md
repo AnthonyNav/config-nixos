@@ -686,11 +686,11 @@ pritunl-client start <profile-id>
 
 ### Claude Code
 
-El sistema fuerza el login por cuenta `claude.ai` (sin API key):
+Claude Code conserva la experiencia oficial de primer inicio y administra su
+propia configuración local en `~/.claude`:
 
 ```bash
-claude auth login   # primera vez
-claude              # usar normalmente
+claude              # elegir autenticación en el primer inicio
 claude doctor       # diagnóstico
 ```
 
