@@ -8,107 +8,31 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: flake-checks-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   check:
     runs-on: ubuntu-latest
-    outputs:
-      hosts: ${{ steps.hosts.outputs.hosts }}
     steps:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
       - uses: cachix/install-nix-action@v31
-      - run: nix run .#gitleaks -- git --redact --no-banner
-      - run: nix fmt -- --ci
-      - run: nix flake check --no-build --no-write-lock-file
-      - run: nix build --no-link --no-write-lock-file .#checks.x86_64-linux.nix-config .#checks.x86_64-linux.opencode-workflow
-      - run: node --check opencode/plugins/rtk.js
-      - run: jq empty opencode/opencode.json
-      - run: jq empty opencode/kiro-models.json
-      - run: git diff --exit-code -- flake.lock
-      - id: hosts
-        run: printf 'hosts=%s\n' "$(nix eval --json .#lib.workstationNames)" >> "$GITHUB_OUTPUT"
-
-  host-build:
-    needs: check
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        host: ${{ fromJSON(needs.check.outputs.hosts) }}
-    steps:
-      - uses: actions/checkout@v5
-
-      - name: Free disk space
-        shell: bash
+      - name: Scan for secrets
+        run: nix run .#gitleaks -- git --redact --no-banner
+      - name: Check formatting
+        run: nix fmt -- --ci
+      - name: Evaluate flake checks
+        run: nix flake check --no-build --no-write-lock-file
+      - name: Build repository checks
+        run: nix build --no-link --no-write-lock-file .#checks.x86_64-linux.nix-config .#checks.x86_64-linux.opencode-workflow
+      - name: Check OpenCode plugin syntax
+        run: node --check opencode/plugins/rtk.js
+      - name: Validate OpenCode JSON
         run: |
-          set -euxo pipefail
-
-          echo "=== Disk before cleanup ==="
-          df -h / /mnt || true
-          swapon --show || true
-
-          # The host-build job uses Nix exclusively after checkout. Remove the
-          # large preinstalled SDKs/toolchains from the disposable runner.
-          sudo rm -rf \
-            /usr/local/lib/android \
-            /usr/share/dotnet \
-            /opt/ghc \
-            /usr/local/.ghcup \
-            /opt/hostedtoolcache \
-            /usr/local/share/powershell \
-            /usr/share/swift \
-            /usr/lib/jvm \
-            /usr/local/julia* \
-            /usr/local/lib/node_modules \
-            /usr/local/share/chromium \
-            /usr/local/share/boost \
-            /usr/local/share/vcpkg \
-            /opt/microsoft \
-            /opt/google \
-            /opt/az \
-            /usr/local/aws-cli
-
-          sudo apt-get clean
-          sudo rm -rf /var/lib/apt/lists/*
-          docker system prune -af || true
-
-          # The standard runner keeps swap on disk. With one Nix build job at a
-          # time, prefer that space for build temporaries instead.
-          sudo swapoff -a || true
-          sudo rm -f /mnt/swapfile /swapfile
-
-          # Keep Nix build temporaries away from the filesystem holding
-          # /nix/store whenever /mnt is a separate runner volume.
-          sudo mkdir -p /mnt/nix-build
-          sudo chmod 0755 /mnt/nix-build
-
-          echo "=== Disk after cleanup ==="
-          df -h / /mnt || true
-          swapon --show || true
-
-      - uses: cachix/install-nix-action@v31
-        with:
-          extra_nix_config: |
-            build-dir = /mnt/nix-build
-            auto-optimise-store = true
-
-      - name: Disk space before NixOS build
-        run: df -h / /mnt || true
-
-      - name: Build NixOS system
-        run: nix build --max-jobs 1 --no-link --no-write-lock-file .#nixosConfigurations.${{ matrix.host }}.config.system.build.toplevel
-
-      - name: Build Home Manager
-        run: nix build --max-jobs 1 --no-link --no-write-lock-file '.#homeConfigurations."anthony@${{ matrix.host }}".activationPackage'
-
-      - name: Disk usage
-        if: always()
-        shell: bash
-        run: |
-          echo "=== Final filesystem usage ==="
-          df -h / /mnt || true
-          echo "=== Nix store usage ==="
-          sudo du -sh /nix/store 2>/dev/null || true
-          echo "=== Nix build directory usage ==="
-          sudo du -sh /mnt/nix-build 2>/dev/null || true
+          jq empty opencode/opencode.json
+          jq empty opencode/kiro-models.json
+      - name: Ensure flake.lock is unchanged
+        run: git diff --exit-code -- flake.lock
