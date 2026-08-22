@@ -6,23 +6,16 @@
 }:
 
 {
-  imports = [ ./pritunl.nix ];
+  imports = [
+    ./pritunl.nix
+    ./tailscale-fleet.nix
+    ./syncthing-fleet.nix
+  ];
 
   networking.networkmanager.enable = true;
-  networking.firewall.interfaces.tailscale0 = {
-    allowedTCPPorts = [
-      22
-      22000
-    ]; # SSH y Syncthing solo aceptan tráfico entrante por Tailscale.
-    allowedUDPPorts = [
-      22000
-      21027
-    ];
-  };
 
   time.timeZone = "America/Mexico_City";
 
-  # UI en inglés; formatos regionales (fecha/moneda/unidades) en estilo MX.
   i18n.defaultLocale = "en_US.UTF-8";
   i18n.extraLocaleSettings = {
     LC_TIME = "es_MX.UTF-8";
@@ -35,9 +28,6 @@
     "es_MX.UTF-8/UTF-8"
     "C.UTF-8/UTF-8"
   ];
-
-  # La consola hereda el layout xkb definido en display-manager.nix (us,latam).
-  # console.keyMap se elimina para que no entre en conflicto con useXkbConfig.
 
   nix.settings = {
     experimental-features = [
@@ -65,10 +55,7 @@
 
   programs.zsh = {
     enable = true;
-    # Home Manager inicializa completions una sola vez despues de deduplicar
-    # las rutas equivalentes que NIX_PROFILES agrega a fpath.
     enableGlobalCompInit = false;
-    # Starship define el prompt del usuario; evita preparar primero el de SUSE.
     promptInit = "";
   };
   programs.ssh.startAgent = true;
@@ -88,44 +75,15 @@
       fastfetch
       neovim
     ];
-    # Solo se versiona la llave pública; la llave privada vive fuera del repo.
-    # El comentario de la llave no contiene correo personal para que el repo
-    # pueda publicarse sin añadir PII innecesaria.
     openssh.authorizedKeys.keys = [
       "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMSZBAoRb/gxevgsIFbtcg/hPx+gvv0tfj25KtubL0xd anthony@config-nixos"
     ];
-  };
-
-  # sshd puede escuchar en el host, pero el firewall no abre 22 globalmente:
-  # solo tailscale0 lo acepta. Además se deshabilitan contraseña, keyboard-
-  # interactive y login de root en los hosts instalados.
-  services.openssh = {
-    enable = true;
-    openFirewall = false;
-    settings = {
-      PasswordAuthentication = false;
-      KbdInteractiveAuthentication = false;
-      PermitRootLogin = "no";
-    };
-  };
-
-  services.tailscale.enable = true;
-
-  services.syncthing = {
-    enable = true;
-    user = username;
-    group = "users";
-    dataDir = "/home/${username}";
-    configDir = "/home/${username}/.config/syncthing";
-    openDefaultPorts = false;
   };
 
   hardware.bluetooth.enable = true;
   services.power-profiles-daemon.enable = true;
   virtualisation.docker.enable = true;
 
-  # Audio (PipeWire) — declarado explícitamente para que sea reproducible
-  # en cualquier host nuevo (thinkpad/desktop). Ya corre en runtime.
   security.rtkit.enable = true;
   services.pipewire = {
     enable = true;
@@ -135,15 +93,12 @@
     jack.enable = true;
   };
 
-  # Rendimiento y vida útil del SSD
   zramSwap = {
     enable = true;
     algorithm = "zstd";
     memoryPercent = 50;
   };
   services.fstrim.enable = true;
-
-  # Actualizaciones de firmware/BIOS vía LVFS (fwupdmgr update)
   services.fwupd.enable = true;
 
   environment.systemPackages = with pkgs; [
