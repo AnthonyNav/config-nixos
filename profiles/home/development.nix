@@ -6,6 +6,7 @@
     ../../modules/home/nix-config.nix
     ../../modules/home/kiro-gateway.nix
     ../../modules/home/opencode.nix
+    ../../modules/home/remote-workspace.nix
   ];
 
   home.packages = with pkgs; [
@@ -30,6 +31,7 @@
     kiro-cli
     antigravity-ide
     claude-code
+    codex
     rtk
     python3
     python3Packages.pip
@@ -71,8 +73,6 @@
 
   programs.atuin = {
     enable = true;
-    # El binario queda disponible, pero no instala hooks SQLite en cada shell.
-    # Ctrl-R y las flechas ya pertenecen a fzf/history-substring-search.
     enableZshIntegration = false;
   };
 }
