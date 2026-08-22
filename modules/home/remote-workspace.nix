@@ -97,15 +97,17 @@ in
     remoteWorkspace
   ];
 
-  home.file.${policy.configFile}.text = lib.mkIf enabled ''
-    web_server true
-    web_server_ip "${policy.backend.hostname}"
-    web_server_port ${toString policy.backend.port}
-    enforce_https_on_localhost false
-    session_serialization true
-    pane_viewport_serialization true
-    scrollback_lines_to_serialize 10000
-  '';
+  home.file = lib.mkIf enabled {
+    ${policy.configFile}.text = ''
+      web_server true
+      web_server_ip "${policy.backend.hostname}"
+      web_server_port ${toString policy.backend.port}
+      enforce_https_on_localhost false
+      session_serialization true
+      pane_viewport_serialization true
+      scrollback_lines_to_serialize 10000
+    '';
+  };
 
   systemd.user.services.remote-workspace = lib.mkIf enabled {
     Unit = {
