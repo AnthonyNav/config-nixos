@@ -22,8 +22,10 @@ let
   folderIds = map (folder: folder.id) folderValues;
   normalizedFolders = map (
     folder:
-    let hosts = if folder.hosts == null then syncthingHostNames else folder.hosts;
-    in {
+    let
+      hosts = if folder.hosts == null then syncthingHostNames else folder.hosts;
+    in
+    {
       inherit (folder) id label type;
       inherit hosts;
       path = "${homeDir}/${folder.relativePath}";
@@ -34,7 +36,16 @@ let
 
   syncthingFleetReconcile = pkgs.writeShellApplication {
     name = "syncthing-fleet-reconcile";
-    runtimeInputs = with pkgs; [ coreutils curl gawk gnugrep jq libxml2 openssl tailscale ];
+    runtimeInputs = with pkgs; [
+      coreutils
+      curl
+      gawk
+      gnugrep
+      jq
+      libxml2
+      openssl
+      tailscale
+    ];
     text = ''
       export SYNCTHING_FLEET_HOST=${lib.escapeShellArg hostName}
       export SYNCTHING_FLEET_PEERS_JSON=${lib.escapeShellArg (builtins.toJSON peerNames)}
@@ -71,7 +82,9 @@ in
     }
   ];
 
-  networking.firewall.interfaces.tailscale0.allowedTCPPorts = lib.mkIf enabled (lib.mkAfter [ 22000 ]);
+  networking.firewall.interfaces.tailscale0.allowedTCPPorts = lib.mkIf enabled (
+    lib.mkAfter [ 22000 ]
+  );
 
   services.syncthing = lib.mkIf enabled {
     enable = true;
@@ -95,8 +108,17 @@ in
 
   systemd.services.syncthing-fleet-reconcile = lib.mkIf enabled {
     description = "Reconcile declared Syncthing fleet over Tailscale";
-    after = [ "network-online.target" "tailscaled.service" "syncthing.service" "syncthing-init.service" ];
-    wants = [ "network-online.target" "tailscaled.service" "syncthing-init.service" ];
+    after = [
+      "network-online.target"
+      "tailscaled.service"
+      "syncthing.service"
+      "syncthing-init.service"
+    ];
+    wants = [
+      "network-online.target"
+      "tailscaled.service"
+      "syncthing-init.service"
+    ];
     requisite = [ "syncthing.service" ];
     wantedBy = [ "multi-user.target" ];
     serviceConfig = {

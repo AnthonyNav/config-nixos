@@ -19,64 +19,64 @@ let
       pkgs.zellij
     ];
     text = ''
-      config_file="$HOME/${policy.configFile}"
-      backend_ip=${lib.escapeShellArg policy.backend.hostname}
-      backend_port=${toString policy.backend.port}
+            config_file="$HOME/${policy.configFile}"
+            backend_ip=${lib.escapeShellArg policy.backend.hostname}
+            backend_port=${toString policy.backend.port}
 
-      remote_url() {
-        local dns_name
-        dns_name="$(tailscale status --json | jq -r '.Self.DNSName // empty')"
-        dns_name="''${dns_name%.}"
-        if [[ -z "$dns_name" ]]; then
-          printf 'Unable to determine this host Tailscale DNS name.\n' >&2
-          return 1
-        fi
-        printf 'https://%s\n' "$dns_name"
-      }
+            remote_url() {
+              local dns_name
+              dns_name="$(tailscale status --json | jq -r '.Self.DNSName // empty')"
+              dns_name="''${dns_name%.}"
+              if [[ -z "$dns_name" ]]; then
+                printf 'Unable to determine this host Tailscale DNS name.\n' >&2
+                return 1
+              fi
+              printf 'https://%s\n' "$dns_name"
+            }
 
-      status() {
-        printf 'Workspace service: '
-        systemctl --user is-active remote-workspace.service || true
-        printf 'Zellij web: '
-        zellij --config "$config_file" web --status --timeout 5 --ip "$backend_ip" --port "$backend_port" || true
-        printf 'Remote URL: '
-        remote_url || true
-        printf 'Tailscale Serve:\n'
-        tailscale serve status || true
-      }
+            status() {
+              printf 'Workspace service: '
+              systemctl --user is-active remote-workspace.service || true
+              printf 'Zellij web: '
+              zellij --config "$config_file" web --status --timeout 5 --ip "$backend_ip" --port "$backend_port" || true
+              printf 'Remote URL: '
+              remote_url || true
+              printf 'Tailscale Serve:\n'
+              tailscale serve status || true
+            }
 
-      case "''${1:-status}" in
-        status)
-          status
-          ;;
-        url)
-          remote_url
-          ;;
-        create-token)
-          exec zellij --config "$config_file" web --create-token
-          ;;
-        create-read-only-token)
-          exec zellij --config "$config_file" web --create-read-only-token
-          ;;
-        list-tokens)
-          exec zellij --config "$config_file" web --list-tokens
-          ;;
-        sessions)
-          exec zellij --config "$config_file" list-sessions
-          ;;
-        -h|--help|help)
-          cat <<'EOF'
-Usage: remote-workspace [status|url|create-token|create-read-only-token|list-tokens|sessions]
+            case "''${1:-status}" in
+              status)
+                status
+                ;;
+              url)
+                remote_url
+                ;;
+              create-token)
+                exec zellij --config "$config_file" web --create-token
+                ;;
+              create-read-only-token)
+                exec zellij --config "$config_file" web --create-read-only-token
+                ;;
+              list-tokens)
+                exec zellij --config "$config_file" web --list-tokens
+                ;;
+              sessions)
+                exec zellij --config "$config_file" list-sessions
+                ;;
+              -h|--help|help)
+                cat <<'EOF'
+      Usage: remote-workspace [status|url|create-token|create-read-only-token|list-tokens|sessions]
 
-The workspace is provider-agnostic: start Claude Code, Codex, OpenCode, Kiro CLI,
-or any other terminal program inside a Zellij session.
-EOF
-          ;;
-        *)
-          printf 'Unknown command: %s\n' "$1" >&2
-          exit 64
-          ;;
-      esac
+      The workspace is provider-agnostic: start Claude Code, Codex, OpenCode, Kiro CLI,
+      or any other terminal program inside a Zellij session.
+      EOF
+                ;;
+              *)
+                printf 'Unknown command: %s\n' "$1" >&2
+                exit 64
+                ;;
+            esac
     '';
   };
 in

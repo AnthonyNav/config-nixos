@@ -86,7 +86,8 @@
       mkHost =
         name: host:
         let
-          style = desktopStyles.${host.desktopStyle} or (throw "Unknown desktop style '${host.desktopStyle}'.");
+          style =
+            desktopStyles.${host.desktopStyle} or (throw "Unknown desktop style '${host.desktopStyle}'.");
           hostFeatures = host.features // {
             hostName = name;
             role = host.role;
@@ -128,7 +129,8 @@
       mkHome =
         name: host:
         let
-          style = desktopStyles.${host.desktopStyle} or (throw "Unknown desktop style '${host.desktopStyle}'.");
+          style =
+            desktopStyles.${host.desktopStyle} or (throw "Unknown desktop style '${host.desktopStyle}'.");
           hostFeatures = host.features // {
             hostName = name;
             role = host.role;
@@ -201,20 +203,23 @@
             sshSettings = homeConfig.programs.ssh.settings;
           in
           assert gitSettings.user.useConfigOnly;
-          assert gitSettings.url."git@github.com-personal:AnthonyNav/".insteadOf == [
-            "https://github.com/AnthonyNav/"
-            "git@github.com:AnthonyNav/"
-            "ssh://git@github.com/AnthonyNav/"
-          ];
-          assert gitSettings.url."git@github.com-work:kigo/".insteadOf == [
-            "https://github.com/kigo/"
-            "git@github.com:kigo/"
-            "ssh://git@github.com/kigo/"
-          ];
-          assert gitSettings.url."https://github.com/".insteadOf == [
-            "git@github.com:"
-            "ssh://git@github.com/"
-          ];
+          assert
+            gitSettings.url."git@github.com-personal:AnthonyNav/".insteadOf == [
+              "https://github.com/AnthonyNav/"
+              "git@github.com:AnthonyNav/"
+              "ssh://git@github.com/AnthonyNav/"
+            ];
+          assert
+            gitSettings.url."git@github.com-work:kigo/".insteadOf == [
+              "https://github.com/kigo/"
+              "git@github.com:kigo/"
+              "ssh://git@github.com/kigo/"
+            ];
+          assert
+            gitSettings.url."https://github.com/".insteadOf == [
+              "git@github.com:"
+              "ssh://git@github.com/"
+            ];
           assert sshSettings."github.com".data.IdentityFile == "none";
           assert sshSettings."github.com-personal".data.IdentityFile == "/home/${username}/.ssh/id_personal";
           assert sshSettings."github.com-work".data.IdentityFile == "/home/${username}/.ssh/id_work";
@@ -235,11 +240,12 @@
           in
           assert tailscaleConfig.enable;
           assert tailscalePolicyConfig.node.allowIncoming;
-          assert tailscaleConfig.extraSetFlags == [
-            "--hostname=thinkpad"
-            "--shields-up=false"
-            "--ssh"
-          ];
+          assert
+            tailscaleConfig.extraSetFlags == [
+              "--hostname=thinkpad"
+              "--shields-up=false"
+              "--ssh"
+            ];
           assert systemConfig.services.openssh.enable;
           assert builtins.elem 22 tailscaleFirewall.allowedTCPPorts;
           assert grant.src == [ "autogroup:member" ];
