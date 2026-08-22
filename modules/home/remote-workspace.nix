@@ -9,7 +9,6 @@ let
   policy = import ../../inventory/remote-workspace.nix;
   remote = hostFeatures.remoteWorkspace or { };
   enabled = remote.enable or false;
-  configPath = "$HOME/${policy.configFile}";
 
   remoteWorkspace = pkgs.writeShellApplication {
     name = "remote-workspace";
@@ -20,7 +19,7 @@ let
       pkgs.zellij
     ];
     text = ''
-      config_file=${lib.escapeShellArg configPath}
+      config_file="$HOME/${policy.configFile}"
       backend_ip=${lib.escapeShellArg policy.backend.hostname}
       backend_port=${toString policy.backend.port}
 
