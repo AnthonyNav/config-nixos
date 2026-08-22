@@ -245,9 +245,9 @@
           assert grant.src == [ "autogroup:member" ];
           assert grant.dst == [ "autogroup:self" ];
           assert builtins.elem "tcp:22" grant.ip;
+          assert builtins.elem "tcp:443" grant.ip;
           assert builtins.elem "tcp:22000" grant.ip;
           assert builtins.elem "udp:4242" grant.ip;
-          assert !(builtins.elem "tcp:443" grant.ip);
           assert !(builtins.elem "*" grant.ip);
           assert sshRule.action == "check";
           assert sshRule.src == [ "autogroup:member" ];
@@ -285,6 +285,23 @@
           assert syncthingPolicy.folders.shared.id == "fleet-shared";
           assert syncthingPolicy.folders.shared.relativePath == "Sync/Fleet";
           pkgsFor.runCommand "syncthing-policy-check" { } ''
+            touch "$out"
+          '';
+        remote-workspace-policy =
+          let
+            systemConfig = self.nixosConfigurations.thinkpad.config;
+            remotePolicy = import ./inventory/remote-workspace.nix;
+            globalTcpPorts = systemConfig.networking.firewall.allowedTCPPorts or [ ];
+            tailscaleTcpPorts = systemConfig.networking.firewall.interfaces.tailscale0.allowedTCPPorts or [ ];
+          in
+          assert workstations.thinkpad.features.remoteWorkspace.enable;
+          assert systemConfig.users.users.${username}.linger;
+          assert builtins.elem remotePolicy.serve.httpsPort tailscaleTcpPorts;
+          assert !(builtins.elem remotePolicy.backend.port globalTcpPorts);
+          assert !(builtins.elem remotePolicy.backend.port tailscaleTcpPorts);
+          assert remotePolicy.backend.hostname == "127.0.0.1";
+          assert pkgsFor ? codex;
+          pkgsFor.runCommand "remote-workspace-policy-check" { } ''
             touch "$out"
           '';
         nix-config =
