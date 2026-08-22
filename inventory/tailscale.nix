@@ -14,6 +14,7 @@
         dst = [ "autogroup:self" ];
         ip = [
           "tcp:22" # Tailscale SSH / OpenSSH break-glass.
+          "tcp:443" # Private HTTPS for the generic remote workspace.
           "tcp:22000" # Syncthing fleet transport.
           "udp:4242" # Lan Mouse input-sharing transport.
         ];

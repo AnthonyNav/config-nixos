@@ -10,6 +10,7 @@
     ./pritunl.nix
     ./tailscale-fleet.nix
     ./syncthing-fleet.nix
+    ./remote-workspace.nix
   ];
 
   networking.networkmanager.enable = true;
