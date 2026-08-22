@@ -20,13 +20,6 @@ let
       "$@"
   '';
 
-  workSsh = pkgs.writeShellScript "git-ssh-work" ''
-    exec ${pkgs.openssh}/bin/ssh \
-      -i ${lib.escapeShellArg "${homeDir}/${work.sshKey}"} \
-      -o IdentitiesOnly=yes \
-      "$@"
-  '';
-
   awsReadOnly = pkgs.writeShellApplication {
     name = "aws";
     runtimeInputs = [ pkgs.coreutils ];
@@ -44,7 +37,7 @@ let
       for arg in "$@"; do
         case "$arg" in
           --profile|--profile=*)
-            printf 'aws: --profile is blocked; use the current work context or aws-work/aws-personal.\n' >&2
+            printf 'aws: --profile is blocked; use the current context or aws-work/aws-personal.\n' >&2
             exit 64
             ;;
         esac
@@ -68,11 +61,12 @@ let
       service="$1"
       operation="$2"
 
-      case "$operation" in
-        get-*|list-*|describe-*|head-*|lookup-*|search-*|batch-get-*|select-*|scan|query|filter-*|tail|validate-*|download-*) ;;
+      case "$service:$operation" in
+        s3:ls) ;;
+        *:get-*|*:list-*|*:describe-*|*:head-*|*:lookup-*|*:search-*|*:batch-get-*|*:select-*|*:scan|*:query|*:filter-*|*:tail|*:validate-*|*:download-*) ;;
         *)
           printf 'aws: blocked non-read operation: %s %s\n' "$service" "$operation" >&2
-          printf 'Use a dedicated read-only AWS role and a supported read operation.\n' >&2
+          printf 'The underlying AWS profile must also be backed by a read-only IAM role.\n' >&2
           exit 77
           ;;
       esac
@@ -138,6 +132,19 @@ let
       exec ${pkgs.awscli2}/bin/aws --profile "$profile" sts get-caller-identity
     '';
   };
+
+  contextStatus = pkgs.writeShellApplication {
+    name = "work-context";
+    text = ''
+      printf 'context=%s\n' "''${WORK_CONTEXT:-work}"
+      printf 'aws_profile=%s\n' "''${AWS_PROFILE:-${work.aws.profile}}"
+      if [[ -n "''${GIT_SSH_COMMAND:-}" ]]; then
+        printf 'git_ssh=personal\n'
+      else
+        printf 'git_ssh=work-default\n'
+      fi
+    '';
+  };
 in
 {
   home.sessionVariables = {
@@ -152,6 +159,7 @@ in
     awsLogin
     awsProfileSetup
     awsWhoami
+    contextStatus
   ];
 
   programs.zsh.initContent = lib.mkAfter ''
