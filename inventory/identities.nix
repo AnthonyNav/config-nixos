@@ -1,5 +1,5 @@
 {
-  githubFallback = "https";
+  default = "work";
 
   identities = {
     personal = {
@@ -8,15 +8,14 @@
         email = "anthonydevxp@gmail.com";
       };
       roots = [
-        "personal/"
+        "projects/"
         "nixos-config/"
       ];
       sshKey = ".ssh/id_personal";
       github = {
         alias = "github.com-personal";
-        compatibilityAliases = [ ];
-        namespaces = [ "AnthonyNav" ];
       };
+      aws.profile = "personal-readonly";
     };
 
     work = {
@@ -24,13 +23,13 @@
         name = "Antonio Zempoaltecatl";
         email = "antonio.zempoaltecatl@cargomovil.com";
       };
-      roots = [ "work/" ];
+      roots = [ ];
       sshKey = ".ssh/id_work";
       github = {
         alias = "github.com-work";
         compatibilityAliases = [ "github.com-kigo" ];
-        namespaces = [ "kigo" ];
       };
+      aws.profile = "work-readonly";
     };
   };
 }
