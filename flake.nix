@@ -59,77 +59,45 @@
           homeModule = ./desktops/caelestia/home.nix;
         };
       };
-      workstations = {
-        victus = {
-          systemModule = ./hosts/victus;
-          homeModules = [ ./hosts/victus/home.nix ];
-          desktopStyle = "caelestia";
-          features = {
-            graphics = "nvidia-prime";
-            creativeNvidia = true;
-            monitorProfile = "dynamic";
-            inputSharing = {
-              enable = true;
-              peers = [ ];
-            };
-          };
-        };
-        desktop = {
-          systemModule = ./hosts/desktop;
-          homeModules = [ ./hosts/desktop/home.nix ];
-          desktopStyle = "caelestia";
-          features = {
-            graphics = "nvidia";
-            creativeNvidia = true;
-            monitorProfile = "desktop-3";
-            inputSharing = {
-              enable = true;
-              peers = [
-                {
-                  host = "victus";
-                  position = "left";
-                }
-                {
-                  host = "thinkpad";
-                  position = "right";
-                }
-              ];
-            };
-          };
-        };
-        thinkpad = {
-          systemModule = ./hosts/thinkpad;
-          homeModules = [ ./hosts/thinkpad/home.nix ];
-          desktopStyle = "caelestia";
-          features = {
-            graphics = "intel";
-            creativeNvidia = false;
-            monitorProfile = "dynamic";
-            inputSharing = {
-              enable = true;
-              peers = [ ];
-            };
-          };
-        };
-      };
+      workstations = import ./inventory/workstations.nix;
       workstationNames = builtins.attrNames workstations;
+      fleetInventory = lib.mapAttrs (name: host: {
+        inherit name;
+        inherit (host)
+          role
+          desktopStyle
+          connectivity
+          features
+          ;
+      }) workstations;
+      tailscalePolicyConfig = import ./inventory/tailscale.nix { inherit username; };
+      tailnetPolicy = tailscalePolicyConfig.tailnetPolicy;
+      tailnetPolicyFile = pkgsFor.writeText "tailnet-policy.json" (builtins.toJSON tailnetPolicy);
+      tailscalePolicyPrinter = pkgsFor.writeShellApplication {
+        name = "tailscale-policy";
+        text = ''
+          ${pkgsFor.jq}/bin/jq . ${tailnetPolicyFile}
+        '';
+      };
       nixConfigPackages = import ./modules/home/nix-config-packages.nix {
         inherit lib username workstationNames;
         pkgs = pkgsFor;
       };
       mkHost =
-        host:
+        name: host:
         let
-          style =
-            desktopStyles.${host.desktopStyle} or (throw "Unknown desktop style '${host.desktopStyle}'.");
+          style = desktopStyles.${host.desktopStyle} or (throw "Unknown desktop style '${host.desktopStyle}'.");
           hostFeatures = host.features // {
+            hostName = name;
+            role = host.role;
+            connectivity = host.connectivity;
             desktopStyle = host.desktopStyle;
           };
         in
         lib.nixosSystem {
           inherit system;
           specialArgs = specialArgs // {
-            inherit hostFeatures;
+            inherit fleetInventory hostFeatures;
           };
           modules = [
             style.systemModule
@@ -146,6 +114,7 @@
               ++ host.homeModules;
               home-manager.extraSpecialArgs = {
                 inherit
+                  fleetInventory
                   inputs
                   username
                   workstationNames
@@ -157,11 +126,13 @@
           ];
         };
       mkHome =
-        host:
+        name: host:
         let
-          style =
-            desktopStyles.${host.desktopStyle} or (throw "Unknown desktop style '${host.desktopStyle}'.");
+          style = desktopStyles.${host.desktopStyle} or (throw "Unknown desktop style '${host.desktopStyle}'.");
           hostFeatures = host.features // {
+            hostName = name;
+            role = host.role;
+            connectivity = host.connectivity;
             desktopStyle = host.desktopStyle;
           };
         in
@@ -169,6 +140,7 @@
           pkgs = pkgsFor;
           extraSpecialArgs = {
             inherit
+              fleetInventory
               inputs
               username
               workstationNames
@@ -184,13 +156,11 @@
         };
     in
     {
-      lib.workstationNames = workstationNames;
+      lib = {
+        inherit fleetInventory tailnetPolicy workstationNames;
+      };
 
-      nixosConfigurations = (lib.mapAttrs (_: mkHost) workstations) // {
-        # ISO instaladora personalizada, no un host real: SSH ya autorizado +
-        # este repo pre-cargado en /etc/nixos-config (ver iso/installer.nix),
-        # para instalar hosts nuevos completamente por SSH desde otra
-        # máquina. Build: nix build .#nixosConfigurations.installer.config.system.build.isoImage
+      nixosConfigurations = (lib.mapAttrs mkHost workstations) // {
         installer = lib.nixosSystem {
           inherit system specialArgs;
           modules = [
@@ -201,21 +171,122 @@
       };
 
       homeConfigurations = lib.mapAttrs' (
-        name: host: lib.nameValuePair "${username}@${name}" (mkHome host)
+        name: host: lib.nameValuePair "${username}@${name}" (mkHome name host)
       ) workstations;
 
       formatter.${system} = treefmtEval.config.build.wrapper;
       packages.${system} = {
         nix-config = nixConfigPackages.nixConfig;
         gitleaks = pkgsFor.gitleaks;
+        tailscale-policy = tailscalePolicyPrinter;
       };
-      apps.${system}.nix-config = {
-        type = "app";
-        program = lib.getExe nixConfigPackages.nixConfig;
-        meta.description = "Validate, build, and deploy this NixOS configuration";
+      apps.${system} = {
+        nix-config = {
+          type = "app";
+          program = lib.getExe nixConfigPackages.nixConfig;
+          meta.description = "Validate, build, and deploy this NixOS configuration";
+        };
+        tailscale-policy = {
+          type = "app";
+          program = lib.getExe tailscalePolicyPrinter;
+          meta.description = "Render the declared Tailscale tailnet policy";
+        };
       };
       checks.${system} = {
         formatting = treefmtEval.config.build.check self;
+        identity-policy =
+          let
+            homeConfig = self.homeConfigurations."${username}@thinkpad".config;
+            gitSettings = homeConfig.programs.git.settings;
+            sshSettings = homeConfig.programs.ssh.settings;
+          in
+          assert gitSettings.user.useConfigOnly;
+          assert gitSettings.url."git@github.com-personal:AnthonyNav/".insteadOf == [
+            "https://github.com/AnthonyNav/"
+            "git@github.com:AnthonyNav/"
+            "ssh://git@github.com/AnthonyNav/"
+          ];
+          assert gitSettings.url."git@github.com-work:kigo/".insteadOf == [
+            "https://github.com/kigo/"
+            "git@github.com:kigo/"
+            "ssh://git@github.com/kigo/"
+          ];
+          assert gitSettings.url."https://github.com/".insteadOf == [
+            "git@github.com:"
+            "ssh://git@github.com/"
+          ];
+          assert sshSettings."github.com".data.IdentityFile == "none";
+          assert sshSettings."github.com-personal".data.IdentityFile == "/home/${username}/.ssh/id_personal";
+          assert sshSettings."github.com-work".data.IdentityFile == "/home/${username}/.ssh/id_work";
+          assert sshSettings."github.com-kigo".data.IdentityFile == "/home/${username}/.ssh/id_work";
+          pkgsFor.runCommand "identity-policy-check" { } ''
+            touch "$out"
+          '';
+        tailscale-policy =
+          let
+            systemConfig = self.nixosConfigurations.thinkpad.config;
+            homeConfig = self.homeConfigurations."${username}@thinkpad".config;
+            tailscaleConfig = systemConfig.services.tailscale;
+            tailscaleFirewall = systemConfig.networking.firewall.interfaces.tailscale0;
+            fleetSshSettings = homeConfig.programs.ssh.settings;
+            grant = builtins.head tailnetPolicy.grants;
+            sshRule = builtins.head tailnetPolicy.ssh;
+            expectedProxyCommand = "${lib.getExe pkgsFor.tailscale} nc %h %p";
+          in
+          assert tailscaleConfig.enable;
+          assert tailscalePolicyConfig.node.allowIncoming;
+          assert tailscaleConfig.extraSetFlags == [
+            "--hostname=thinkpad"
+            "--shields-up=false"
+            "--ssh"
+          ];
+          assert systemConfig.services.openssh.enable;
+          assert builtins.elem 22 tailscaleFirewall.allowedTCPPorts;
+          assert grant.src == [ "autogroup:member" ];
+          assert grant.dst == [ "autogroup:self" ];
+          assert builtins.elem "tcp:22" grant.ip;
+          assert builtins.elem "tcp:22000" grant.ip;
+          assert builtins.elem "udp:4242" grant.ip;
+          assert !(builtins.elem "tcp:443" grant.ip);
+          assert !(builtins.elem "*" grant.ip);
+          assert sshRule.action == "check";
+          assert sshRule.src == [ "autogroup:member" ];
+          assert sshRule.dst == [ "autogroup:self" ];
+          assert sshRule.users == [ username ];
+          assert sshRule.checkPeriod == "12h";
+          assert fleetSshSettings.thinkpad.data.User == username;
+          assert fleetSshSettings.desktop.data.User == username;
+          assert fleetSshSettings.victus.data.User == username;
+          assert fleetSshSettings.thinkpad.data.ProxyCommand == expectedProxyCommand;
+          assert fleetSshSettings.desktop.data.ProxyCommand == expectedProxyCommand;
+          assert fleetSshSettings.victus.data.ProxyCommand == expectedProxyCommand;
+          pkgsFor.runCommand "tailscale-policy-check" { } ''
+            ${lib.getExe tailscalePolicyPrinter} >/dev/null
+            touch "$out"
+          '';
+        syncthing-policy =
+          let
+            systemConfig = self.nixosConfigurations.thinkpad.config;
+            syncthingConfig = systemConfig.services.syncthing;
+            tailscaleFirewall = systemConfig.networking.firewall.interfaces.tailscale0;
+            syncthingPolicy = import ./inventory/syncthing.nix;
+          in
+          assert syncthingConfig.enable;
+          assert !syncthingConfig.overrideDevices;
+          assert !syncthingConfig.overrideFolders;
+          assert syncthingConfig.settings.options.listenAddresses == [ "tcp://0.0.0.0:22000" ];
+          assert !syncthingConfig.settings.options.globalAnnounceEnabled;
+          assert !syncthingConfig.settings.options.localAnnounceEnabled;
+          assert !syncthingConfig.settings.options.relaysEnabled;
+          assert !syncthingConfig.settings.options.natEnabled;
+          assert builtins.elem 22000 tailscaleFirewall.allowedTCPPorts;
+          assert !(builtins.elem 22000 (tailscaleFirewall.allowedUDPPorts or [ ]));
+          assert !(builtins.elem 21027 (tailscaleFirewall.allowedUDPPorts or [ ]));
+          assert syncthingPolicy.folders.shared.id == "fleet-shared";
+          assert syncthingPolicy.folders.shared.relativePath == "Sync/Fleet";
+          pkgsFor.runCommand "syncthing-policy-check" { } ''
+            touch "$out"
+          '';
         nix-config =
           pkgsFor.runCommand "nix-config-check"
             {
@@ -227,7 +298,11 @@
               ];
             }
             ''
-              shellcheck ${./scripts/nix-config.sh} ${./scripts/tests/check-nix-config.sh} ${./scripts/input-share-reconcile.sh}
+              shellcheck \
+                ${./scripts/nix-config.sh} \
+                ${./scripts/tests/check-nix-config.sh} \
+                ${./scripts/input-share-reconcile.sh} \
+                ${./scripts/syncthing-fleet-reconcile.sh}
               bash ${./scripts/tests/check-nix-config.sh} ${./scripts/nix-config.sh}
               nix-config --help >/dev/null
               touch "$out"
