@@ -44,7 +44,8 @@ in
       message = "Remote workspace HTTPS must be allowed on tailscale0.";
     }
     {
-      assertion = !(builtins.elem backendPort globalTcpPorts) && !(builtins.elem backendPort tailscaleTcpPorts);
+      assertion =
+        !(builtins.elem backendPort globalTcpPorts) && !(builtins.elem backendPort tailscaleTcpPorts);
       message = "The remote workspace backend port must never be exposed by the host firewall.";
     }
     {

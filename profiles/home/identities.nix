@@ -62,10 +62,14 @@ let
     )
   );
 
-  allNamespaces = lib.concatLists (lib.mapAttrsToList (_: identity: identity.github.namespaces) identities);
+  allNamespaces = lib.concatLists (
+    lib.mapAttrsToList (_: identity: identity.github.namespaces) identities
+  );
   allRoots = lib.concatLists (lib.mapAttrsToList (_: identity: identity.roots) identities);
   allSshAliases = lib.concatLists (
-    lib.mapAttrsToList (_: identity: [ identity.github.alias ] ++ identity.github.compatibilityAliases) identities
+    lib.mapAttrsToList (
+      _: identity: [ identity.github.alias ] ++ identity.github.compatibilityAliases
+    ) identities
   );
 in
 {
