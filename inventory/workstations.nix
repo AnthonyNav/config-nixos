@@ -13,6 +13,7 @@
       graphics = "nvidia-prime";
       creativeNvidia = true;
       monitorProfile = "dynamic";
+      remoteWorkspace.enable = true;
       inputSharing = {
         enable = true;
         peers = [ ];
@@ -34,6 +35,7 @@
       graphics = "nvidia";
       creativeNvidia = true;
       monitorProfile = "desktop-3";
+      remoteWorkspace.enable = true;
       inputSharing = {
         enable = true;
         peers = [
@@ -64,6 +66,7 @@
       graphics = "intel";
       creativeNvidia = false;
       monitorProfile = "dynamic";
+      remoteWorkspace.enable = true;
       inputSharing = {
         enable = true;
         peers = [ ];
