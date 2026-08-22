@@ -103,9 +103,6 @@ in
       web_server_ip "${policy.backend.hostname}"
       web_server_port ${toString policy.backend.port}
       enforce_https_on_localhost false
-      session_serialization true
-      pane_viewport_serialization true
-      scrollback_lines_to_serialize 10000
     '';
   };
 
