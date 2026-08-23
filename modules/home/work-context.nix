@@ -76,13 +76,15 @@ let
     '';
   };
 
-  mkAwsFixed = name: profile: pkgs.writeShellApplication {
-    inherit name;
-    text = ''
-      export AWS_PROFILE=${lib.escapeShellArg profile}
-      exec ${lib.getExe awsReadOnly} "$@"
-    '';
-  };
+  mkAwsFixed =
+    name: profile:
+    pkgs.writeShellApplication {
+      inherit name;
+      text = ''
+        export AWS_PROFILE=${lib.escapeShellArg profile}
+        exec ${lib.getExe awsReadOnly} "$@"
+      '';
+    };
 
   awsWork = mkAwsFixed "aws-work" work.aws.profile;
   awsPersonal = mkAwsFixed "aws-personal" personal.aws.profile;
