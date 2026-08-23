@@ -14,10 +14,19 @@ let
   personalRoots = map (root: "${homeDir}/${root}") personal.roots;
 
   personalSsh = pkgs.writeShellScript "git-ssh-personal" ''
-    exec ${pkgs.openssh}/bin/ssh \
-      -i ${lib.escapeShellArg "${homeDir}/${personal.sshKey}"} \
-      -o IdentitiesOnly=yes \
-      "$@"
+    for arg in "$@"; do
+      case "$arg" in
+        github.com|git@github.com)
+          exec ${pkgs.openssh}/bin/ssh \
+            -F /dev/null \
+            -i ${lib.escapeShellArg "${homeDir}/${personal.sshKey}"} \
+            -o IdentitiesOnly=yes \
+            "$@"
+          ;;
+      esac
+    done
+
+    exec ${pkgs.openssh}/bin/ssh "$@"
   '';
 
   awsReadOnly = pkgs.writeShellApplication {
@@ -71,7 +80,31 @@ let
           ;;
       esac
 
-      unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN AWS_WEB_IDENTITY_TOKEN_FILE AWS_ROLE_ARN
+      unset \
+        AWS_ACCESS_KEY_ID \
+        AWS_CONFIG_FILE \
+        AWS_CONTAINER_AUTHORIZATION_TOKEN \
+        AWS_CONTAINER_AUTHORIZATION_TOKEN_FILE \
+        AWS_CONTAINER_CREDENTIALS_FULL_URI \
+        AWS_CONTAINER_CREDENTIALS_RELATIVE_URI \
+        AWS_DEFAULT_PROFILE \
+        AWS_EC2_METADATA_SERVICE_ENDPOINT \
+        AWS_PROFILE \
+        AWS_ROLE_ARN \
+        AWS_ROLE_SESSION_NAME \
+        AWS_SECRET_ACCESS_KEY \
+        AWS_SECURITY_TOKEN \
+        AWS_SESSION_TOKEN \
+        AWS_SHARED_CREDENTIALS_FILE \
+        AWS_WEB_IDENTITY_TOKEN_FILE
+
+      while IFS='=' read -r name _; do
+        case "$name" in
+          AWS_ENDPOINT_URL*) unset "$name" ;;
+        esac
+      done < <(env)
+
+      export AWS_EC2_METADATA_DISABLED=true
       exec ${pkgs.awscli2}/bin/aws --profile "$profile" "$@"
     '';
   };
