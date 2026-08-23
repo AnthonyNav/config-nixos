@@ -201,29 +201,24 @@
             homeConfig = self.homeConfigurations."${username}@thinkpad".config;
             gitSettings = homeConfig.programs.git.settings;
             sshSettings = homeConfig.programs.ssh.settings;
+            identityPolicy = import ./inventory/identities.nix;
           in
+          assert identityPolicy.default == "work";
           assert gitSettings.user.useConfigOnly;
+          assert gitSettings.user.email == identityPolicy.identities.work.git.email;
           assert
-            gitSettings.url."git@github.com-personal:AnthonyNav/".insteadOf == [
-              "https://github.com/AnthonyNav/"
-              "git@github.com:AnthonyNav/"
-              "ssh://git@github.com/AnthonyNav/"
-            ];
-          assert
-            gitSettings.url."git@github.com-work:kigo/".insteadOf == [
-              "https://github.com/kigo/"
-              "git@github.com:kigo/"
-              "ssh://git@github.com/kigo/"
-            ];
-          assert
-            gitSettings.url."https://github.com/".insteadOf == [
-              "git@github.com:"
+            gitSettings.url."git@github.com:".insteadOf == [
+              "https://github.com/"
               "ssh://git@github.com/"
             ];
-          assert sshSettings."github.com".data.IdentityFile == "none";
+          assert sshSettings."github.com".data.IdentityFile == "/home/${username}/.ssh/id_work";
           assert sshSettings."github.com-personal".data.IdentityFile == "/home/${username}/.ssh/id_personal";
           assert sshSettings."github.com-work".data.IdentityFile == "/home/${username}/.ssh/id_work";
           assert sshSettings."github.com-kigo".data.IdentityFile == "/home/${username}/.ssh/id_work";
+          assert builtins.elem "projects/" identityPolicy.identities.personal.roots;
+          assert builtins.elem "nixos-config/" identityPolicy.identities.personal.roots;
+          assert identityPolicy.identities.work.aws.profile == "work-readonly";
+          assert identityPolicy.identities.personal.aws.profile == "personal-readonly";
           pkgsFor.runCommand "identity-policy-check" { } ''
             touch "$out"
           '';
