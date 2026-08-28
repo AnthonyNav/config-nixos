@@ -15,6 +15,7 @@
         ip = [
           "tcp:22" # Tailscale SSH / OpenSSH break-glass.
           "tcp:443" # Private HTTPS for the generic remote workspace.
+          "tcp:9000" # Private Woodpecker gRPC for the Testcontainers agent.
           "tcp:22000" # Syncthing fleet transport.
           "udp:4242" # Lan Mouse input-sharing transport.
         ];
