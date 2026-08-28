@@ -10,6 +10,7 @@
       syncthing = true;
     };
     features = {
+      virtualizationLab.enable = true;
       graphics = "nvidia-prime";
       creativeNvidia = true;
       monitorProfile = "dynamic";
@@ -32,6 +33,7 @@
       syncthing = true;
     };
     features = {
+      virtualizationLab.enable = true;
       graphics = "nvidia";
       creativeNvidia = true;
       monitorProfile = "desktop-3";
@@ -63,6 +65,7 @@
       syncthing = true;
     };
     features = {
+      virtualizationLab.enable = true;
       graphics = "intel";
       creativeNvidia = false;
       monitorProfile = "dynamic";
