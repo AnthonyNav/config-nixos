@@ -275,8 +275,8 @@ create_domain() {
 }
 
 wait_for_shutdown() {
-  local state
-  for _ in $(seq 1 60); do
+  local i state
+  for ((i = 0; i < 60; i++)); do
     state="$(vsh domstate "$LAB_DOMAIN" 2>/dev/null | tr -d '\r' || true)"
     case "$state" in
       "shut off" | "shutoff") return 0 ;;
@@ -343,14 +343,28 @@ delete_guest_state() {
 }
 
 cmd_doctor() {
+  local status=0
   printf 'KVM device:      '
-  if [ -e /dev/kvm ]; then printf 'ok\n'; else printf 'missing\n'; fi
+  if [ -e /dev/kvm ]; then
+    printf 'ok\n'
+  else
+    printf 'missing\n'
+    status=1
+  fi
+
   printf 'libvirt URI:     %s\n' "$LAB_URI"
-  if vsh uri >/dev/null 2>&1; then printf 'libvirt access:  ok\n'; else printf 'libvirt access:  unavailable\n'; fi
+  if vsh uri >/dev/null 2>&1; then
+    printf 'libvirt access:  ok\n'
+  else
+    printf 'libvirt access:  unavailable\n'
+    status=1
+  fi
+
   printf 'profile:         AlmaLinux %s (%s)\n' "$LAB_IMAGE_VERSION" "$LAB_IMAGE_BUILD"
   printf 'domain:          %s\n' "$LAB_DOMAIN"
   printf 'guest address:   %s\n' "$LAB_GUEST_IP"
   printf 'guest resources: %s vCPU, %s MiB RAM, %s GiB disk\n' "$LAB_VCPUS" "$LAB_MEMORY_MIB" "$LAB_DISK_GIB"
+  return "$status"
 }
 
 cmd_image() {
@@ -390,29 +404,34 @@ cmd_create() {
 }
 
 cmd_start() {
+  local state
   require_profile "$1"
   require_libvirt
   domain_exists || fail "domain '$LAB_DOMAIN' does not exist; run 'lab create almalinux'"
+  ensure_network
 
-  case "$(vsh domstate "$LAB_DOMAIN" | tr -d '\r')" in
+  state="$(vsh domstate "$LAB_DOMAIN" | tr -d '\r')"
+  case "$state" in
     running) info "'$LAB_DOMAIN' is already running" ;;
     "shut off" | "shutoff") vsh start "$LAB_DOMAIN" ;;
-    state) fail "cannot start '$LAB_DOMAIN' from state '$state'" ;;
+    *) fail "cannot start '$LAB_DOMAIN' from state '$state'" ;;
   esac
 }
 
 cmd_stop() {
+  local state
   require_profile "$1"
   require_libvirt
   domain_exists || fail "domain '$LAB_DOMAIN' does not exist"
 
-  case "$(vsh domstate "$LAB_DOMAIN" | tr -d '\r')" in
+  state="$(vsh domstate "$LAB_DOMAIN" | tr -d '\r')"
+  case "$state" in
     "shut off" | "shutoff") info "'$LAB_DOMAIN' is already stopped" ;;
     running)
       vsh shutdown "$LAB_DOMAIN"
       wait_for_shutdown || fail "guest did not shut down within 60 seconds; use virsh destroy only if you accept a hard power-off"
       ;;
-    *) fail "guest is not in a normal running/shut-off state; inspect it with 'lab status almalinux'" ;;
+    *) fail "cannot request a clean shutdown from state '$state'; inspect it with 'lab status almalinux'" ;;
   esac
 }
 
@@ -474,8 +493,9 @@ snapshot_create_impl() {
 }
 
 cmd_snapshot() {
+  local name
   require_profile "$1"
-  local name="${2:-}"
+  name="${2:-}"
   [ -n "$name" ] || fail "snapshot name is required"
   [[ "$name" =~ ^[A-Za-z0-9._-]+$ ]] || fail "snapshot name may contain only letters, digits, '.', '_' and '-'"
   require_libvirt
@@ -498,8 +518,9 @@ snapshot_revert_impl() {
 }
 
 cmd_revert() {
+  local name
   require_profile "$1"
-  local name="${2:-}"
+  name="${2:-}"
   [ -n "$name" ] || fail "snapshot name is required"
   require_libvirt
   domain_exists || fail "domain '$LAB_DOMAIN' does not exist"
@@ -528,8 +549,8 @@ cmd_purge_image() {
   require_profile "$1"
   require_libvirt
   domain_exists && fail "delete '$LAB_DOMAIN' before purging its base image"
-  if pool_exists && volume_exists "$LAB_GUEST_VOLUME"; then
-    fail "guest volume '$LAB_GUEST_VOLUME' still exists; delete it before purging the base image"
+  if pool_exists && { volume_exists "$LAB_GUEST_VOLUME" || volume_exists "$LAB_SEED_VOLUME"; }; then
+    fail "guest runtime volumes still exist; run 'lab delete almalinux --force' before purging the base image"
   fi
 
   confirm_destructive "Delete the cached and libvirt AlmaLinux base image?" "${2:-}"
