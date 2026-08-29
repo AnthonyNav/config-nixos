@@ -17,6 +17,15 @@
   boot.loader.systemd-boot.configurationLimit = 5;
   boot.loader.efi.canTouchEfiVariables = true;
 
+  # Desktop is a single-node K3s host. Do not allow any session or power event
+  # to suspend infrastructure workloads while the machine is unattended.
+  systemd.sleep.settings.Sleep = {
+    AllowSuspend = false;
+    AllowHibernation = false;
+    AllowHybridSleep = false;
+    AllowSuspendThenHibernate = false;
+  };
+
   services.xserver.enable = true;
   services.xserver.videoDrivers = [ "nvidia" ];
 
@@ -123,7 +132,14 @@
     after = [
       "k3s.service"
       "tailscaled.service"
+      "zellij-web-tailnet.service"
+      "woodpecker-grpc-serve.service"
+      "argocd-private-serve.service"
+      "grafana-private-serve.service"
+      "prometheus-private-serve.service"
+      "alertmanager-private-serve.service"
     ];
+    partOf = [ "tailscaled.service" ];
     requires = [ "k3s.service" ];
     wants = [ "tailscaled.service" ];
     wantedBy = [ "multi-user.target" ];
@@ -132,6 +148,10 @@
     serviceConfig = {
       Type = "oneshot";
       RemainAfterExit = true;
+      Restart = "on-failure";
+      RestartSec = "5s";
+      # Clear a stale root proxy before publishing the only public endpoint.
+      ExecStartPre = "${pkgs.tailscale}/bin/tailscale serve --https=443 off";
       ExecStart = "${pkgs.tailscale}/bin/tailscale funnel --bg --yes --https=443 http://127.0.0.1:80";
       ExecStop = "${pkgs.tailscale}/bin/tailscale funnel --https=443 off";
     };
