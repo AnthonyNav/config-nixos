@@ -23,3 +23,10 @@ id_dsa
 secrets/
 .private/
 gitleaks-report.*
+
+# Virtual machine media and disks are local runtime state, never source.
+*.iso
+*.qcow2
+*.vmdk
+*.vdi
+vm-images/

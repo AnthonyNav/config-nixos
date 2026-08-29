@@ -11,6 +11,7 @@
     ./tailscale-fleet.nix
     ./syncthing-fleet.nix
     ./remote-workspace.nix
+    ./virtualization-lab.nix
   ];
 
   networking.networkmanager.enable = true;
