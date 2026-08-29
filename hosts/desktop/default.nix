@@ -4,7 +4,46 @@
   pkgs,
   ...
 }:
-
+let
+  privateKubernetesUi =
+    {
+      name,
+      namespace,
+      service,
+      servicePort,
+      localPort,
+      tailscalePort,
+    }:
+    {
+      "${name}-forward" = {
+        description = "Forward ${name} locally from K3s";
+        after = [ "k3s.service" ];
+        requires = [ "k3s.service" ];
+        wantedBy = [ "multi-user.target" ];
+        serviceConfig = {
+          Restart = "always";
+          RestartSec = 5;
+          ExecStart = "${pkgs.kubectl}/bin/kubectl --kubeconfig /etc/rancher/k3s/k3s.yaml --namespace ${namespace} port-forward --address 127.0.0.1 service/${service} ${toString localPort}:${toString servicePort}";
+        };
+      };
+      "${name}-serve" = {
+        description = "Publish ${name} privately through Tailscale Serve";
+        after = [
+          "${name}-forward.service"
+          "tailscaled.service"
+        ];
+        requires = [ "${name}-forward.service" ];
+        wants = [ "tailscaled.service" ];
+        wantedBy = [ "multi-user.target" ];
+        serviceConfig = {
+          Type = "oneshot";
+          RemainAfterExit = true;
+          ExecStart = "${pkgs.tailscale}/bin/tailscale serve --bg --yes --https=${toString tailscalePort} http://127.0.0.1:${toString localPort}";
+          ExecStop = "${pkgs.tailscale}/bin/tailscale serve --https=${toString tailscalePort} off";
+        };
+      };
+    };
+in
 {
   imports = [
     ./hardware-configuration.nix
@@ -137,6 +176,79 @@
       ExecStop = "${pkgs.tailscale}/bin/tailscale funnel --https=443 off";
     };
   };
+
+  systemd.services.argocd-private-forward =
+    (privateKubernetesUi {
+      name = "argocd-private";
+      namespace = "argocd";
+      service = "argocd-server";
+      servicePort = 80;
+      localPort = 18080;
+      tailscalePort = 8443;
+    }).argocd-private-forward;
+  systemd.services.argocd-private-serve =
+    (privateKubernetesUi {
+      name = "argocd-private";
+      namespace = "argocd";
+      service = "argocd-server";
+      servicePort = 80;
+      localPort = 18080;
+      tailscalePort = 8443;
+    }).argocd-private-serve;
+  systemd.services.grafana-private-forward =
+    (privateKubernetesUi {
+      name = "grafana-private";
+      namespace = "monitoring";
+      service = "monitoring-grafana";
+      servicePort = 80;
+      localPort = 13000;
+      tailscalePort = 8444;
+    }).grafana-private-forward;
+  systemd.services.grafana-private-serve =
+    (privateKubernetesUi {
+      name = "grafana-private";
+      namespace = "monitoring";
+      service = "monitoring-grafana";
+      servicePort = 80;
+      localPort = 13000;
+      tailscalePort = 8444;
+    }).grafana-private-serve;
+  systemd.services.prometheus-private-forward =
+    (privateKubernetesUi {
+      name = "prometheus-private";
+      namespace = "monitoring";
+      service = "monitoring-prometheus";
+      servicePort = 9090;
+      localPort = 19090;
+      tailscalePort = 8445;
+    }).prometheus-private-forward;
+  systemd.services.prometheus-private-serve =
+    (privateKubernetesUi {
+      name = "prometheus-private";
+      namespace = "monitoring";
+      service = "monitoring-prometheus";
+      servicePort = 9090;
+      localPort = 19090;
+      tailscalePort = 8445;
+    }).prometheus-private-serve;
+  systemd.services.alertmanager-private-forward =
+    (privateKubernetesUi {
+      name = "alertmanager-private";
+      namespace = "monitoring";
+      service = "monitoring-alertmanager";
+      servicePort = 9093;
+      localPort = 19093;
+      tailscalePort = 8446;
+    }).alertmanager-private-forward;
+  systemd.services.alertmanager-private-serve =
+    (privateKubernetesUi {
+      name = "alertmanager-private";
+      namespace = "monitoring";
+      service = "monitoring-alertmanager";
+      servicePort = 9093;
+      localPort = 19093;
+      tailscalePort = 8446;
+    }).alertmanager-private-serve;
 
   # This agent is dormant until its per-agent token is installed locally.
   # Preserve the capability label during the victus-to-desktop migration so
