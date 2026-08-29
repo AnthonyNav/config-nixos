@@ -32,7 +32,8 @@
       build = "20260810";
       filename = "AlmaLinux-9-GenericCloud-9.8-20260810.x86_64.qcow2";
       url = "https://repo.almalinux.org/almalinux/9/cloud/x86_64/images/AlmaLinux-9-GenericCloud-9.8-20260810.x86_64.qcow2";
-      sha256 = "5cf9788088b3079540ea2cc160a52d9daba6fa973fad94e75f3b8e6516c295db";
+      # SHA-256 published for the AlmaLinux 9.8 Generic Cloud x86_64 image.
+      sha256 = "6bdab6376d46d42e4203ace3733efafc7c5d37c7cb443a6cc74750097002d74b";
     };
   };
 }
