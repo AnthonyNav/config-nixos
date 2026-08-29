@@ -72,6 +72,7 @@ ensure_pool() {
     vsh pool-define-as "$LAB_POOL_NAME" dir --target "$LAB_POOL_PATH" >/dev/null
     vsh pool-build "$LAB_POOL_NAME" >/dev/null
   fi
+
   if ! vsh pool-info "$LAB_POOL_NAME" | grep -Eq '^State:[[:space:]]+running$'; then
     vsh pool-start "$LAB_POOL_NAME" >/dev/null
   fi
@@ -95,6 +96,7 @@ ensure_network() {
   </ip>
 </network>
 EOF_NETWORK
+
     info "defining isolated NAT network '$LAB_NETWORK_NAME'"
     if ! vsh net-define "$network_xml" >/dev/null; then
       rm -f "$network_xml"
@@ -102,6 +104,7 @@ EOF_NETWORK
     fi
     rm -f "$network_xml"
   fi
+
   if ! vsh net-info "$LAB_NETWORK_NAME" | grep -Eq '^Active:[[:space:]]+yes$'; then
     vsh net-start "$LAB_NETWORK_NAME" >/dev/null
   fi
@@ -168,7 +171,15 @@ ensure_cached_image() {
   tmp="${file}.partial"
   rm -f "$tmp"
   info "downloading pinned AlmaLinux ${LAB_IMAGE_VERSION} image (${LAB_IMAGE_BUILD})" >&2
-  curl --fail --location --proto '=https' --tlsv1.2 --retry 3 --retry-delay 2 --output "$tmp" "$LAB_IMAGE_URL"
+  curl \
+    --fail \
+    --location \
+    --proto '=https' \
+    --tlsv1.2 \
+    --retry 3 \
+    --retry-delay 2 \
+    --output "$tmp" \
+    "$LAB_IMAGE_URL"
   verify_image_file "$tmp"
   mv "$tmp" "$file"
   printf '%s\n' "$file"
@@ -194,13 +205,12 @@ ensure_base_volume() {
 }
 
 create_seed_volume() {
-  local temp_dir user_data meta_data seed key public_key seed_size
+  local temp_dir user_data meta_data seed public_key seed_size
   temp_dir="$(mktemp -d)"
   user_data="$temp_dir/user-data"
   meta_data="$temp_dir/meta-data"
   seed="$temp_dir/seed.iso"
-  key="$(key_path)"
-  public_key="$(cat "${key}.pub")"
+  public_key="$(cat "$(key_path).pub")"
 
   cat >"$user_data" <<EOF_USERDATA
 #cloud-config
@@ -265,8 +275,8 @@ create_domain() {
 }
 
 wait_for_shutdown() {
-  local i state
-  for i in $(seq 1 60); do
+  local state
+  for _ in $(seq 1 60); do
     state="$(vsh domstate "$LAB_DOMAIN" 2>/dev/null | tr -d '\r' || true)"
     case "$state" in
       "shut off" | "shutoff") return 0 ;;
@@ -277,15 +287,20 @@ wait_for_shutdown() {
 }
 
 with_stopped_domain() {
-  local was_running=false
-  case "$(vsh domstate "$LAB_DOMAIN" | tr -d '\r')" in
+  local was_running=false state
+  state="$(vsh domstate "$LAB_DOMAIN" | tr -d '\r')"
+  case "$state" in
     running)
       was_running=true
       vsh shutdown "$LAB_DOMAIN" >/dev/null
       wait_for_shutdown || fail "guest did not shut down within 60 seconds"
       ;;
+    "shut off" | "shutoff") ;;
+    *) fail "guest must be running or shut off for this operation (current state: $state)" ;;
   esac
+
   "$@"
+
   if [ "$was_running" = true ]; then
     vsh start "$LAB_DOMAIN" >/dev/null
   fi
@@ -296,9 +311,13 @@ confirm_destructive() {
   if [ "$force" = "--force" ]; then
     return 0
   fi
+  if [ -n "$force" ]; then
+    fail "unknown option '$force'; expected --force"
+  fi
   if [ ! -t 0 ]; then
     fail "$action is destructive; re-run with --force in a non-interactive shell"
   fi
+
   printf '%s [y/N] ' "$action" >&2
   read -r answer
   case "$answer" in
@@ -315,6 +334,7 @@ delete_guest_state() {
     esac
     vsh undefine "$LAB_DOMAIN" --managed-save --snapshots-metadata >/dev/null 2>&1 || vsh undefine "$LAB_DOMAIN" >/dev/null
   fi
+
   if pool_exists; then
     volume_exists "$LAB_SEED_VOLUME" && vsh vol-delete "$LAB_SEED_VOLUME" --pool "$LAB_POOL_NAME" >/dev/null
     volume_exists "$LAB_GUEST_VOLUME" && vsh vol-delete "$LAB_GUEST_VOLUME" --pool "$LAB_POOL_NAME" >/dev/null
@@ -345,14 +365,17 @@ cmd_create() {
   require_kvm
   require_libvirt
   domain_exists && fail "domain '$LAB_DOMAIN' already exists; use 'lab status almalinux' or 'lab reset almalinux'"
+
   ensure_pool
   ensure_network
   ensure_key
   forget_guest_host_key
   ensure_base_volume
+
   if volume_exists "$LAB_GUEST_VOLUME" || volume_exists "$LAB_SEED_VOLUME"; then
     fail "orphaned guest volumes exist; run 'lab delete almalinux --force' before creating again"
   fi
+
   create_guest_volume
   create_seed_volume
   if ! create_domain; then
@@ -360,32 +383,36 @@ cmd_create() {
     vsh vol-delete "$LAB_GUEST_VOLUME" --pool "$LAB_POOL_NAME" >/dev/null 2>&1 || true
     fail "failed to define AlmaLinux guest"
   fi
+
   info "created and started '$LAB_DOMAIN'"
   info "SSH:         lab ssh almalinux"
-  info "GUI console: lab open almalinux"
+  info "boot view:   lab open almalinux"
 }
 
 cmd_start() {
   require_profile "$1"
   require_libvirt
   domain_exists || fail "domain '$LAB_DOMAIN' does not exist; run 'lab create almalinux'"
-  if [ "$(vsh domstate "$LAB_DOMAIN" | tr -d '\r')" = "running" ]; then
-    info "'$LAB_DOMAIN' is already running"
-    return 0
-  fi
-  vsh start "$LAB_DOMAIN"
+
+  case "$(vsh domstate "$LAB_DOMAIN" | tr -d '\r')" in
+    running) info "'$LAB_DOMAIN' is already running" ;;
+    "shut off" | "shutoff") vsh start "$LAB_DOMAIN" ;;
+    state) fail "cannot start '$LAB_DOMAIN' from state '$state'" ;;
+  esac
 }
 
 cmd_stop() {
   require_profile "$1"
   require_libvirt
   domain_exists || fail "domain '$LAB_DOMAIN' does not exist"
+
   case "$(vsh domstate "$LAB_DOMAIN" | tr -d '\r')" in
     "shut off" | "shutoff") info "'$LAB_DOMAIN' is already stopped" ;;
-    *)
+    running)
       vsh shutdown "$LAB_DOMAIN"
       wait_for_shutdown || fail "guest did not shut down within 60 seconds; use virsh destroy only if you accept a hard power-off"
       ;;
+    *) fail "guest is not in a normal running/shut-off state; inspect it with 'lab status almalinux'" ;;
   esac
 }
 
@@ -396,6 +423,7 @@ cmd_status() {
   printf 'Domain:       %s\n' "$LAB_DOMAIN"
   printf 'Guest IP:     %s\n' "$LAB_GUEST_IP"
   printf 'Storage pool: %s\n' "$LAB_POOL_NAME"
+
   if domain_exists; then
     vsh dominfo "$LAB_DOMAIN"
     printf '\nDisks:\n'
@@ -413,7 +441,8 @@ cmd_ssh() {
   domain_exists || fail "domain '$LAB_DOMAIN' does not exist"
   ensure_key
   [ "$(vsh domstate "$LAB_DOMAIN" | tr -d '\r')" = "running" ] || fail "domain '$LAB_DOMAIN' is not running"
-  info "connecting to ${LAB_GUEST_USER}@${LAB_GUEST_IP}; first boot can take a minute"
+
+  info "connecting to ${LAB_GUEST_USER}@${LAB_GUEST_IP}; first boot can take a short time"
   exec ssh \
     -i "$(key_path)" \
     -o IdentitiesOnly=yes \
@@ -451,6 +480,7 @@ cmd_snapshot() {
   [[ "$name" =~ ^[A-Za-z0-9._-]+$ ]] || fail "snapshot name may contain only letters, digits, '.', '_' and '-'"
   require_libvirt
   domain_exists || fail "domain '$LAB_DOMAIN' does not exist"
+  vsh snapshot-info "$LAB_DOMAIN" "$name" >/dev/null 2>&1 && fail "snapshot '$name' already exists"
   with_stopped_domain snapshot_create_impl "$name"
 }
 
@@ -501,6 +531,7 @@ cmd_purge_image() {
   if pool_exists && volume_exists "$LAB_GUEST_VOLUME"; then
     fail "guest volume '$LAB_GUEST_VOLUME' still exists; delete it before purging the base image"
   fi
+
   confirm_destructive "Delete the cached and libvirt AlmaLinux base image?" "${2:-}"
   ensure_pool
   if volume_exists "$LAB_BASE_VOLUME"; then
@@ -512,21 +543,67 @@ cmd_purge_image() {
 
 main() {
   case "${1:-}" in
-    doctor) shift; [ "$#" -eq 0 ] || fail "doctor takes no arguments"; cmd_doctor ;;
-    image) shift; cmd_image "${1:-}" ;;
-    create) shift; cmd_create "${1:-}" ;;
-    start) shift; cmd_start "${1:-}" ;;
-    stop) shift; cmd_stop "${1:-}" ;;
-    status) shift; cmd_status "${1:-}" ;;
-    ssh) shift; cmd_ssh "$@" ;;
-    console) shift; cmd_console "${1:-}" ;;
-    open) shift; cmd_open "${1:-}" ;;
-    snapshot) shift; cmd_snapshot "${1:-}" "${2:-}" ;;
-    snapshots) shift; cmd_snapshots "${1:-}" ;;
-    revert) shift; cmd_revert "${1:-}" "${2:-}" ;;
-    reset) shift; cmd_reset "${1:-}" "${2:-}" ;;
-    delete) shift; cmd_delete "${1:-}" "${2:-}" ;;
-    purge-image) shift; cmd_purge_image "${1:-}" "${2:-}" ;;
+    doctor)
+      shift
+      [ "$#" -eq 0 ] || fail "doctor takes no arguments"
+      cmd_doctor
+      ;;
+    image)
+      shift
+      cmd_image "${1:-}"
+      ;;
+    create)
+      shift
+      cmd_create "${1:-}"
+      ;;
+    start)
+      shift
+      cmd_start "${1:-}"
+      ;;
+    stop)
+      shift
+      cmd_stop "${1:-}"
+      ;;
+    status)
+      shift
+      cmd_status "${1:-}"
+      ;;
+    ssh)
+      shift
+      cmd_ssh "$@"
+      ;;
+    console)
+      shift
+      cmd_console "${1:-}"
+      ;;
+    open)
+      shift
+      cmd_open "${1:-}"
+      ;;
+    snapshot)
+      shift
+      cmd_snapshot "${1:-}" "${2:-}"
+      ;;
+    snapshots)
+      shift
+      cmd_snapshots "${1:-}"
+      ;;
+    revert)
+      shift
+      cmd_revert "${1:-}" "${2:-}"
+      ;;
+    reset)
+      shift
+      cmd_reset "${1:-}" "${2:-}"
+      ;;
+    delete)
+      shift
+      cmd_delete "${1:-}" "${2:-}"
+      ;;
+    purge-image)
+      shift
+      cmd_purge_image "${1:-}" "${2:-}"
+      ;;
     -h | --help | help | "") usage ;;
     *) usage >&2; fail "unknown command '$1'" ;;
   esac
