@@ -191,7 +191,7 @@ in
       Restart = "on-failure";
       RestartSec = "5s";
       # Clear a stale root proxy before publishing the only public endpoint.
-      ExecStartPre = "${pkgs.tailscale}/bin/tailscale serve --https=443 off";
+      ExecStartPre = "-${pkgs.tailscale}/bin/tailscale serve --https=443 off";
       ExecStart = "${pkgs.tailscale}/bin/tailscale funnel --bg --yes --https=443 http://127.0.0.1:80";
       ExecStop = "${pkgs.tailscale}/bin/tailscale funnel --https=443 off";
     };
