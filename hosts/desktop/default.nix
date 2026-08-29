@@ -43,6 +43,22 @@
 
   networking.firewall.interfaces.tailscale0.allowedTCPPorts = lib.mkAfter [ 9000 ];
 
+  # Keep the remote workspace private to the tailnet when Woodpecker takes
+  # the public HTTPS root through Funnel.
+  systemd.services.zellij-web-tailnet = {
+    description = "Publish Zellij web privately through Tailscale Serve";
+    after = [ "tailscaled.service" ];
+    wants = [ "tailscaled.service" ];
+    wantedBy = [ "multi-user.target" ];
+
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+      ExecStart = "${pkgs.tailscale}/bin/tailscale serve --bg --yes --tcp=8082 tcp://127.0.0.1:8082";
+      ExecStop = "${pkgs.tailscale}/bin/tailscale serve --tcp=8082 off";
+    };
+  };
+
   services.k3s = {
     enable = true;
     package = pkgs.k3s_1_36;
@@ -99,6 +115,25 @@
       RemainAfterExit = true;
       ExecStart = "${pkgs.tailscale}/bin/tailscale serve --bg --yes --tcp=9000 tcp://127.0.0.1:9000";
       ExecStop = "${pkgs.tailscale}/bin/tailscale serve --tcp=9000 off";
+    };
+  };
+
+  systemd.services.woodpecker-http-funnel = {
+    description = "Publish Woodpecker HTTPS through Tailscale Funnel";
+    after = [
+      "k3s.service"
+      "tailscaled.service"
+    ];
+    requires = [ "k3s.service" ];
+    wants = [ "tailscaled.service" ];
+    wantedBy = [ "multi-user.target" ];
+    unitConfig.ConditionPathExists = "/etc/woodpecker/agent-desktop.env";
+
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+      ExecStart = "${pkgs.tailscale}/bin/tailscale funnel --bg --yes --https=443 http://127.0.0.1:80";
+      ExecStop = "${pkgs.tailscale}/bin/tailscale funnel --https=443 off";
     };
   };
 
