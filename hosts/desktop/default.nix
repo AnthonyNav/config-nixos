@@ -103,7 +103,8 @@
   };
 
   # This agent is dormant until its per-agent token is installed locally.
-  # Mandatory labels keep ordinary CI work on the Kubernetes agent.
+  # Preserve the capability label during the victus-to-desktop migration so
+  # existing Testcontainers workflows continue to select the replacement.
   systemd.services.woodpecker-agent-desktop = {
     description = "Woodpecker Docker agent for Testcontainers on desktop";
     after = [
@@ -121,7 +122,7 @@
       RestartSec = "5s";
       TimeoutStopSec = "45s";
       ExecStartPre = "-${pkgs.docker}/bin/docker rm --force woodpecker-agent-desktop";
-      ExecStart = "${pkgs.docker}/bin/docker run --rm --name=woodpecker-agent-desktop --init --env-file /etc/woodpecker/agent-desktop.env --env WOODPECKER_SERVER=desktop.tail88c098.ts.net:9000 --env WOODPECKER_HOSTNAME=desktop-docker-testcontainers --env WOODPECKER_AGENT_CONFIG_FILE=/etc/woodpecker/agent.conf --env WOODPECKER_BACKEND=docker --env WOODPECKER_AGENT_LABELS=!testcontainers=desktop,repo=AnthonyNav/estoma-services --env WOODPECKER_MAX_WORKFLOWS=1 --mount type=volume,src=woodpecker-agent-desktop-config,dst=/etc/woodpecker --mount type=bind,src=/var/run/docker.sock,dst=/var/run/docker.sock woodpeckerci/woodpecker-agent:v3.18.0 agent";
+      ExecStart = "${pkgs.docker}/bin/docker run --rm --name=woodpecker-agent-desktop --init --env-file /etc/woodpecker/agent-desktop.env --env WOODPECKER_SERVER=desktop.tail88c098.ts.net:9000 --env WOODPECKER_HOSTNAME=desktop-docker-testcontainers --env WOODPECKER_AGENT_CONFIG_FILE=/etc/woodpecker/agent.conf --env WOODPECKER_BACKEND=docker --env WOODPECKER_AGENT_LABELS=!testcontainers=victus,repo=AnthonyNav/estoma-services --env WOODPECKER_MAX_WORKFLOWS=1 --mount type=volume,src=woodpecker-agent-desktop-config,dst=/etc/woodpecker --mount type=bind,src=/var/run/docker.sock,dst=/var/run/docker.sock woodpeckerci/woodpecker-agent:v3.18.0 agent";
       ExecStop = "${pkgs.docker}/bin/docker stop --time=30 woodpecker-agent-desktop";
     };
   };
