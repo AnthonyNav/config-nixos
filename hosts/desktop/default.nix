@@ -42,6 +42,7 @@
   environment.systemPackages = [ pkgs.kubectl ];
 
   networking.firewall.interfaces.tailscale0.allowedTCPPorts = lib.mkAfter [ 9000 ];
+  networking.firewall.interfaces.docker0.allowedTCPPorts = [ 9000 ];
 
   # Keep the remote workspace private to the tailnet when Woodpecker takes
   # the public HTTPS root through Funnel.
