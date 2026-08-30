@@ -90,7 +90,18 @@ in
   environment.systemPackages = [ pkgs.kubectl ];
 
   networking.firewall.interfaces.tailscale0.allowedTCPPorts = lib.mkAfter [ 9000 ];
-  networking.firewall.interfaces.docker0.allowedTCPPorts = [ 9000 ];
+  networking.firewall.interfaces.docker0 = {
+    # The Docker-backed Woodpecker agent reaches the server through the bridge.
+    # Testcontainers also maps Ryuk onto a host ephemeral port, so its cleanup
+    # connection from the job container needs the host's complete ephemeral range.
+    allowedTCPPorts = [ 9000 ];
+    allowedTCPPortRanges = [
+      {
+        from = 32768;
+        to = 60999;
+      }
+    ];
+  };
 
   # Keep the remote workspace private to the tailnet when Woodpecker takes
   # the public HTTPS root through Funnel.
