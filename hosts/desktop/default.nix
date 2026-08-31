@@ -244,6 +244,24 @@ in
       localPort = 13000;
       tailscalePort = 8444;
     }).grafana-private-serve;
+  systemd.services.rabbitmq-private-forward =
+    (privateKubernetesUi {
+      name = "rabbitmq-private";
+      namespace = "develop";
+      service = "rabbitmq-dev";
+      servicePort = 15672;
+      localPort = 15672;
+      tailscalePort = 8447;
+    }).rabbitmq-private-forward;
+  systemd.services.rabbitmq-private-serve =
+    (privateKubernetesUi {
+      name = "rabbitmq-private";
+      namespace = "develop";
+      service = "rabbitmq-dev";
+      servicePort = 15672;
+      localPort = 15672;
+      tailscalePort = 8447;
+    }).rabbitmq-private-serve;
   systemd.services.prometheus-private-forward =
     (privateKubernetesUi {
       name = "prometheus-private";
