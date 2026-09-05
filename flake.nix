@@ -221,6 +221,36 @@
         };
       };
       checks.${system} = {
+        resource-policy =
+          let
+            configs = lib.mapAttrs (_: host: host.config) (
+              lib.getAttrs workstationNames self.nixosConfigurations
+            );
+            thinkpad = configs.thinkpad;
+            fallbackSwap = builtins.filter (
+              swap: swap.device == "/var/lib/nixos-memory-swapfile"
+            ) thinkpad.swapDevices;
+          in
+          assert lib.all (c: c.nix.settings.cores > 0 && c.nix.settings."max-jobs" > 0) (
+            builtins.attrValues configs
+          );
+          assert thinkpad.nix.settings."max-jobs" < configs.desktop.nix.settings."max-jobs";
+          assert builtins.length fallbackSwap == 1;
+          assert (builtins.head fallbackSwap).randomEncryption.enable;
+          assert (builtins.head fallbackSwap).priority < thinkpad.zramSwap.priority;
+          assert !thinkpad.systemd.sleep.settings.Sleep.AllowHibernation;
+          assert !thinkpad.systemd.sleep.settings.Sleep.AllowHybridSleep;
+          assert !thinkpad.systemd.sleep.settings.Sleep.AllowSuspendThenHibernate;
+          assert !(builtins.elem "multi-user.target" thinkpad.systemd.services.docker.wantedBy);
+          assert builtins.elem "sockets.target" thinkpad.systemd.sockets.docker.wantedBy;
+          assert lib.all (c: c.virtualisation.docker.enable && c.virtualisation.docker.enableOnBoot) [
+            configs.desktop
+            configs.victus
+          ];
+          assert configs.desktop.services.k3s.enable;
+          pkgsFor.runCommand "resource-policy-check" { } ''
+            touch "$out"
+          '';
         ai-tools =
           pkgsFor.runCommand "ai-tools-check"
             {
