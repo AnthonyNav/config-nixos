@@ -5,7 +5,8 @@
   # base de datos en cada workstation.
   home.packages = with pkgs; [
     dbeaver-bin
-    beekeeper-studio
+    # Beekeeper Studio 6.0.5 is marked insecure in the pinned Nixpkgs
+    # (bundled EOL Electron). Keep the other clients; do not bypass that check.
     mysql-workbench
     usql
   ];
