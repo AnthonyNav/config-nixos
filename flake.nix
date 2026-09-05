@@ -221,6 +221,30 @@
         };
       };
       checks.${system} = {
+        ai-tools =
+          pkgsFor.runCommand "ai-tools-check"
+            {
+              nativeBuildInputs = [
+                aiToolsPackages.claude-code
+                aiToolsPackages.codex
+                aiToolsPackages.opencode
+                aiToolsPackages.rtk
+              ];
+            }
+            ''
+              export HOME="$TMPDIR/home"
+              export XDG_CACHE_HOME="$TMPDIR/cache"
+              export XDG_CONFIG_HOME="$TMPDIR/config"
+              export XDG_DATA_HOME="$TMPDIR/data"
+              export XDG_STATE_HOME="$TMPDIR/state"
+              mkdir -p "$HOME" "$XDG_CACHE_HOME" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_STATE_HOME"
+
+              claude --version | grep -F ${lib.escapeShellArg aiToolVersions.claudeCode}
+              codex --version | grep -F ${lib.escapeShellArg aiToolVersions.codex}
+              opencode --version | grep -F ${lib.escapeShellArg aiToolVersions.opencode}
+              rtk --version | grep -F ${lib.escapeShellArg aiToolVersions.rtk}
+              touch "$out"
+            '';
         formatting = treefmtEval.config.build.check self;
         ci-workflows =
           pkgsFor.runCommand "ci-workflows-check"

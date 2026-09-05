@@ -144,6 +144,7 @@ nix flake update llm-agents
 nix eval --json .#lib.aiToolVersions
 nix fmt
 nix flake check --no-build --no-write-lock-file
+nix build --no-link --print-build-logs .#checks.x86_64-linux.ai-tools
 ```
 
 Then perform the required NixOS and Home Manager builds for all three

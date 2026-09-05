@@ -28,6 +28,8 @@ jobs:
         run: nix fmt -- --ci
       - name: Evaluate and build all flake checks
         run: nix flake check --no-write-lock-file
+      - name: Show AI tool smoke-test evidence
+        run: nix build --no-link --print-build-logs .#checks.x86_64-linux.ai-tools
       - name: Check OpenCode plugin syntax
         run: node --check opencode/plugins/rtk.js
       - name: Validate OpenCode JSON
