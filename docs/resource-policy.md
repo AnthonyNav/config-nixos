@@ -109,6 +109,18 @@ into OOM merely to test the configuration.
 No new hard memory limits, aggressive OOM killers, cache-dropping cron jobs,
 automatic Docker pruning, or kernel security tradeoffs are introduced.
 
+## Planned follow-up: remote Nix builders
+
+Remote compilation is an agreed follow-up, pending a dedicated design and PR.
+The ThinkPad rollout of PR #43 reused outputs built on Victus: only 191 missing
+store paths (about 1.65 GiB, compressed to 433 MiB) were transferred, then imported
+before running the normal update with temporary 1-job/1-core concurrency.
+
+For an automated version, decide builder selection and concurrency, SSH identity
+and store trust, offline fallback, cache/GC retention and observability. Account
+for Desktop's K3s workloads and ThinkPad's client-side evaluation memory, which
+remote compilation does not eliminate. No remote builder is enabled by this PR.
+
 ## Rollback
 
 Revert the policy in a PR and deploy the resulting `main` during a quiet period.

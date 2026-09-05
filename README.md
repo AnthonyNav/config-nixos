@@ -489,7 +489,6 @@ Todos los hosts reciben clientes de desarrollo, no un servidor de base de datos:
 | Herramienta | Uso |
 |---|---|
 | DBeaver | Cliente gráfico universal para SQL y motores con drivers JDBC |
-| Beekeeper Studio | Cliente gráfico ligero para trabajo diario con SQL |
 | MySQL Workbench | Administración y modelado específico de MySQL/MariaDB |
 | `usql` | Cliente universal de terminal para PostgreSQL, MySQL/MariaDB, SQLite, SQL Server, Oracle y otros |
 

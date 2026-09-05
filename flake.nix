@@ -221,6 +221,27 @@
         };
       };
       checks.${system} = {
+        development-path = pkgsFor.runCommand "development-path-check" { } ''
+          mkdir -p "$TMPDIR"/{managed,project,home/.local/bin,home/.local/share/pnpm,home/.npm-global/bin}
+          touch "$TMPDIR/managed/codex" "$TMPDIR/project/codex" \
+            "$TMPDIR/home/.npm-global/bin/codex" "$TMPDIR/home/.local/bin/local-only"
+          chmod +x "$TMPDIR/managed/codex" "$TMPDIR/project/codex" \
+            "$TMPDIR/home/.npm-global/bin/codex" "$TMPDIR/home/.local/bin/local-only"
+          HOME="$TMPDIR/home" TEST_ROOT="$TMPDIR" ${pkgsFor.zsh}/bin/zsh -f ${pkgsFor.writeText "development-path-test.zsh" ''
+            set -eu
+            path=("$HOME/.npm-global/bin" "$HOME/.local/bin" "$TEST_ROOT/project" "$TEST_ROOT/managed")
+            source ${./scripts/development-path.zsh}
+            [[ "$(whence -p codex)" == "$TEST_ROOT/project/codex" ]]
+            path=("''${(@)path:#$TEST_ROOT/project}")
+            source ${./scripts/development-path.zsh}
+            [[ "$(whence -p codex)" == "$TEST_ROOT/managed/codex" ]]
+            [[ "$(whence -p local-only)" == "$HOME/.local/bin/local-only" ]]
+            previous_path=$PATH
+            source ${./scripts/development-path.zsh}
+            [[ "$PATH" == "$previous_path" ]]
+          ''}
+          touch "$out"
+        '';
         resource-policy =
           let
             configs = lib.mapAttrs (_: host: host.config) (
