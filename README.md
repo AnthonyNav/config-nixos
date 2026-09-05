@@ -396,13 +396,16 @@ confirma `KIRO_API_REGION` y `PROFILE_ARN` en el `.env` local. La regla de
 validación y el límite de responsabilidad están en
 [docs/maintainer.md](docs/maintainer.md).
 
-### Actualizar OpenCode
+### Actualizar las herramientas de IA
 
-OpenCode se instala desde Nix y su versión queda fijada para todos los equipos
-por `flake.lock`. No ejecutes `opencode upgrade`: actualiza el lock con
-`nix-input-update`, abre el PR correspondiente y, tras el merge, aplica
-`nix-update`. Las skills compartidas y el plugin RTK se distribuyen mediante
-Home Manager; reinicia OpenCode después de cambiar una skill o plugin.
+Claude Code, Codex, OpenCode y RTK se instalan desde el input dedicado
+`llm-agents`, con versiones fijadas para todos los equipos por `flake.lock`.
+Puedes consultar las versiones con `nix eval --json .#lib.aiToolVersions`. No
+ejecutes sus actualizadores internos (`claude update`, `codex update` u
+`opencode upgrade`): actualiza solamente ese input con `nix flake update
+llm-agents`, abre el PR correspondiente y, tras el merge, aplica `nix-update`.
+Las skills compartidas y el plugin RTK se distribuyen mediante Home Manager;
+reinicia OpenCode después de cambiar una skill o plugin.
 
 ### Config de opencode
 

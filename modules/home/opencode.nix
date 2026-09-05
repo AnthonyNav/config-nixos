@@ -1,7 +1,15 @@
-{ lib, pkgs, ... }:
+{
+  aiToolsPackages,
+  lib,
+  pkgs,
+  ...
+}:
 
 let
-  opencodePackages = import ./opencode-packages.nix { inherit lib pkgs; };
+  opencodePackages = import ./opencode-packages.nix {
+    inherit lib pkgs;
+    opencodePackage = aiToolsPackages.opencode;
+  };
 in
 
 {

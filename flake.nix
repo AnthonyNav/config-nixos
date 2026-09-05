@@ -1,8 +1,17 @@
 {
   description = "Toño's Master Multi-Host NixOS Configuration";
 
+  nixConfig = {
+    extra-substituters = [ "https://cache.numtide.com" ];
+    extra-trusted-public-keys = [
+      "niks3.numtide.com-1:DTx8wZduET09hRmMtKdQDxNNthLQETkc/yaX7M4qK0g="
+    ];
+  };
+
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+
+    llm-agents.url = "github:numtide/llm-agents.nix";
 
     home-manager = {
       url = "github:nix-community/home-manager";
@@ -48,9 +57,17 @@
         localSystem = system;
         config.allowUnfree = true;
       };
+      aiToolsPackages = inputs.llm-agents.packages.${system};
+      aiToolVersions = {
+        claudeCode = aiToolsPackages.claude-code.version;
+        codex = aiToolsPackages.codex.version;
+        opencode = aiToolsPackages.opencode.version;
+        rtk = aiToolsPackages.rtk.version;
+      };
       treefmtEval = treefmt-nix.lib.evalModule pkgsFor ./treefmt.nix;
       opencodePackages = import ./modules/home/opencode-packages.nix {
         inherit lib;
+        opencodePackage = aiToolsPackages.opencode;
         pkgs = pkgsFor;
       };
       desktopStyles = {
@@ -116,6 +133,7 @@
               ++ host.homeModules;
               home-manager.extraSpecialArgs = {
                 inherit
+                  aiToolsPackages
                   fleetInventory
                   inputs
                   username
@@ -143,6 +161,7 @@
           pkgs = pkgsFor;
           extraSpecialArgs = {
             inherit
+              aiToolsPackages
               fleetInventory
               inputs
               username
@@ -161,6 +180,7 @@
     {
       lib = {
         inherit
+          aiToolVersions
           fleetEndpoints
           fleetInventory
           tailnetPolicy
@@ -201,6 +221,30 @@
         };
       };
       checks.${system} = {
+        ai-tools =
+          pkgsFor.runCommand "ai-tools-check"
+            {
+              nativeBuildInputs = [
+                aiToolsPackages.claude-code
+                aiToolsPackages.codex
+                aiToolsPackages.opencode
+                aiToolsPackages.rtk
+              ];
+            }
+            ''
+              export HOME="$TMPDIR/home"
+              export XDG_CACHE_HOME="$TMPDIR/cache"
+              export XDG_CONFIG_HOME="$TMPDIR/config"
+              export XDG_DATA_HOME="$TMPDIR/data"
+              export XDG_STATE_HOME="$TMPDIR/state"
+              mkdir -p "$HOME" "$XDG_CACHE_HOME" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_STATE_HOME"
+
+              claude --version | grep -F ${lib.escapeShellArg aiToolVersions.claudeCode}
+              codex --version | grep -F ${lib.escapeShellArg aiToolVersions.codex}
+              opencode --version | grep -F ${lib.escapeShellArg aiToolVersions.opencode}
+              rtk --version | grep -F ${lib.escapeShellArg aiToolVersions.rtk}
+              touch "$out"
+            '';
         formatting = treefmtEval.config.build.check self;
         ci-workflows =
           pkgsFor.runCommand "ci-workflows-check"
@@ -351,7 +395,7 @@
           assert !(builtins.elem remotePolicy.backend.port globalTcpPorts);
           assert !(builtins.elem remotePolicy.backend.port tailscaleTcpPorts);
           assert remotePolicy.backend.hostname == "127.0.0.1";
-          assert pkgsFor ? codex;
+          assert aiToolsPackages ? codex;
           pkgsFor.runCommand "remote-workspace-policy-check" { } ''
             touch "$out"
           '';
@@ -389,7 +433,7 @@
               nativeBuildInputs = [
                 pkgsFor.git
                 pkgsFor.jq
-                pkgsFor.opencode
+                aiToolsPackages.opencode
               ];
             }
             ''
