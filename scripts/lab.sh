@@ -1,3 +1,5 @@
+# shellcheck shell=bash
+
 usage() {
   cat <<'USAGE'
 Usage:

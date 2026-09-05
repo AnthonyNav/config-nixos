@@ -24,18 +24,8 @@ jobs:
         run: nix run .#gitleaks -- git --redact --no-banner
       - name: Check formatting
         run: nix fmt -- --ci
-      - name: Evaluate flake checks
-        run: nix flake check --no-build --no-write-lock-file
-      - name: Build repository checks
-        run: |
-          nix build --no-link --no-write-lock-file \
-            .#checks.x86_64-linux.ci-workflows \
-            .#checks.x86_64-linux.identity-policy \
-            .#checks.x86_64-linux.nix-config \
-            .#checks.x86_64-linux.opencode-workflow \
-            .#checks.x86_64-linux.remote-workspace-policy \
-            .#checks.x86_64-linux.syncthing-policy \
-            .#checks.x86_64-linux.tailscale-policy
+      - name: Evaluate and build all flake checks
+        run: nix flake check --no-write-lock-file
       - name: Check OpenCode plugin syntax
         run: node --check opencode/plugins/rtk.js
       - name: Validate OpenCode JSON
