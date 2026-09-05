@@ -1,4 +1,4 @@
-{ pkgs, ... }:
+{ aiToolsPackages, pkgs, ... }:
 
 {
   imports = [
@@ -30,9 +30,9 @@
     kiro
     kiro-cli
     antigravity-ide
-    claude-code
-    codex
-    rtk
+    aiToolsPackages.claude-code
+    aiToolsPackages.codex
+    aiToolsPackages.rtk
     python3
     python3Packages.pip
     micromamba

@@ -1,8 +1,17 @@
 {
   description = "Toño's Master Multi-Host NixOS Configuration";
 
+  nixConfig = {
+    extra-substituters = [ "https://cache.numtide.com" ];
+    extra-trusted-public-keys = [
+      "niks3.numtide.com-1:DTx8wZduET09hRmMtKdQDxNNthLQETkc/yaX7M4qK0g="
+    ];
+  };
+
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+
+    llm-agents.url = "github:numtide/llm-agents.nix";
 
     home-manager = {
       url = "github:nix-community/home-manager";
@@ -48,9 +57,17 @@
         localSystem = system;
         config.allowUnfree = true;
       };
+      aiToolsPackages = inputs.llm-agents.packages.${system};
+      aiToolVersions = {
+        claudeCode = aiToolsPackages.claude-code.version;
+        codex = aiToolsPackages.codex.version;
+        opencode = aiToolsPackages.opencode.version;
+        rtk = aiToolsPackages.rtk.version;
+      };
       treefmtEval = treefmt-nix.lib.evalModule pkgsFor ./treefmt.nix;
       opencodePackages = import ./modules/home/opencode-packages.nix {
         inherit lib;
+        opencodePackage = aiToolsPackages.opencode;
         pkgs = pkgsFor;
       };
       desktopStyles = {
@@ -116,6 +133,7 @@
               ++ host.homeModules;
               home-manager.extraSpecialArgs = {
                 inherit
+                  aiToolsPackages
                   fleetInventory
                   inputs
                   username
@@ -143,6 +161,7 @@
           pkgs = pkgsFor;
           extraSpecialArgs = {
             inherit
+              aiToolsPackages
               fleetInventory
               inputs
               username
@@ -161,6 +180,7 @@
     {
       lib = {
         inherit
+          aiToolVersions
           fleetEndpoints
           fleetInventory
           tailnetPolicy
@@ -351,7 +371,7 @@
           assert !(builtins.elem remotePolicy.backend.port globalTcpPorts);
           assert !(builtins.elem remotePolicy.backend.port tailscaleTcpPorts);
           assert remotePolicy.backend.hostname == "127.0.0.1";
-          assert pkgsFor ? codex;
+          assert aiToolsPackages ? codex;
           pkgsFor.runCommand "remote-workspace-policy-check" { } ''
             touch "$out"
           '';
@@ -389,7 +409,7 @@
               nativeBuildInputs = [
                 pkgsFor.git
                 pkgsFor.jq
-                pkgsFor.opencode
+                aiToolsPackages.opencode
               ];
             }
             ''

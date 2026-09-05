@@ -1,4 +1,8 @@
-{ lib, pkgs }:
+{
+  lib,
+  pkgs,
+  opencodePackage ? pkgs.opencode,
+}:
 
 let
   managedWorkflow = pkgs.linkFarm "opencode-managed-workflow" [
@@ -136,7 +140,7 @@ let
       inherit name;
       runtimeInputs = [
         pkgs.coreutils
-        pkgs.opencode
+        opencodePackage
         pkgs.python3
       ]
       ++ lib.optionals managed [
@@ -200,7 +204,7 @@ let
           fi
         fi
 
-        exec ${lib.getExe pkgs.opencode} "$@"
+        exec ${lib.getExe opencodePackage} "$@"
       '';
     };
 in

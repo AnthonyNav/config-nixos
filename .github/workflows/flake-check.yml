@@ -20,6 +20,8 @@ jobs:
         with:
           fetch-depth: 0
       - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31.11.1
+        with:
+          extra_nix_config: accept-flake-config = true
       - name: Scan for secrets
         run: nix run .#gitleaks -- git --redact --no-banner
       - name: Check formatting
@@ -42,6 +44,8 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31.11.1
+        with:
+          extra_nix_config: accept-flake-config = true
       - id: hosts
         run: printf 'matrix=%s\n' "$(nix eval --json --no-write-lock-file .#lib.workstationNames)" >> "$GITHUB_OUTPUT"
 
@@ -55,6 +59,8 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31.11.1
+        with:
+          extra_nix_config: accept-flake-config = true
       - name: Plan NixOS system build
         run: nix build --dry-run --no-link --no-write-lock-file .#nixosConfigurations.${{ matrix.host }}.config.system.build.toplevel
       - name: Plan Home Manager activation build

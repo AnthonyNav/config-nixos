@@ -127,7 +127,43 @@ by all three workstations. Build the NixOS and Home Manager outputs for
 
 ## OpenCode
 
-OpenCode is installed from Nix and its version is pinned by `flake.lock`.
+Claude Code, Codex, OpenCode, and RTK come from the pinned `llm-agents` flake
+input. This keeps these agent tools current without coupling their updates to a
+full `nixpkgs` refresh. The input intentionally uses its own tested Nixpkgs
+revision and the signed Numtide binary cache declared in `flake.nix`; do not add
+`inputs.nixpkgs.follows` unless the resulting source builds have been evaluated
+as an explicit tradeoff. The same cache and signing key are configured for the
+Nix daemon in `modules/system/core.nix`, preventing local Codex and RTK source
+builds after the first deployment. Inspect the pinned versions with
+`nix eval --json .#lib.aiToolVersions`.
+
+Update this toolchain only on a dedicated branch and PR:
+
+```sh
+nix flake update llm-agents
+nix eval --json .#lib.aiToolVersions
+nix fmt
+nix flake check --no-build --no-write-lock-file
+```
+
+Then perform the required NixOS and Home Manager builds for all three
+workstations. Do not use `claude update`, `codex update`, `opencode upgrade`, or
+another tool's self-updater: those bypass the repository lock and cannot update
+binaries in the Nix store.
+
+On the first deployment to a host whose running Nix daemon does not yet trust
+the Numtide cache, pre-build the reviewed, published `main` configuration as
+root so the flake cache settings can bootstrap the system setting without a
+local Codex source build:
+
+```sh
+sudo nixos-rebuild build --accept-flake-config --flake .#<host>
+nix-update
+```
+
+The first command only builds; it does not activate. Later deployments use the
+daemon settings from `modules/system/core.nix` and need no bootstrap step.
+
 `opencode/opencode.json`, agents, commands, shared skills, the RTK plugin, and
 the `opencode` and `opencode-work` wrappers are deployed by
 `modules/home/opencode.nix`. OpenCode starts without requiring Kiro as its
