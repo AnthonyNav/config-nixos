@@ -111,6 +111,9 @@ normal command that modifies Git before deployment. See `docs/nix-config.md`.
 
 ## Host-Specific Changes
 
+See [resource-policy.md](resource-policy.md) for build concurrency, ThinkPad's
+encrypted swap and on-demand Docker, measurement criteria, and rollback.
+
 Keep generated `hardware-configuration.nix` files local to their host. Put
 system hardware settings in `hosts/<name>/default.nix` and Home Manager
 features in `hosts/<name>/home.nix`. A common module must never assume PRIME,

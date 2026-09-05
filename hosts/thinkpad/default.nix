@@ -8,6 +8,34 @@
 
   networking.hostName = "thinkpad";
 
+  # This 16 GiB workstation needs memory headroom for the evaluator and IDEs.
+  nix.settings.max-jobs = 1;
+  systemd.services.nix-daemon.serviceConfig = {
+    CPUWeight = 25;
+    IOWeight = 25;
+  };
+
+  # The socket still starts Docker on first use. Containers with restart
+  # policies resume when the daemon starts, rather than automatically at boot.
+  virtualisation.docker.enableOnBoot = false;
+
+  # Zram remains the first tier (priority 5). Disk swap is an emergency buffer,
+  # encrypted with an ephemeral key so swapped application data is not stored
+  # in plaintext on the unencrypted ext4 root filesystem.
+  swapDevices = [
+    {
+      device = "/var/lib/nixos-memory-swapfile";
+      size = 8192;
+      priority = 0;
+      randomEncryption.enable = true;
+    }
+  ];
+  systemd.sleep.settings.Sleep = {
+    AllowHibernation = false;
+    AllowHybridSleep = false;
+    AllowSuspendThenHibernate = false;
+  };
+
   # Prioriza latencia y throughput estables en redes congestionadas. Se limita
   # a este host porque el coste de bateria y el adaptador varian por equipo.
   networking.networkmanager.wifi.powersave = false;

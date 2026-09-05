@@ -12,6 +12,7 @@
     ./syncthing-fleet.nix
     ./remote-workspace.nix
     ./virtualization-lab.nix
+    ./resource-policy.nix
   ];
 
   networking.networkmanager.enable = true;
