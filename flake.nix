@@ -196,6 +196,17 @@
       };
       checks.${system} = {
         formatting = treefmtEval.config.build.check self;
+        ci-workflows =
+          pkgsFor.runCommand "ci-workflows-check"
+            {
+              nativeBuildInputs = [ pkgsFor.actionlint ];
+            }
+            ''
+              actionlint \
+                ${./.github/workflows/flake-check.yml} \
+                ${./.github/workflows/full-build.yml}
+              touch "$out"
+            '';
         identity-policy =
           let
             homeConfig = self.homeConfigurations."${username}@thinkpad".config;
@@ -320,7 +331,9 @@
                 ${./scripts/nix-config.sh} \
                 ${./scripts/tests/check-nix-config.sh} \
                 ${./scripts/input-share-reconcile.sh} \
-                ${./scripts/syncthing-fleet-reconcile.sh}
+                ${./scripts/syncthing-fleet-reconcile.sh} \
+                ${./scripts/lab.sh} \
+                ${./opencode/tests/check-workflow.sh}
               bash ${./scripts/tests/check-nix-config.sh} ${./scripts/nix-config.sh}
               nix-config --help >/dev/null
               touch "$out"
@@ -346,6 +359,7 @@
       devShells.${system}.default = pkgsFor.mkShell {
         packages = with pkgsFor; [
           treefmtEval.config.build.wrapper
+          actionlint
           nixfmt
           statix
           deadnix

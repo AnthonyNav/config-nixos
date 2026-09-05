@@ -49,7 +49,7 @@ and the Python constraints live in `modules/home/kiro-gateway-requirements.txt`.
 ## Repository Settings
 
 Enable branch protection for `main` in GitHub: require a pull request, one
-approval, and the `Flake checks / check` plus all `Flake checks / plan-host-build`
-jobs. CI executes repository checks and plans both NixOS and Home Manager for
-every workstation; full builds remain required local validation. Disallow force
-pushes and direct pushes.
+approval, and `Flake checks / check` plus each matrix instance of
+`Flake checks / plan-host-build`. CI executes every repository policy check and
+plans both NixOS and Home Manager for every workstation; full builds remain
+required local validation. Disallow force pushes and direct pushes.

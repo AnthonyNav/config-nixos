@@ -167,9 +167,11 @@ first-run experience.
 ## Contributions
 
 All changes use a short-lived branch and a PR to `main`. Read
-`CONTRIBUTING.md` before opening a PR. CI formats, evaluates, and plans every
-NixOS host build without downloading its closure; full NixOS builds remain a local
-validation. Branch protection must require those checks and a review.
+`CONTRIBUTING.md` before opening a PR. CI formats, evaluates, builds the
+repository policy checks, and plans both the NixOS and Home Manager output for
+every workstation without building their closures. Full workstation builds
+remain a local validation. Branch protection must require those checks and a
+review.
 
 ## External Artifacts
 
