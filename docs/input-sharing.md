@@ -1,36 +1,45 @@
-# Input sharing: desktop → Victus / ThinkPad
+# Input sharing across the workstation fleet
 
 The workstations use Lan Mouse as a software KVM while keeping every machine
-fully independent. Desktop is the only configured sender:
+fully independent. Any workstation can control either of the other two:
 
 ```text
-[ Victus ]  <----  [ Desktop ]  ---->  [ ThinkPad ]
-    left                                  right
+[ Desktop ]  <------>  [ Victus ]  <------>  [ ThinkPad ]
+     ^                                          ^
+     +------------------------------------------+
 ```
 
-Victus and ThinkPad still accept their own keyboard, touchpad and USB mouse at
-all times. Their applications, CPU/GPU/RAM, storage and session remain local;
-Lan Mouse only injects additional input events.
+Every host still accepts its own keyboard, touchpad and USB mouse at all times.
+Applications, CPU/GPU/RAM, storage and sessions remain local; Lan Mouse only
+injects additional input events.
 
 ## Network and security model
 
 - Lan Mouse runs on all three Hyprland sessions.
 - UDP 4242 is opened only on `tailscale0`; it is not opened on the normal LAN.
-- The desktop reconciler obtains peer IPv4 addresses from `tailscale status
-  --json`, so the KVM traffic is explicitly addressed over Tailscale rather
-  than relying on LAN DNS/mDNS.
+- Each reconciler obtains peer IPv4 addresses from `tailscale status --json`,
+  so KVM traffic is explicitly addressed over Tailscale rather than relying on
+  LAN DNS/mDNS.
 - Lan Mouse still uses its own DTLS peer fingerprint authorization on top of
   Tailscale.
 - Runtime DTLS key material and authorized fingerprints remain in
   `~/.config/lan-mouse/`; they are deliberately not stored in this repository.
-- Desktop uses the `layer-shell` capture backend and all hosts use `wlroots`
-  emulation. This avoids the known wlroots modifier-key limitation for a sender
-  using a non-layer-shell backend.
+- Every host uses the `layer-shell` capture backend and `wlroots` emulation.
+  This avoids the known wlroots modifier-key limitation for a sender using a
+  non-layer-shell backend.
+- The selected profile is mutable local state under
+  `~/.local/state/input-sharing/`; it contains no key or fingerprint.
 
 ## First activation
 
 Do not activate this feature from the PR branch. After the PR is merged, update
-all three machines from a clean `main` using the repository's normal workflow:
+the tailnet policy first. Render it with `nix run .#tailscale-policy`, compare it
+with the active policy, and apply the reviewed result from the Tailscale Access
+controls page. This repository validates and renders the policy but deliberately
+does not publish it with unattended credentials.
+
+Then update all three machines from a clean `main` using the repository's normal
+workflow:
 
 ```bash
 nix-update
@@ -43,25 +52,26 @@ input-share-status
 lan-mouse cli list
 ```
 
-On Desktop the list should contain `victus` on the left and `thinkpad` on the
-right. The topology is declared in `flake.nix`; `input-share-reconcile` derives
-their current Tailscale IPv4 addresses and persists them into Lan Mouse's local
-runtime configuration.
+The first run defaults to `all`, so every host configures both declared peers.
+The allowed peers and their screen edges live in `inventory/workstations.nix`;
+`input-share` derives their current Tailscale IPv4 addresses and persists the
+selected topology into Lan Mouse's local runtime configuration.
 
 ## First-time pairing
 
-The receiver must explicitly trust Desktop once per Lan Mouse identity:
+Every receiver must explicitly trust each machine that will control it once per
+Lan Mouse identity:
 
 1. Ensure all three machines are connected to the same tailnet (`tailscale
    status`).
-2. Open `lan-mouse` on Desktop and note its DTLS fingerprint.
-3. Open `lan-mouse` on ThinkPad and Victus.
-4. Move the Desktop pointer against the corresponding screen edge to create an
-   incoming connection attempt.
-5. On each receiver, compare the presented fingerprint with Desktop and choose
-   **Authorize** only when it matches.
-6. Move through the edge again. Keyboard and pointer input from Desktop should
-   now control that receiver.
+2. On the sender, open `lan-mouse` and note its DTLS fingerprint.
+3. On the receiver, open `lan-mouse` and select the sender profile with
+   `input-share pair <receiver>` on the sender.
+4. Move the pointer against the configured screen edge to create an incoming
+   connection attempt.
+5. Compare the presented fingerprint and choose **Authorize** only when it
+   matches.
+6. Repeat for the other directed pairs that you intend to use.
 
 Authorization is persisted locally on the receiver. It is not committed to Git
 and rebuilding NixOS does not make another machine trusted automatically.
@@ -69,16 +79,23 @@ and rebuilding NixOS does not make another machine trusted automatically.
 ## Operations
 
 ```bash
-input-share-reconcile   # re-apply the declared peers/Tailscale addresses
-input-share-status      # systemd status for daemon + reconciler
-input-share-logs        # follow both user-service logs
-lan-mouse               # graphical pairing/status frontend
-lan-mouse cli list      # outgoing peers seen by the local daemon
+input-share status          # selected profile and active outgoing clients
+input-share pair desktop    # control only Desktop from the current host
+input-share pair thinkpad   # control only ThinkPad from the current host
+input-share pair victus     # control only Victus from the current host
+input-share all             # activate both declared remote peers
+input-share off             # disable outgoing control; keep incoming available
+input-share reconcile       # re-resolve addresses and apply persisted selection
+input-share-services        # systemd status for daemon + reconciler
+input-share-logs            # follow both user-service logs
+lan-mouse                   # graphical pairing/status frontend
 ```
 
-If a Tailscale node identity/IP changes, run `input-share-reconcile` on Desktop.
-If the physical layout changes, update the `position` fields in `flake.nix` and
-merge/deploy normally rather than editing Lan Mouse clients by hand.
+`input-share pair` rejects the local host and any name outside the declared
+peer allowlist. If a Tailscale node identity/IP changes, run `input-share
+reconcile`. If the physical layout changes, update the `position` fields in
+`inventory/workstations.nix` and merge/deploy normally rather than editing Lan
+Mouse clients by hand.
 
 ## Clipboard
 

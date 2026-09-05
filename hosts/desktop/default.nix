@@ -5,6 +5,12 @@
   ...
 }:
 let
+  endpoints = import ../../inventory/endpoints.nix;
+  desktopEndpoints = endpoints.desktop;
+  woodpeckerGrpcPort = endpoints.ports.woodpeckerGrpc;
+  privateUiPorts = builtins.map (endpoint: endpoint.tailscalePort) (
+    builtins.attrValues desktopEndpoints.privateUis
+  );
   privateKubernetesUi =
     {
       name,
@@ -89,34 +95,20 @@ in
 
   environment.systemPackages = [ pkgs.kubectl ];
 
-  networking.firewall.interfaces.tailscale0.allowedTCPPorts = lib.mkAfter [ 9000 ];
+  networking.firewall.interfaces.tailscale0.allowedTCPPorts = lib.mkAfter (
+    [ endpoints.ports.woodpeckerGrpc ] ++ privateUiPorts
+  );
   networking.firewall.interfaces.docker0 = {
     # The Docker-backed Woodpecker agent reaches the server through the bridge.
     # Testcontainers also maps Ryuk onto a host ephemeral port, so its cleanup
     # connection from the job container needs the host's complete ephemeral range.
-    allowedTCPPorts = [ 9000 ];
+    allowedTCPPorts = [ woodpeckerGrpcPort ];
     allowedTCPPortRanges = [
       {
         from = 32768;
         to = 60999;
       }
     ];
-  };
-
-  # Keep the remote workspace private to the tailnet when Woodpecker takes
-  # the public HTTPS root through Funnel.
-  systemd.services.zellij-web-tailnet = {
-    description = "Publish Zellij web privately through Tailscale Serve";
-    after = [ "tailscaled.service" ];
-    wants = [ "tailscaled.service" ];
-    wantedBy = [ "multi-user.target" ];
-
-    serviceConfig = {
-      Type = "oneshot";
-      RemainAfterExit = true;
-      ExecStart = "${pkgs.tailscale}/bin/tailscale serve --bg --yes --tcp=8082 tcp://127.0.0.1:8082";
-      ExecStop = "${pkgs.tailscale}/bin/tailscale serve --tcp=8082 off";
-    };
   };
 
   services.k3s = {
@@ -155,7 +147,7 @@ in
       Type = "simple";
       Restart = "always";
       RestartSec = "15s";
-      ExecStart = "${pkgs.kubectl}/bin/kubectl --kubeconfig /etc/rancher/k3s/k3s.yaml --namespace ci port-forward --address 127.0.0.1,172.17.0.1 service/woodpecker-server 9000:9000";
+      ExecStart = "${pkgs.kubectl}/bin/kubectl --kubeconfig /etc/rancher/k3s/k3s.yaml --namespace ci port-forward --address 127.0.0.1,172.17.0.1 service/woodpecker-server ${toString woodpeckerGrpcPort}:${toString woodpeckerGrpcPort}";
     };
   };
 
@@ -173,8 +165,8 @@ in
     serviceConfig = {
       Type = "oneshot";
       RemainAfterExit = true;
-      ExecStart = "${pkgs.tailscale}/bin/tailscale serve --bg --yes --tcp=9000 tcp://127.0.0.1:9000";
-      ExecStop = "${pkgs.tailscale}/bin/tailscale serve --tcp=9000 off";
+      ExecStart = "${pkgs.tailscale}/bin/tailscale serve --bg --yes --tcp=${toString woodpeckerGrpcPort} tcp://127.0.0.1:${toString woodpeckerGrpcPort}";
+      ExecStop = "${pkgs.tailscale}/bin/tailscale serve --tcp=${toString woodpeckerGrpcPort} off";
     };
   };
 
@@ -183,7 +175,7 @@ in
     after = [
       "k3s.service"
       "tailscaled.service"
-      "zellij-web-tailnet.service"
+      "remote-workspace-serve.service"
       "woodpecker-grpc-serve.service"
       "argocd-private-serve.service"
       "grafana-private-serve.service"
@@ -201,10 +193,14 @@ in
       RemainAfterExit = true;
       Restart = "on-failure";
       RestartSec = "5s";
-      # Clear a stale root proxy before publishing the only public endpoint.
-      ExecStartPre = "-${pkgs.tailscale}/bin/tailscale serve --https=443 off";
-      ExecStart = "${pkgs.tailscale}/bin/tailscale funnel --bg --yes --https=443 http://127.0.0.1:80";
-      ExecStop = "${pkgs.tailscale}/bin/tailscale funnel --https=443 off";
+      # Clear both legacy workspace handlers before publishing the only public
+      # endpoint. The generic workspace now owns private HTTPS 8448.
+      ExecStartPre = [
+        "-${pkgs.tailscale}/bin/tailscale serve --https=${toString desktopEndpoints.woodpeckerHttp.httpsPort} off"
+        "-${pkgs.tailscale}/bin/tailscale serve --tcp=${toString endpoints.remoteWorkspace.backend.port} off"
+      ];
+      ExecStart = "${pkgs.tailscale}/bin/tailscale funnel --bg --yes --https=${toString desktopEndpoints.woodpeckerHttp.httpsPort} http://127.0.0.1:80";
+      ExecStop = "${pkgs.tailscale}/bin/tailscale funnel --https=${toString desktopEndpoints.woodpeckerHttp.httpsPort} off";
     };
   };
 
@@ -215,7 +211,7 @@ in
       service = "argocd-server";
       servicePort = 80;
       localPort = 18080;
-      tailscalePort = 8443;
+      tailscalePort = desktopEndpoints.privateUis.argocd.tailscalePort;
     }).argocd-private-forward;
   systemd.services.argocd-private-serve =
     (privateKubernetesUi {
@@ -224,7 +220,7 @@ in
       service = "argocd-server";
       servicePort = 80;
       localPort = 18080;
-      tailscalePort = 8443;
+      tailscalePort = desktopEndpoints.privateUis.argocd.tailscalePort;
     }).argocd-private-serve;
   systemd.services.grafana-private-forward =
     (privateKubernetesUi {
@@ -233,7 +229,7 @@ in
       service = "monitoring-grafana";
       servicePort = 80;
       localPort = 13000;
-      tailscalePort = 8444;
+      tailscalePort = desktopEndpoints.privateUis.grafana.tailscalePort;
     }).grafana-private-forward;
   systemd.services.grafana-private-serve =
     (privateKubernetesUi {
@@ -242,7 +238,7 @@ in
       service = "monitoring-grafana";
       servicePort = 80;
       localPort = 13000;
-      tailscalePort = 8444;
+      tailscalePort = desktopEndpoints.privateUis.grafana.tailscalePort;
     }).grafana-private-serve;
   systemd.services.rabbitmq-private-forward =
     (privateKubernetesUi {
@@ -251,7 +247,7 @@ in
       service = "rabbitmq-dev";
       servicePort = 15672;
       localPort = 15672;
-      tailscalePort = 8447;
+      tailscalePort = desktopEndpoints.privateUis.rabbitmq.tailscalePort;
     }).rabbitmq-private-forward;
   systemd.services.rabbitmq-private-serve =
     (privateKubernetesUi {
@@ -260,7 +256,7 @@ in
       service = "rabbitmq-dev";
       servicePort = 15672;
       localPort = 15672;
-      tailscalePort = 8447;
+      tailscalePort = desktopEndpoints.privateUis.rabbitmq.tailscalePort;
     }).rabbitmq-private-serve;
   systemd.services.prometheus-private-forward =
     (privateKubernetesUi {
@@ -269,7 +265,7 @@ in
       service = "monitoring-prometheus";
       servicePort = 9090;
       localPort = 19090;
-      tailscalePort = 8445;
+      tailscalePort = desktopEndpoints.privateUis.prometheus.tailscalePort;
     }).prometheus-private-forward;
   systemd.services.prometheus-private-serve =
     (privateKubernetesUi {
@@ -278,7 +274,7 @@ in
       service = "monitoring-prometheus";
       servicePort = 9090;
       localPort = 19090;
-      tailscalePort = 8445;
+      tailscalePort = desktopEndpoints.privateUis.prometheus.tailscalePort;
     }).prometheus-private-serve;
   systemd.services.alertmanager-private-forward =
     (privateKubernetesUi {
@@ -287,7 +283,7 @@ in
       service = "monitoring-alertmanager";
       servicePort = 9093;
       localPort = 19093;
-      tailscalePort = 8446;
+      tailscalePort = desktopEndpoints.privateUis.alertmanager.tailscalePort;
     }).alertmanager-private-forward;
   systemd.services.alertmanager-private-serve =
     (privateKubernetesUi {
@@ -296,7 +292,7 @@ in
       service = "monitoring-alertmanager";
       servicePort = 9093;
       localPort = 19093;
-      tailscalePort = 8446;
+      tailscalePort = desktopEndpoints.privateUis.alertmanager.tailscalePort;
     }).alertmanager-private-serve;
 
   # Keep legacy Testcontainers-labelled workflows compatible while allowing
@@ -318,7 +314,7 @@ in
       RestartSec = "5s";
       TimeoutStopSec = "45s";
       ExecStartPre = "-${pkgs.docker}/bin/docker rm --force woodpecker-agent-desktop";
-      ExecStart = "${pkgs.docker}/bin/docker run --rm --name=woodpecker-agent-desktop --init --env-file /etc/woodpecker/agent-desktop.env --env WOODPECKER_SERVER=172.17.0.1:9000 --env WOODPECKER_HOSTNAME=desktop-docker-testcontainers --env WOODPECKER_AGENT_CONFIG_FILE=/etc/woodpecker/agent.conf --env WOODPECKER_BACKEND=docker --env WOODPECKER_AGENT_LABELS=testcontainers=*,repo=AnthonyNav/estoma-services --env WOODPECKER_MAX_WORKFLOWS=2 --mount type=volume,src=woodpecker-agent-desktop-config,dst=/etc/woodpecker --mount type=bind,src=/var/run/docker.sock,dst=/var/run/docker.sock woodpeckerci/woodpecker-agent:v3.18.0 agent";
+      ExecStart = "${pkgs.docker}/bin/docker run --rm --name=woodpecker-agent-desktop --init --env-file /etc/woodpecker/agent-desktop.env --env WOODPECKER_SERVER=172.17.0.1:${toString woodpeckerGrpcPort} --env WOODPECKER_HOSTNAME=desktop-docker-testcontainers --env WOODPECKER_AGENT_CONFIG_FILE=/etc/woodpecker/agent.conf --env WOODPECKER_BACKEND=docker --env WOODPECKER_AGENT_LABELS=testcontainers=*,repo=AnthonyNav/estoma-services --env WOODPECKER_MAX_WORKFLOWS=2 --mount type=volume,src=woodpecker-agent-desktop-config,dst=/etc/woodpecker --mount type=bind,src=/var/run/docker.sock,dst=/var/run/docker.sock woodpeckerci/woodpecker-agent:v3.18.0 agent";
       ExecStop = "${pkgs.docker}/bin/docker stop --time=30 woodpecker-agent-desktop";
     };
   };

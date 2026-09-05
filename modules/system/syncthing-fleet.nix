@@ -8,6 +8,7 @@
 }:
 
 let
+  endpoints = import ../../inventory/endpoints.nix;
   policy = import ../../inventory/syncthing.nix;
   connectivity = hostFeatures.connectivity or { };
   enabled = connectivity.syncthing or false;
@@ -83,7 +84,7 @@ in
   ];
 
   networking.firewall.interfaces.tailscale0.allowedTCPPorts = lib.mkIf enabled (
-    lib.mkAfter [ 22000 ]
+    lib.mkAfter [ endpoints.ports.syncthing ]
   );
 
   services.syncthing = lib.mkIf enabled {
@@ -96,7 +97,7 @@ in
     overrideDevices = false;
     overrideFolders = false;
     settings.options = {
-      listenAddresses = [ "tcp://0.0.0.0:22000" ];
+      listenAddresses = [ "tcp://0.0.0.0:${toString endpoints.ports.syncthing}" ];
       globalAnnounceEnabled = false;
       localAnnounceEnabled = false;
       relaysEnabled = false;

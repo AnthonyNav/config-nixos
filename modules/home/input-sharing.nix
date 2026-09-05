@@ -19,18 +19,27 @@ let
     "bottom"
   ];
   lanMouse = lib.getExe pkgs.lan-mouse;
-  inputShareReconcile = pkgs.writeShellApplication {
-    name = "input-share-reconcile";
+  inputShare = pkgs.writeShellApplication {
+    name = "input-share";
     runtimeInputs = with pkgs; [
       coreutils
       gnused
       jq
       lan-mouse
       tailscale
+      util-linux
     ];
     text = ''
+      export INPUT_SHARE_HOST=${lib.escapeShellArg (hostFeatures.hostName or "")}
       export INPUT_SHARE_PEERS_JSON=${lib.escapeShellArg (builtins.toJSON peers)}
       ${builtins.readFile ../../scripts/input-share-reconcile.sh}
+    '';
+  };
+  inputShareReconcile = pkgs.writeShellApplication {
+    name = "input-share-reconcile";
+    runtimeInputs = [ inputShare ];
+    text = ''
+      exec input-share reconcile "$@"
     '';
   };
 in
@@ -40,6 +49,10 @@ in
     {
       assertion = builtins.all (peer: builtins.elem peer.host workstationNames) peers;
       message = "inputSharing.peers may only reference declared workstations.";
+    }
+    {
+      assertion = builtins.all (peer: peer.host != (hostFeatures.hostName or "")) peers;
+      message = "inputSharing.peers must not reference the local workstation.";
     }
     {
       assertion = builtins.all (peer: builtins.elem peer.position allowedPositions) peers;
@@ -57,6 +70,7 @@ in
 
   home.packages = lib.optionals enabled [
     pkgs.lan-mouse
+    inputShare
     inputShareReconcile
   ];
 
@@ -86,7 +100,7 @@ in
       };
       Service = {
         Type = "oneshot";
-        ExecStart = lib.getExe inputShareReconcile;
+        ExecStart = "${lib.getExe inputShare} reconcile";
         # Tailscale may become usable a few seconds after the graphical session.
         # Exit 75 from the reconciler leaves the old topology untouched; systemd
         # retries until the peer list can be resolved successfully.
@@ -98,7 +112,8 @@ in
   };
 
   home.shellAliases = lib.mkIf enabled {
-    input-share-status = "systemctl --user status lan-mouse input-share-reconcile";
+    input-share-status = "input-share status";
+    input-share-services = "systemctl --user status lan-mouse input-share-reconcile";
     input-share-logs = "journalctl --user -u lan-mouse -u input-share-reconcile -f";
   };
 }

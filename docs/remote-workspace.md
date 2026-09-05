@@ -13,7 +13,7 @@ Claude Code / Codex / OpenCode / Kiro CLI / any terminal program
                            |
                     Tailscale Serve
                            |
-                       HTTPS 443
+                HTTPS 443 or 8448
                            |
                     authenticated tailnet
 ```
@@ -44,9 +44,12 @@ Codex sessions while every CLI remains usable through its terminal PTY.
 
 The Zellij web server listens only on `127.0.0.1:8082`. Port 8082 is not opened
 by the NixOS firewall. Tailscale Serve is the only network-facing path and
-publishes the local backend over private HTTPS on port 443.
+publishes the local backend over private HTTPS. ThinkPad and Victus use port
+443. Desktop uses port 8448 because Woodpecker owns the public Funnel on port
+443. `remote-workspace url` includes the non-default port automatically.
 
-The tailnet policy remains self-scoped. Funnel is not enabled.
+The tailnet policy remains self-scoped. Funnel is not used for the remote
+workspace; Desktop's separate Woodpecker endpoint is the only public Funnel.
 
 ## First use
 

@@ -17,7 +17,16 @@
       remoteWorkspace.enable = true;
       inputSharing = {
         enable = true;
-        peers = [ ];
+        peers = [
+          {
+            host = "desktop";
+            position = "right";
+          }
+          {
+            host = "thinkpad";
+            position = "top";
+          }
+        ];
       };
     };
   };
@@ -72,7 +81,16 @@
       remoteWorkspace.enable = true;
       inputSharing = {
         enable = true;
-        peers = [ ];
+        peers = [
+          {
+            host = "desktop";
+            position = "left";
+          }
+          {
+            host = "victus";
+            position = "bottom";
+          }
+        ];
       };
     };
   };

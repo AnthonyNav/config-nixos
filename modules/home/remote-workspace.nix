@@ -9,6 +9,9 @@ let
   policy = import ../../inventory/remote-workspace.nix;
   remote = hostFeatures.remoteWorkspace or { };
   enabled = remote.enable or false;
+  hostName = hostFeatures.hostName or "";
+  endpoint = policy.hosts.${hostName} or { httpsPort = 0; };
+  httpsPort = endpoint.httpsPort;
 
   remoteWorkspace = pkgs.writeShellApplication {
     name = "remote-workspace";
@@ -31,7 +34,11 @@ let
                 printf 'Unable to determine this host Tailscale DNS name.\n' >&2
                 return 1
               fi
-              printf 'https://%s\n' "$dns_name"
+              if (( ${toString httpsPort} == 443 )); then
+                printf 'https://%s\n' "$dns_name"
+              else
+                printf 'https://%s:%s\n' "$dns_name" ${toString httpsPort}
+              fi
             }
 
             status() {
@@ -82,6 +89,10 @@ let
 in
 {
   assertions = lib.optionals enabled [
+    {
+      assertion = builtins.hasAttr hostName policy.hosts;
+      message = "features.remoteWorkspace requires a host endpoint in inventory/endpoints.nix.";
+    }
     {
       assertion = policy.backend.hostname == "127.0.0.1";
       message = "The generic remote workspace must listen only on 127.0.0.1.";
