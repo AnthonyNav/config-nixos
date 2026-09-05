@@ -56,7 +56,7 @@
       # Inicializar starship explícitamente usando la ruta del store de Nix
       eval "$(${pkgs.starship}/bin/starship init zsh)"
 
-      export PATH="$HOME/.local/bin:$HOME/.local/share/pnpm:$HOME/.npm-global/bin:$PATH"
+      ${builtins.readFile ../../scripts/development-path.zsh}
 
       if [ -S "$XDG_RUNTIME_DIR/ssh-agent" ]; then
         export SSH_AUTH_SOCK="$XDG_RUNTIME_DIR/ssh-agent"

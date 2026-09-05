@@ -128,6 +128,28 @@ Caelestia, Hyprland, lock/idle, Zsh, and development-profile changes are shared
 by all three workstations. Build the NixOS and Home Manager outputs for
 `thinkpad`, `victus`, and `desktop` before activation.
 
+## Development command resolution
+
+Interactive Zsh keeps inherited project and Nix paths ahead of manual global
+installations in `~/.local/bin`, `~/.local/share/pnpm`, and
+`~/.npm-global/bin`. These manual directories remain available at the end of
+`PATH`; existing installations and their data are not removed. The
+`development-path` flake check covers project precedence, managed commands,
+manual-only commands, and repeated initialization.
+
+When a tool still reports an old version after deployment, inspect an
+interactive shell, not only a non-interactive SSH command:
+
+```sh
+zsh -lic 'whence -a codex; codex --version'
+/etc/profiles/per-user/anthony/bin/codex --version
+```
+
+Different versions indicate command shadowing rather than necessarily a failed
+deployment. The absolute managed path can be used immediately. After deploying
+the reviewed shell configuration from `main`, open a new terminal; existing
+shells keep their previous environment.
+
 ## OpenCode
 
 Claude Code, Codex, OpenCode, and RTK come from the pinned `llm-agents` flake
