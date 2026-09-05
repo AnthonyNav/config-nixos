@@ -6,6 +6,7 @@
 }:
 
 let
+  endpoints = import ../../inventory/endpoints.nix;
   policy = import ../../inventory/tailscale.nix { inherit username; };
   connectivity = hostFeatures.connectivity or { };
   inputSharing = hostFeatures.inputSharing or { };
@@ -41,7 +42,7 @@ in
   ];
 
   networking.firewall.interfaces.tailscale0.allowedTCPPorts = lib.mkIf tailscaleEnabled (
-    lib.mkAfter (lib.optionals sshEnabled [ 22 ])
+    lib.mkAfter (lib.optionals sshEnabled [ endpoints.ports.ssh ])
   );
 
   services.tailscale = lib.mkIf tailscaleEnabled {

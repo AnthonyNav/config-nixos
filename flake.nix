@@ -70,6 +70,7 @@
           features
           ;
       }) workstations;
+      fleetEndpoints = import ./inventory/endpoints.nix;
       tailscalePolicyConfig = import ./inventory/tailscale.nix { inherit username; };
       tailnetPolicy = tailscalePolicyConfig.tailnetPolicy;
       tailnetPolicyFile = pkgsFor.writeText "tailnet-policy.json" (builtins.toJSON tailnetPolicy);
@@ -159,7 +160,12 @@
     in
     {
       lib = {
-        inherit fleetInventory tailnetPolicy workstationNames;
+        inherit
+          fleetEndpoints
+          fleetInventory
+          tailnetPolicy
+          workstationNames
+          ;
       };
 
       nixosConfigurations = (lib.mapAttrs mkHost workstations) // {
@@ -207,6 +213,35 @@
                 ${./.github/workflows/full-build.yml}
               touch "$out"
             '';
+        network-endpoints =
+          let
+            allEndpoints = fleetEndpoints.tailnet ++ fleetEndpoints.public;
+            endpointHosts = lib.concatMap (endpoint: endpoint.hosts) allEndpoints;
+            endpointBindings = lib.concatMap (
+              endpoint: map (host: "${host}:${endpoint.protocol}:${toString endpoint.port}") endpoint.hosts
+            ) allEndpoints;
+            tailnetGrantBindings = map (
+              endpoint: "${endpoint.protocol}:${toString endpoint.port}"
+            ) fleetEndpoints.tailnet;
+            expectedInputPeers =
+              host: lib.sort builtins.lessThan (builtins.filter (name: name != host) workstationNames);
+            declaredInputPeers =
+              host:
+              lib.sort builtins.lessThan (map (peer: peer.host) workstations.${host}.features.inputSharing.peers);
+            validPort = endpoint: endpoint.port > 0 && endpoint.port <= 65535;
+          in
+          assert lib.all (host: builtins.elem host workstationNames) endpointHosts;
+          assert lib.all validPort allEndpoints;
+          assert builtins.length endpointBindings == builtins.length (lib.unique endpointBindings);
+          assert builtins.length tailnetGrantBindings == builtins.length (lib.unique tailnetGrantBindings);
+          assert lib.all (host: declaredInputPeers host == expectedInputPeers host) workstationNames;
+          assert builtins.attrNames fleetEndpoints.remoteWorkspace.hosts == workstationNames;
+          assert
+            fleetEndpoints.remoteWorkspace.hosts.desktop.httpsPort
+            != fleetEndpoints.desktop.woodpeckerHttp.httpsPort;
+          pkgsFor.runCommand "network-endpoints-check" { } ''
+            touch "$out"
+          '';
         identity-policy =
           let
             homeConfig = self.homeConfigurations."${username}@thinkpad".config;
@@ -242,6 +277,9 @@
             fleetSshSettings = homeConfig.programs.ssh.settings;
             grant = builtins.head tailnetPolicy.grants;
             sshRule = builtins.head tailnetPolicy.ssh;
+            expectedGrantIps = builtins.map (
+              endpoint: "${endpoint.protocol}:${toString endpoint.port}"
+            ) fleetEndpoints.tailnet;
             expectedProxyCommand = "${lib.getExe pkgsFor.tailscale} nc %h %p";
           in
           assert tailscaleConfig.enable;
@@ -253,13 +291,10 @@
               "--ssh"
             ];
           assert systemConfig.services.openssh.enable;
-          assert builtins.elem 22 tailscaleFirewall.allowedTCPPorts;
+          assert builtins.elem fleetEndpoints.ports.ssh tailscaleFirewall.allowedTCPPorts;
           assert grant.src == [ "autogroup:member" ];
           assert grant.dst == [ "autogroup:self" ];
-          assert builtins.elem "tcp:22" grant.ip;
-          assert builtins.elem "tcp:443" grant.ip;
-          assert builtins.elem "tcp:22000" grant.ip;
-          assert builtins.elem "udp:4242" grant.ip;
+          assert grant.ip == expectedGrantIps;
           assert !(builtins.elem "*" grant.ip);
           assert sshRule.action == "check";
           assert sshRule.src == [ "autogroup:member" ];
@@ -286,13 +321,16 @@
           assert syncthingConfig.enable;
           assert !syncthingConfig.overrideDevices;
           assert !syncthingConfig.overrideFolders;
-          assert syncthingConfig.settings.options.listenAddresses == [ "tcp://0.0.0.0:22000" ];
+          assert
+            syncthingConfig.settings.options.listenAddresses == [
+              "tcp://0.0.0.0:${toString fleetEndpoints.ports.syncthing}"
+            ];
           assert !syncthingConfig.settings.options.globalAnnounceEnabled;
           assert !syncthingConfig.settings.options.localAnnounceEnabled;
           assert !syncthingConfig.settings.options.relaysEnabled;
           assert !syncthingConfig.settings.options.natEnabled;
-          assert builtins.elem 22000 tailscaleFirewall.allowedTCPPorts;
-          assert !(builtins.elem 22000 (tailscaleFirewall.allowedUDPPorts or [ ]));
+          assert builtins.elem fleetEndpoints.ports.syncthing tailscaleFirewall.allowedTCPPorts;
+          assert !(builtins.elem fleetEndpoints.ports.syncthing (tailscaleFirewall.allowedUDPPorts or [ ]));
           assert !(builtins.elem 21027 (tailscaleFirewall.allowedUDPPorts or [ ]));
           assert syncthingPolicy.folders.shared.id == "fleet-shared";
           assert syncthingPolicy.folders.shared.relativePath == "Sync/Fleet";
@@ -303,12 +341,13 @@
           let
             systemConfig = self.nixosConfigurations.thinkpad.config;
             remotePolicy = import ./inventory/remote-workspace.nix;
+            remoteEndpoint = remotePolicy.hosts.thinkpad;
             globalTcpPorts = systemConfig.networking.firewall.allowedTCPPorts or [ ];
             tailscaleTcpPorts = systemConfig.networking.firewall.interfaces.tailscale0.allowedTCPPorts or [ ];
           in
           assert workstations.thinkpad.features.remoteWorkspace.enable;
           assert systemConfig.users.users.${username}.linger;
-          assert builtins.elem remotePolicy.serve.httpsPort tailscaleTcpPorts;
+          assert builtins.elem remoteEndpoint.httpsPort tailscaleTcpPorts;
           assert !(builtins.elem remotePolicy.backend.port globalTcpPorts);
           assert !(builtins.elem remotePolicy.backend.port tailscaleTcpPorts);
           assert remotePolicy.backend.hostname == "127.0.0.1";
@@ -321,8 +360,12 @@
             {
               nativeBuildInputs = [
                 pkgsFor.bash
+                pkgsFor.coreutils
                 pkgsFor.git
+                pkgsFor.gnused
+                pkgsFor.jq
                 pkgsFor.shellcheck
+                pkgsFor.util-linux
                 nixConfigPackages.nixConfig
               ];
             }
@@ -330,11 +373,13 @@
               shellcheck \
                 ${./scripts/nix-config.sh} \
                 ${./scripts/tests/check-nix-config.sh} \
+                ${./scripts/tests/check-input-share.sh} \
                 ${./scripts/input-share-reconcile.sh} \
                 ${./scripts/syncthing-fleet-reconcile.sh} \
                 ${./scripts/lab.sh} \
                 ${./opencode/tests/check-workflow.sh}
               bash ${./scripts/tests/check-nix-config.sh} ${./scripts/nix-config.sh}
+              bash ${./scripts/tests/check-input-share.sh} ${./scripts/input-share-reconcile.sh}
               nix-config --help >/dev/null
               touch "$out"
             '';

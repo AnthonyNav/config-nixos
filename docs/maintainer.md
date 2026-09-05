@@ -164,6 +164,24 @@ Claude Code remains installed as a secondary CLI. Its local configuration under
 `~/.claude` is not managed by this repository, preserving the upstream
 first-run experience.
 
+## Tailnet Policy
+
+`inventory/endpoints.nix` is the source of truth for fleet ports and
+`inventory/tailscale.nix` derives the self-scoped grants from it. Render the
+policy without credentials:
+
+```sh
+nix run .#tailscale-policy
+```
+
+The repository does not publish the result to Tailscale. Before deploying a
+change that adds or removes an endpoint, compare the rendered JSON with the
+active policy and apply the reviewed result from the Tailscale Access controls
+page using an Owner, Admin, or Network admin account. Apply policy additions
+before deploying the corresponding service; remove obsolete grants only after
+the service rollout is complete. Never commit an API token or add unattended
+policy mutation to routine PR checks.
+
 ## Contributions
 
 All changes use a short-lived branch and a PR to `main`. Read

@@ -14,7 +14,9 @@ let
   remote = hostFeatures.remoteWorkspace or { };
   enabled = remote.enable or false;
   tailscaleEnabled = connectivity.tailscale or false;
-  httpsPort = policy.serve.httpsPort;
+  hostName = hostFeatures.hostName or "";
+  endpoint = policy.hosts.${hostName} or { httpsPort = 0; };
+  httpsPort = endpoint.httpsPort;
   backendPort = policy.backend.port;
   backendUrl = "http://${policy.backend.hostname}:${toString backendPort}";
   grant = builtins.head tailscalePolicy.grants;
@@ -26,6 +28,10 @@ in
     {
       assertion = tailscaleEnabled;
       message = "features.remoteWorkspace requires connectivity.tailscale.";
+    }
+    {
+      assertion = builtins.hasAttr hostName policy.hosts;
+      message = "features.remoteWorkspace requires a host endpoint in inventory/endpoints.nix.";
     }
     {
       assertion = policy.backend.hostname == "127.0.0.1";
