@@ -128,6 +128,27 @@ Caelestia, Hyprland, lock/idle, Zsh, and development-profile changes are shared
 by all three workstations. Build the NixOS and Home Manager outputs for
 `thinkpad`, `victus`, and `desktop` before activation.
 
+### Desktop Woodpecker agents
+
+Desktop runs separate Docker agents for backend/Testcontainers work and the
+Estoma frontend. `woodpecker-agent-frontend` advertises only
+`repo=AnthonyNav/estoma-app`, has one workflow slot, and keeps its agent config
+in the `woodpecker-agent-frontend-config` Docker volume. Do not replace the
+repository label with a wildcard or add frontend work to the existing
+`woodpecker-agent-desktop` service.
+
+Both desktop agents connect to the same local Woodpecker gRPC forward. The
+frontend agent requires its own `/etc/woodpecker/agent-frontend.env`, owned by
+root with mode 0600, containing `WOODPECKER_AGENT_SECRET` for a dedicated agent.
+An administrator creates that agent in Woodpecker Settings → Agents → Add agent
+and provisions the token securely on the host, never through chat or Git.
+Do not assume the backend agent token can be reused. The host configuration
+does not provision this identity or registry credentials. Repository-scoped
+GHCR credentials belong in Woodpecker's secret storage and must never be added
+to this repository or the host env file. After the reviewed change reaches
+`main`, deploy through `nix-update`; then verify the new unit and container
+before retrying queued frontend workflows.
+
 ## Development command resolution
 
 Interactive Zsh keeps inherited project and Nix paths ahead of manual global
