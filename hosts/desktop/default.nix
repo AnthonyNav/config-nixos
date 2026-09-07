@@ -319,5 +319,29 @@ in
     };
   };
 
+  # Keep frontend validation and image publication on a dedicated single-slot
+  # agent without broadening the estoma-services/Testcontainers runner.
+  systemd.services.woodpecker-agent-frontend = {
+    description = "Woodpecker Docker agent for the Estoma frontend on desktop";
+    after = [
+      "docker.service"
+      "network-online.target"
+    ];
+    requires = [ "docker.service" ];
+    wants = [ "network-online.target" ];
+    wantedBy = [ "multi-user.target" ];
+    unitConfig.ConditionPathExists = "/etc/woodpecker/agent-frontend.env";
+
+    serviceConfig = {
+      Type = "simple";
+      Restart = "always";
+      RestartSec = "5s";
+      TimeoutStopSec = "45s";
+      ExecStartPre = "-${pkgs.docker}/bin/docker rm --force woodpecker-agent-frontend";
+      ExecStart = "${pkgs.docker}/bin/docker run --rm --name=woodpecker-agent-frontend --init --env-file /etc/woodpecker/agent-frontend.env --env WOODPECKER_SERVER=172.17.0.1:${toString woodpeckerGrpcPort} --env WOODPECKER_HOSTNAME=desktop-docker-frontend --env WOODPECKER_AGENT_CONFIG_FILE=/etc/woodpecker/agent.conf --env WOODPECKER_BACKEND=docker --env WOODPECKER_AGENT_LABELS=repo=AnthonyNav/estoma-app --env WOODPECKER_MAX_WORKFLOWS=1 --mount type=volume,src=woodpecker-agent-frontend-config,dst=/etc/woodpecker --mount type=bind,src=/var/run/docker.sock,dst=/var/run/docker.sock woodpeckerci/woodpecker-agent:v3.18.0 agent";
+      ExecStop = "${pkgs.docker}/bin/docker stop --time=30 woodpecker-agent-frontend";
+    };
+  };
+
   system.stateVersion = "24.11";
 }
