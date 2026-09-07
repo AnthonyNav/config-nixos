@@ -51,6 +51,12 @@ let
     };
 in
 {
+  # Leave headroom for the integration cluster on this 16 GiB host.
+  nix.settings = {
+    max-jobs = 1;
+    cores = 1;
+  };
+
   imports = [
     ./hardware-configuration.nix
     ../../modules/system
@@ -314,7 +320,7 @@ in
       RestartSec = "5s";
       TimeoutStopSec = "45s";
       ExecStartPre = "-${pkgs.docker}/bin/docker rm --force woodpecker-agent-desktop";
-      ExecStart = "${pkgs.docker}/bin/docker run --rm --name=woodpecker-agent-desktop --init --env-file /etc/woodpecker/agent-desktop.env --env WOODPECKER_SERVER=172.17.0.1:${toString woodpeckerGrpcPort} --env WOODPECKER_HOSTNAME=desktop-docker-testcontainers --env WOODPECKER_AGENT_CONFIG_FILE=/etc/woodpecker/agent.conf --env WOODPECKER_BACKEND=docker --env WOODPECKER_AGENT_LABELS=testcontainers=*,repo=AnthonyNav/estoma-services --env WOODPECKER_MAX_WORKFLOWS=2 --mount type=volume,src=woodpecker-agent-desktop-config,dst=/etc/woodpecker --mount type=bind,src=/var/run/docker.sock,dst=/var/run/docker.sock woodpeckerci/woodpecker-agent:v3.18.0 agent";
+      ExecStart = "${pkgs.docker}/bin/docker run --rm --name=woodpecker-agent-desktop --init --env-file /etc/woodpecker/agent-desktop.env --env WOODPECKER_SERVER=172.17.0.1:${toString woodpeckerGrpcPort} --env WOODPECKER_HOSTNAME=desktop-docker-testcontainers --env WOODPECKER_AGENT_CONFIG_FILE=/etc/woodpecker/agent.conf --env WOODPECKER_BACKEND=docker --env WOODPECKER_AGENT_LABELS=testcontainers=*,repo=AnthonyNav/estoma-services --env WOODPECKER_MAX_WORKFLOWS=1 --mount type=volume,src=woodpecker-agent-desktop-config,dst=/etc/woodpecker --mount type=bind,src=/var/run/docker.sock,dst=/var/run/docker.sock woodpeckerci/woodpecker-agent:v3.18.0 agent";
       ExecStop = "${pkgs.docker}/bin/docker stop --time=30 woodpecker-agent-desktop";
     };
   };
