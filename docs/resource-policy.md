@@ -6,8 +6,8 @@ It trades build throughput for interactive headroom.
 
 | Setting | Desktop | Victus | ThinkPad |
 |---|---|---|---|
-| Concurrent Nix builds | 2 | 2 | 1 |
-| Suggested cores per build | 2 | 2 | 2 |
+| Concurrent Nix builds | 1 | 2 | 1 |
+| Suggested cores per build | 1 | 2 | 2 |
 | Nix daemon CPU / I/O weight | 50 / 50 | 50 / 50 | 25 / 25 |
 | Zram | zstd, 50% logical RAM size | same | same |
 | Disk swap added | none | none | 8 GiB, ephemeral encryption |
@@ -138,3 +138,25 @@ both swap and its encryption mapping are inactive. Do not delete it while active
 - The pinned Nixpkgs modules `nixos/modules/config/swap.nix` and
   `nixos/modules/virtualisation/docker.nix` define encrypted file swap and Docker
   socket activation used here.
+
+## Desktop integration workload follow-up (2026-09-07)
+
+A live sample during Nix compilation showed 452 MiB available RAM, full 7.7 GiB
+swap, load 66 and I/O PSI some avg60 about 96%. After the user cancelled the
+compilation, available memory recovered to 4.6 GiB, swap usage fell to 523 MiB
+and memory PSI avg60 returned to zero. These are point observations, not an SLO.
+
+Desktop now declares one Nix job with one suggested core, and one workflow slot
+for the backend CI agent. This reduces each source of concurrency; it does not
+serialize Nix against CI or enforce a global limit across separate CI agents.
+Keep frontend CI and Nix maintenance out of backend-heavy execution windows
+until cross-agent scheduling or relocation is implemented. Do not interrupt
+active pipelines as part of applying the new agent configuration.
+
+Build desktop outputs and required flake checks on a host with verified headroom
+(e.g. Victus), then transfer missing store paths through the established trusted
+store procedure before normal deployment from reviewed main. A system closure
+alone may not include all standalone check/Home Manager outputs used by
+nix-update. Verify all required outputs are available; do not restart expensive
+source compilation blindly. This change does not enable a remote builder or
+change cache trust, JVM heaps, Kubernetes resources, or running services.

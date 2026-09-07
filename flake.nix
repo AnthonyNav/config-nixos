@@ -255,7 +255,9 @@
           assert lib.all (c: c.nix.settings.cores > 0 && c.nix.settings."max-jobs" > 0) (
             builtins.attrValues configs
           );
-          assert thinkpad.nix.settings."max-jobs" < configs.desktop.nix.settings."max-jobs";
+          assert thinkpad.nix.settings."max-jobs" <= configs.desktop.nix.settings."max-jobs";
+          assert configs.desktop.nix.settings."max-jobs" == 1;
+          assert configs.desktop.nix.settings.cores == 1;
           assert builtins.length fallbackSwap == 1;
           assert (builtins.head fallbackSwap).randomEncryption.enable;
           assert (builtins.head fallbackSwap).priority < thinkpad.zramSwap.priority;
