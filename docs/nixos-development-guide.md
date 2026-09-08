@@ -33,6 +33,13 @@ flake and enter them with `nix develop`.
 Do not add a project dependency to this repository's shared profile unless all
 workstations need it regularly.
 
+From a Flutter project root, run `flutter-stop` after finishing Android builds
+to stop Gradle daemons for the wrapper's Gradle version and release their memory.
+The alias supplies Android Studio's bundled Java even when `JAVA_HOME` is unset,
+and preserves the current directory and shell environment. Finish other Android
+builds using that Gradle version first: the stop command is not project-scoped.
+It does not delete APKs or build caches; the next build starts a daemon again.
+
 This repository has four relevant profile layers: `base`, `development`,
 `database-tools`, and a selected desktop style. Creative NVIDIA software is a
 separate opt-in capability and must not be added to the ThinkPad profile.

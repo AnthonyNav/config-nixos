@@ -37,6 +37,8 @@
       v = "nvim";
       c = "clear";
       ff = "fastfetch";
+      # Desde la raíz Flutter; el subshell conserva el directorio y JAVA_HOME.
+      flutter-stop = ''(cd android && JAVA_HOME="${pkgs.android-studio.unwrapped}/jbr" ./gradlew --stop)'';
       # Pritunl VPN: el cliente real (CLI + daemon + GUI) se instala a nivel
       # de sistema, reproducible desde nixpkgs (ver modules/system/pritunl.nix)
       # — ya no es el AppImage manual que este alias reemplaza. `pritunl` abre
