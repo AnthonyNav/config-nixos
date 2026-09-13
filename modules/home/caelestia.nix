@@ -77,6 +77,17 @@ in
 
   };
 
+  # Quickshell/Caelestia has shown unbounded anonymous-memory growth after a
+  # long session (about 2.4 GiB resident plus 7.0 GiB swapped on desktop).
+  # Keep the desktop usable under a recurrence; the upstream unit already
+  # restarts on failure, so hitting MemoryMax recovers only the shell process.
+  systemd.user.services.caelestia.Service = {
+    MemoryAccounting = true;
+    MemoryHigh = "768M";
+    MemoryMax = "1G";
+    MemorySwapMax = "512M";
+  };
+
   # El modulo upstream enlaza `settings` al store y vuelve shell.json de solo
   # lectura. Al dejar `programs.caelestia.settings` vacio y sembrar este archivo
   # una sola vez, Nexus puede persistir cambios sin que cada switch los borre.
