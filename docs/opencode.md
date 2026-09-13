@@ -1,203 +1,33 @@
-# OpenCode Workflow
+# OpenCode
 
-## Managed Tools
+OpenCode is installed as the upstream package from the pinned `llm-agents` flake input.
+This repository does not manage OpenCode providers, agents, commands, skills, plugins,
+permissions, or project configuration for normal sessions.
 
-Every workstation receives these files through Home Manager:
+## Runtime ownership
 
-- `opencode/plugins/rtk.js`: rewrites supported shell commands through RTK to
-  keep command output compact before it reaches an agent.
-- `opencode/skills/graphify`: builds or queries a persistent repository graph.
-- `opencode/skills/pre-pr-review`: reviews pending changes against the real
-  configuration and validation flow.
-- `opencode/skills/nixos-maintenance`: applies this repository's NixOS change
-  and validation rules.
-- `opencode/skills/network-diagnostics`: follows the ThinkPad Wi-Fi protocol.
-- `opencode/agents/managed-inspector.md`: captures the immutable Git baseline
-  and attributable post-change diff through an exact read-only allowlist.
-- `opencode/agents/managed-orchestrator.md`: coordinates `/work` without Bash
-  or any implementation capability.
-- `opencode/agents/managed-apply-orchestrator.md`: crosses the human approval
-  boundary only when the user invokes `/work-apply <revision>`.
-- `opencode/agents/managed-implementer.md`: applies only an approved contract
-  and can run only the repository's explicit validation commands.
-- `opencode/agents/managed-reviewer.md`: independently reviews the attributable
-  diff without Bash, editing, skills, or subagents.
-- `opencode/commands/work.md` and `work-apply.md`: separate contract creation
-  from explicitly approved application.
-- `opencode/skills/task-contract` and `opencode/skills/risk-classification`:
-  mirror the managed contract and risk criteria for ordinary sessions; the
-  isolated agents embed their security-critical rules directly.
+OpenCode owns its normal user state and configuration. Configure it through the
+standard OpenCode mechanisms under the user's XDG directories or inside an individual
+project when needed. Nix only owns the installed binary/version.
 
-Restart OpenCode after changing configuration, an agent, command, skill, or
-plugin. The normal `opencode` executable retains project configuration and the
-managed skills and plugins under `~/.config/opencode/`. The separate
-`opencode-work` executable loads the workflow control plane from an immutable
-Nix store path and isolates both global and project config. It disables
-external plugins, Claude compatibility instructions and skills, LSPs,
-formatters, and caller-supplied late config overrides; only the immutable seed
-provider config and managed workflow are loaded.
-
-Start an interactive `opencode-work` session, then run
-`/work <mode> <task>`:
-
-- `fast` produces a minimal contract and is valid only for LOW-risk work.
-- `controlled` records alternatives and decisions for normal shared work.
-- `architecture` investigates and records cross-cutting decisions.
-
-`/work` requires a non-main branch, stable HEAD, a completely clean tracked
-tree, supported hashing for ignored state, and no symlink anywhere outside
-`.git`. It can inspect and produce a versioned contract ID, but cannot invoke
-an editing agent. After reading a ready contract, the user
-explicitly approves that exact unambiguous revision, for example
-`/work-apply C1-a1b2c3d4-opencode`, in the same session. The apply command
-rechecks the baseline before exposing the implementer. A new decision stops the
-run and requires a new `/work` revision followed by another explicit
-`/work-apply` invocation.
-
-Implementation returns `completed`, `needs-decision`, `validation-failed`, or
-`partial`. Review returns `approved` only with a complete attributable diff and
-successful evidence for every required check. For Nix changes, the implementer
-uses the immutable `opencode-work-format-nix` helper, which formats only changed
-tracked `.nix` files with the pinned `nixfmt`; it never executes the
-repository-selected `formatter` output. Another managed helper marks files
-created after the clean baseline as intent-to-add, without staging content, so
-Git diffs, formatting, and pure flake evaluation include them. The inspector
-also requires the ignored-file digest to remain unchanged.
-
-The managed agents and isolated process use deny-by-default permissions.
-Neither command commits, publishes, deploys, or activates; they only report an
-exact proposal for a separate manual action. The global Git and GitHub denies
-remain defense-in-depth guardrails for ordinary `opencode`, not a sandbox for
-arbitrary shell wrappers. Do not use `--auto` for a workflow requiring a human
-decision.
-
-## Local Configuration And Secrets
-
-`opencode/opencode.json` declares Kiro's provider and seed models without
-making Kiro the default model, so OpenCode starts without its gateway. After
-`kiro-gateway-bootstrap` succeeds, the normal wrapper exposes the generated
-models catalog and both wrappers resolve `{env:PROXY_API_KEY}` at runtime from
-`~/.config/kiro-gateway/.env`; the key never enters Nix. `opencode-work` keeps
-the immutable seed catalog instead of loading mutable generated config.
-Gateway source is pinned by `flake.lock`; its venv stays local under
-`~/.local/share/kiro-gateway/`. Do not add tokens, OAuth data, or database
-passwords to Git.
-
-The managed plugin and skills work without changing the local Kiro config.
-Edit the repository configuration, retain its `$schema`, and validate the JSON
-and resolved workflow before applying Home Manager:
+Do not use `opencode upgrade`; the executable lives in the Nix store. Update it by
+updating the `llm-agents` input in a dedicated branch and PR:
 
 ```sh
-jq empty opencode/opencode.json
-nix build --no-link .#checks.x86_64-linux.opencode-workflow
+nix flake update llm-agents
+nix eval --json .#lib.aiToolVersions
+nix fmt
+nix flake check --no-write-lock-file
 ```
 
-The workflow check executes the actual `opencode-work` wrapper from Nix. It
-loads OpenCode `1.18.13`, compares exact task and Bash allowlists, verifies both
-commands, injects late environment overrides, and places sentinel plugins and
-conflicting managed names in global and project config. The check fails if any
-external plugin runs or replaces the isolated control plane.
+Claude Code, Codex, OpenCode, and RTK share that pinned tool input so their versions
+remain reproducible across workstations.
 
-Home Manager no longer deletes legacy OpenCode files. Activation fails with a
-path-specific message if `~/.claude/skills/graphify` or
-`~/.config/opencode/plugins/rtk.ts` still exists; review and archive or remove
-that obsolete artifact manually before retrying activation.
+## Project-specific configuration
 
-Kiro Gateway discovers the models available to the signed-in account from
-Kiro's control-plane API. OpenCode custom providers still require an explicit
-`models` map, so the `kiro-opencode-model-sync` user timer writes newly
-detected IDs to `~/.local/state/opencode/kiro-models.json` every hour using the
-Nix-managed config as `--base-config`. OpenCode merges that catalog only after
-Kiro has bootstrapped successfully. The gateway alias `auto-kiro` is excluded:
-use the actual Kiro model ID `auto`. Run
-`kgw-models-sync` to refresh it now, then restart OpenCode.
+Prefer project-local OpenCode configuration when a repository needs special tools,
+MCP servers, permissions, agents, or instructions. This keeps unrelated projects and
+workstations from inheriting extra context or privileges.
 
-When Kiro advertises native reasoning levels for a model, the sync also creates
-matching OpenCode variants. Select `high` or `max` from `/models`; the gateway
-forwards the model-specific native Kiro field rather than using its fake
-reasoning fallback. The current GPT Luna, Sol, and Terra models support
-`low`, `medium`, `high`, `xhigh`, and `max`.
-
-The managed service allows 180 seconds for a model to begin streaming, 1,800
-seconds between stream reads, and at most two total attempts. Kiro's upstream
-15-second default can cancel complex generations before their first event;
-repeated cancellation makes responses slower and surfaces in OpenCode as a
-mid-task disconnect. Inspect `kgw-logs` for `FirstTokenTimeout` if it recurs.
-
-## Optional MCP Servers
-
-MCP servers are intentionally not enabled globally. They add tool schemas and
-context to every session, and some can access private data or perform writes.
-Enable them in the local config or a project config only when their capability
-is needed.
-
-### GitHub
-
-The official GitHub MCP can inspect repositories, issues, pull requests, and
-Actions. Start with a minimally scoped local token and read-only work. Put the
-token in the environment, never in the JSON or repository:
-
-```json
-{
-  "mcp": {
-    "github": {
-      "type": "remote",
-      "url": "https://api.githubcopilot.com/mcp/",
-      "enabled": true,
-      "headers": {
-        "Authorization": "Bearer {env:GITHUB_PAT}"
-      },
-      "timeout": 30000
-    }
-  }
-}
-```
-
-### Context7
-
-Context7 retrieves current, version-specific library documentation. Prefer its
-CLI plus skill workflow for routine coding because it avoids loading MCP tools
-in every session. Its remote MCP is useful only for documentation-heavy work:
-
-```json
-{
-  "mcp": {
-    "context7": {
-      "type": "remote",
-      "url": "https://mcp.context7.com/mcp",
-      "enabled": true,
-      "headers": {
-        "Authorization": "Bearer {env:CONTEXT7_API_KEY}"
-      },
-      "timeout": 30000
-    }
-  }
-}
-```
-
-### Browser Automation
-
-Use Playwright CLI plus a project skill for routine frontend work. Its upstream
-project recommends this path for coding agents because it is more token
-efficient than a global MCP. Configure Playwright MCP only for exploratory,
-stateful browser sessions, and limit it to the project that needs it.
-
-## Context Control
-
-RTK is the default token-saving mechanism. For a local config that needs
-tighter limits, add these schema-supported fields without replacing the Kiro
-provider block:
-
-```json
-{
-  "tool_output": {
-    "max_lines": 200,
-    "max_bytes": 8192
-  },
-  "compaction": {
-    "auto": true,
-    "prune": true,
-    "tail_turns": 6
-  }
-}
-```
+Secrets and provider credentials remain local and must never be committed to this
+repository or embedded in Nix expressions.
