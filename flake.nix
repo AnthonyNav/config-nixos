@@ -280,7 +280,8 @@
           assert builtins.elem "sockets.target" victus.systemd.sockets.docker.wantedBy;
           assert thinkpad.virtualisation.docker.enable && !thinkpad.virtualisation.docker.enableOnBoot;
           assert victus.virtualisation.docker.enable && !victus.virtualisation.docker.enableOnBoot;
-          assert configs.desktop.virtualisation.docker.enable && configs.desktop.virtualisation.docker.enableOnBoot;
+          assert configs.desktop.virtualisation.docker.enable
+            && configs.desktop.virtualisation.docker.enableOnBoot;
           assert victus.hardware.nvidia-container-toolkit.enable;
           assert configs.desktop.services.k3s.enable;
           pkgsFor.runCommand "resource-policy-check" { } ''
