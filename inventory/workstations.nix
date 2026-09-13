@@ -74,11 +74,12 @@
       syncthing = true;
     };
     features = {
+      # Explicit opt-in capability; the mobile-development role does not imply VMs.
       virtualizationLab.enable = true;
       graphics = "intel";
       creativeNvidia = false;
       monitorProfile = "dynamic";
-      remoteWorkspace.enable = true;
+      remoteWorkspace.enable = false;
       inputSharing = {
         enable = true;
         peers = [

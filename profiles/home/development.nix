@@ -4,8 +4,6 @@
   imports = [
     ../../modules/home/zsh.nix
     ../../modules/home/nix-config.nix
-    ../../modules/home/kiro-gateway.nix
-    ../../modules/home/opencode.nix
     ../../modules/home/remote-workspace.nix
   ];
 
@@ -32,6 +30,7 @@
     antigravity-ide
     aiToolsPackages.claude-code
     aiToolsPackages.codex
+    aiToolsPackages.opencode
     aiToolsPackages.rtk
     python3
     python3Packages.pip

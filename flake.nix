@@ -442,9 +442,8 @@
             globalTcpPorts = systemConfig.networking.firewall.allowedTCPPorts or [ ];
             tailscaleTcpPorts = systemConfig.networking.firewall.interfaces.tailscale0.allowedTCPPorts or [ ];
           in
-          assert workstations.thinkpad.features.remoteWorkspace.enable;
-          assert systemConfig.users.users.${username}.linger;
-          assert builtins.elem remoteEndpoint.httpsPort tailscaleTcpPorts;
+          assert !workstations.thinkpad.features.remoteWorkspace.enable;
+          assert !(builtins.elem remoteEndpoint.httpsPort tailscaleTcpPorts);
           assert !(builtins.elem remotePolicy.backend.port globalTcpPorts);
           assert !(builtins.elem remotePolicy.backend.port tailscaleTcpPorts);
           assert remotePolicy.backend.hostname == "127.0.0.1";
