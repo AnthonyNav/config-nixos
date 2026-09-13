@@ -5,6 +5,8 @@
   estoma.idle.suspendTimeoutSeconds = null;
 
   imports = [
+    ../../profiles/home/development.nix
+    ../../profiles/home/database-tools.nix
     ../../modules/home/creative-suite.nix
     ../../modules/home/monitors-desktop.nix
   ];
