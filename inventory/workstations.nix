@@ -1,6 +1,6 @@
 {
   victus = {
-    role = "workstation";
+    role = "creative-ml-workstation";
     systemModule = ../hosts/victus;
     homeModules = [ ../hosts/victus/home.nix ];
     desktopStyle = "caelestia";
@@ -11,10 +11,11 @@
     };
     features = {
       virtualizationLab.enable = true;
+      gpuCompute.enable = true;
       graphics = "nvidia-prime";
       creativeNvidia = true;
       monitorProfile = "dynamic";
-      remoteWorkspace.enable = true;
+      remoteWorkspace.enable = false;
       inputSharing = {
         enable = true;
         peers = [

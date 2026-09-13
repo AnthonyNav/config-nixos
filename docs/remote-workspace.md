@@ -1,6 +1,6 @@
 # Generic Remote Workspace
 
-The remote workspace is deliberately independent from any AI provider.
+The remote workspace is deliberately independent from any AI provider and is currently enabled only on `desktop`.
 
 ## Architecture
 
@@ -13,47 +13,26 @@ Claude Code / Codex / OpenCode / Kiro CLI / any terminal program
                            |
                     Tailscale Serve
                            |
-                HTTPS 443 or 8448
+                       HTTPS 8448
                            |
                     authenticated tailnet
 ```
 
-Zellij owns terminal sessions and its web authentication. Tailscale owns private
-network reachability and HTTPS publication. NixOS only declares installation,
-service lifetime, firewall policy, and integration with the workstation fleet.
+Zellij owns terminal sessions and its web authentication. Tailscale owns private network reachability and HTTPS publication. NixOS only declares installation, service lifetime, firewall policy, and integration with the workstation fleet.
 
-No Claude, Codex, OpenCode, Kiro, GitHub, or model-provider credential is copied
-into this layer.
+No Claude, Codex, OpenCode, Kiro, GitHub, or model-provider credential is copied into this layer.
 
-## Why Zellij
+## Host scope
 
-Zellij provides the universal fallback needed for terminal coding agents:
+`desktop` is the only current Remote Workspace host. It publishes the localhost backend through private Tailscale HTTPS on port `8448`; port `8082` is never opened by the NixOS firewall.
 
-- persistent terminal sessions
-- browser access
-- mobile-specific controls
-- authenticated login tokens
-- session resurrection
-- remote terminal attach
+ThinkPad and Victus deliberately set `features.remoteWorkspace.enable = false`. They remain normal interactive workstations reachable through Tailscale SSH without running a persistent Zellij Web service.
 
-Provider-native APIs can be added later as optional adapters without changing
-the baseline. A future Agent Hub can therefore enrich OpenCode, Claude, or
-Codex sessions while every CLI remains usable through its terminal PTY.
-
-## Network boundary
-
-The Zellij web server listens only on `127.0.0.1:8082`. Port 8082 is not opened
-by the NixOS firewall. Tailscale Serve is the only network-facing path and
-publishes the local backend over private HTTPS. ThinkPad and Victus use port
-443. Desktop uses port 8448 because Woodpecker owns the public Funnel on port
-443. `remote-workspace url` includes the non-default port automatically.
-
-The tailnet policy remains self-scoped. Funnel is not used for the remote
-workspace; Desktop's separate Woodpecker endpoint is the only public Funnel.
+The tailnet policy remains self-scoped. Funnel is not used for the remote workspace; Desktop's separate Woodpecker endpoint remains the only public Funnel.
 
 ## First use
 
-After activating the configuration on a workstation:
+After activating the configuration on Desktop:
 
 ```bash
 remote-workspace status
@@ -61,16 +40,13 @@ remote-workspace url
 remote-workspace create-token
 ```
 
-The login token is displayed once. Zellij stores only its hash locally, so keep
-the displayed token in an appropriate private credential store if it needs to
-be reused.
+The login token is displayed once. Zellij stores only its hash locally, so keep the displayed token in an appropriate private credential store if it needs to be reused.
 
-Open the URL reported by `remote-workspace url` from an authenticated Tailscale
-device and sign in with the Zellij token.
+Open the URL reported by `remote-workspace url` from an authenticated Tailscale device and sign in with the Zellij token.
 
 ## Sessions
 
-From a workstation terminal, normal Zellij usage remains available:
+Normal Zellij usage remains available on Desktop:
 
 ```bash
 zellij --session backend
@@ -87,8 +63,7 @@ opencode
 kiro-cli
 ```
 
-The browser or phone is a client. Closing it does not own the lifetime of the
-Zellij session or the coding-agent process.
+The browser or phone is a client. Closing it does not own the lifetime of the Zellij session or the coding-agent process.
 
 Useful diagnostics:
 
@@ -106,15 +81,11 @@ remote-workspace create-read-only-token
 
 ## Host lifetime
 
-The user systemd manager uses linger so the web service can start at boot and
-survive logout. Host shutdown, reboot, suspension, or explicit session/process
-termination remain execution boundaries.
+The Desktop user systemd manager uses linger so the web service can start at boot and survive logout. Host shutdown, reboot, suspension, or explicit session/process termination remain execution boundaries.
 
 ## Future Agent Hub
 
-The planned Agent Hub belongs in a separate Linux-oriented repository. Its core
-must not depend on NixOS or Tailscale. This repository will eventually consume
-Agent Hub as one integration and keep Zellij/PTTY as the universal fallback.
+The planned Agent Hub belongs in a separate Linux-oriented repository. Its core must not depend on NixOS or Tailscale. This repository can consume Agent Hub as an integration while keeping the generic PTY path isolated to hosts that explicitly enable it.
 
 Candidate optional adapters:
 
@@ -123,4 +94,4 @@ Candidate optional adapters:
 - Codex app-server
 - generic command / PTY
 
-No provider adapter may become a prerequisite for basic remote terminal access.
+No provider adapter may become a prerequisite for ordinary Tailscale SSH access.
