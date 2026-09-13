@@ -8,7 +8,10 @@ in
 {
   assertions = lib.optionals enabled [
     {
-      assertion = builtins.elem graphics [ "nvidia" "nvidia-prime" ];
+      assertion = builtins.elem graphics [
+        "nvidia"
+        "nvidia-prime"
+      ];
       message = "features.gpuCompute requires an NVIDIA graphics capability.";
     }
   ];
