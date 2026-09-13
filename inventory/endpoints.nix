@@ -10,11 +10,7 @@ let
     lanMouse = 4242;
     woodpeckerGrpc = 9000;
     woodpeckerHttp = 443;
-    remoteWorkspace = {
-      desktop = 8448;
-      thinkpad = 443;
-      victus = 443;
-    };
+    remoteWorkspace.desktop = 8448;
     desktopUis = {
       argocd = 8443;
       grafana = 8444;
@@ -32,11 +28,7 @@ in
       hostname = "127.0.0.1";
       port = 8082;
     };
-    hosts = {
-      desktop.httpsPort = ports.remoteWorkspace.desktop;
-      thinkpad.httpsPort = ports.remoteWorkspace.thinkpad;
-      victus.httpsPort = ports.remoteWorkspace.victus;
-    };
+    hosts.desktop.httpsPort = ports.remoteWorkspace.desktop;
     configFile = ".config/remote-workspace/zellij.kdl";
   };
 
@@ -62,15 +54,6 @@ in
       protocol = "tcp";
       port = ports.ssh;
       hosts = workstationNames;
-    }
-    {
-      name = "remote-workspace-standard";
-      protocol = "tcp";
-      port = ports.remoteWorkspace.thinkpad;
-      hosts = [
-        "thinkpad"
-        "victus"
-      ];
     }
     {
       name = "remote-workspace-desktop";
