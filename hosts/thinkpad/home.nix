@@ -1,6 +1,8 @@
 { hostFeatures, ... }:
 
 {
+  imports = [ ../../profiles/home/roles/mobile-development.nix ];
+
   assertions = [
     {
       assertion = !hostFeatures.creativeNvidia;
