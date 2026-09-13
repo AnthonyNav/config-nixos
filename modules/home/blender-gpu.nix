@@ -25,7 +25,9 @@
         if $DRY_RUN_CMD ${pkgs.curl}/bin/curl -fsSL "${blenderUrl}" -o "$archive"; then
           echo "${blenderSha256}  $archive" > "$tmp/checksum"
           if ${pkgs.coreutils}/bin/sha256sum -c "$tmp/checksum" >/dev/null 2>&1; then
-            $DRY_RUN_CMD ${pkgs.gnutar}/bin/tar -xJf "$archive" -C "$tmp"
+            $DRY_RUN_CMD ${pkgs.gnutar}/bin/tar \
+              --use-compress-program=${pkgs.xz}/bin/xz \
+              -xf "$archive" -C "$tmp"
             $DRY_RUN_CMD mkdir -p "$HOME/.local/opt"
             $DRY_RUN_CMD rm -rf "$blender_dir"
             $DRY_RUN_CMD mv "$tmp/blender-${blenderVersion}-linux-x64" "$blender_dir"
