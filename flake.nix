@@ -90,7 +90,7 @@
       fleetEndpoints = import ./inventory/endpoints.nix;
       tailscalePolicyConfig = import ./inventory/tailscale.nix { inherit username; };
       tailnetPolicy = tailscalePolicyConfig.tailnetPolicy;
-      tailnetPolicyFile = pkgsFor.writeText "tailnet-policy.json" (builtins.toJSON tailnetPolicy);
+      tailnetPolicyFile = pkgsFor.writeText "tailscale-policy.json" (builtins.toJSON tailnetPolicy);
       tailscalePolicyPrinter = pkgsFor.writeShellApplication {
         name = "tailscale-policy";
         text = ''
@@ -280,8 +280,8 @@
           assert builtins.elem "sockets.target" victus.systemd.sockets.docker.wantedBy;
           assert thinkpad.virtualisation.docker.enable && !thinkpad.virtualisation.docker.enableOnBoot;
           assert victus.virtualisation.docker.enable && !victus.virtualisation.docker.enableOnBoot;
-          assert configs.desktop.virtualisation.docker.enable
-            && configs.desktop.virtualisation.docker.enableOnBoot;
+          assert
+            configs.desktop.virtualisation.docker.enable && configs.desktop.virtualisation.docker.enableOnBoot;
           assert victus.hardware.nvidia-container-toolkit.enable;
           assert configs.desktop.services.k3s.enable;
           pkgsFor.runCommand "resource-policy-check" { } ''
