@@ -5,6 +5,7 @@
     ../../modules/home/zsh.nix
     ../../modules/home/nix-config.nix
     ../../modules/home/remote-workspace.nix
+    ./development/spec-kit.nix
   ];
 
   home.packages = with pkgs; [
