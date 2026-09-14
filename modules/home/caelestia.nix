@@ -84,10 +84,12 @@ in
   # Do not throttle this interactive shell with MemoryHigh: at 768 MiB it
   # entered sustained direct reclaim even with about 10 GiB of RAM available,
   # stalling the desktop. Keep the hard memory and swap caps for containment.
+  # The 1 GiB hard cap also triggered repeated reclaim at the max boundary;
+  # allow 2 GiB of resident/accounted memory without expanding swap usage.
   systemd.user.services.caelestia.Service = {
     MemoryAccounting = true;
     MemoryHigh = "infinity";
-    MemoryMax = "1G";
+    MemoryMax = "2G";
     MemorySwapMax = "512M";
   };
 
