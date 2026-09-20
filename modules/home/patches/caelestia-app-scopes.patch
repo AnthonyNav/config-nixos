@@ -1,0 +1,25 @@
+--- a/modules/launcher/services/Apps.qml
++++ b/modules/launcher/services/Apps.qml
+@@ -11,13 +11,15 @@
+     function launch(entry: DesktopEntry): void {
+         appDb.incrementFrequency(entry.id);
+ 
+-        if (entry.runInTerminal)
+-            Quickshell.execDetached({
+-                command: [...GlobalConfig.general.apps.terminal, `${Quickshell.shellDir}/assets/wrap_term_launch.sh`, ...entry.command],
+-                workingDirectory: entry.workingDirectory
+-            });
+-        else
+-            entry.execute();
++        // A detached process still inherits the shell's cgroup. Move the
++        // entire command (including its terminal) into an independent scope.
++        const command = entry.runInTerminal
++            ? [...GlobalConfig.general.apps.terminal, `${Quickshell.shellDir}/assets/wrap_term_launch.sh`, ...entry.command]
++            : entry.command;
++        Quickshell.execDetached({
++            command: ["@systemd-run@", "--user", "--scope", "--slice=app.slice", "--collect", "--quiet", "--expand-environment=no", "--", ...command],
++            workingDirectory: entry.workingDirectory
++        });
+     }
+ 
+     function search(search: string): var {

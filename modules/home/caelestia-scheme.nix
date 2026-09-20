@@ -128,10 +128,15 @@ let
       caelestia-cli = wrappedCli;
     }).overrideAttrs
       (old: {
+        postPatch = (old.postPatch or "") + ''
+          substituteInPlace modules/launcher/services/Apps.qml \
+            --replace-fail '@systemd-run@' '${pkgs.systemd}/bin/systemd-run'
+        '';
         # Corrige el flujo Wi-Fi compartido por Nexus y el popout: conserva la
         # red activa hasta confirmar el reemplazo, usa UUID para perfiles
         # guardados y no fija redes visibles a un BSSID.
         patches = (old.patches or [ ]) ++ [
+          ./patches/caelestia-app-scopes.patch
           (pkgs.writeText "caelestia-wifi-connection-flow.patch" ''
             diff --git a/modules/bar/popouts/Network.qml b/modules/bar/popouts/Network.qml
             --- a/modules/bar/popouts/Network.qml

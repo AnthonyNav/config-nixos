@@ -80,7 +80,9 @@ in
   # Quickshell/Caelestia has shown unbounded anonymous-memory growth after a
   # long session (about 2.4 GiB resident plus 7.0 GiB swapped on desktop).
   # Keep the desktop usable under a recurrence; the upstream unit already
-  # restarts on failure, so hitting MemoryMax recovers only the shell process.
+  # restarts on failure. These caps cover the shell and any children remaining
+  # in its cgroup; the patched application launcher uses separate app.slice
+  # scopes so launched applications do not share these limits.
   # Do not throttle this interactive shell with MemoryHigh: at 768 MiB it
   # entered sustained direct reclaim even with about 10 GiB of RAM available,
   # stalling the desktop. Keep the hard memory and swap caps for containment.
