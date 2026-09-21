@@ -288,6 +288,11 @@ set-monitor right portrait-inv     # 270° — probar si "portrait" queda al rev
 set-monitor right normal DP-2      # 3+ monitores conectados: nombre explícito
 ```
 
+`set-monitor` descarta `LD_LIBRARY_PATH` únicamente para su proceso y sus
+herramientas Nix: las bibliotecas de Python/Jupyter heredadas de la terminal
+pueden ser incompatibles con `hyprctl`. El entorno de la terminal no cambia.
+Si falla la consulta de monitores, se muestra el error original de `hyprctl`.
+
 El "ancla" (monitor de referencia) es `eDP-1` (panel interno) si está
 presente, si no el monitor enfocado, si no el de menor id — cubre tanto
 laptops (victus, thinkpad) como `desktop` (sin panel interno). Con más de 2

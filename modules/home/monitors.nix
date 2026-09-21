@@ -27,6 +27,12 @@
         pkgs.coreutils
       ];
       text = ''
+        # Las herramientas de este comando usan sus bibliotecas fijadas por Nix.
+        # Un LD_LIBRARY_PATH de Python/Jupyter puede introducir un libstdc++
+        # incompatible en hyprctl. Limpiar solo este proceso y sus hijos;
+        # el entorno de la terminal y sus kernels permanece intacto.
+        unset LD_LIBRARY_PATH
+
         usage() {
           cat >&2 <<'EOF'
         Uso: set-monitor <left|right> [normal|portrait|portrait-inv] [OUTPUT] [ANCHOR]
@@ -89,8 +95,12 @@
             ;;
         esac
 
-        if ! monitors_json="$(hyprctl monitors -j 2>/dev/null)"; then
-          echo "hyprctl monitors falló — ¿estás dentro de una sesión de Hyprland?" >&2
+        if ! monitors_json="$(hyprctl monitors -j)"; then
+          # hyprctl también escribe algunos errores de conexión en stdout.
+          if [ -n "$monitors_json" ]; then
+            printf '%s\n' "$monitors_json" >&2
+          fi
+          echo "No se pudo consultar Hyprland; revisa el error de hyprctl mostrado arriba." >&2
           exit 1
         fi
 
