@@ -13,6 +13,8 @@
 
     llm-agents.url = "github:numtide/llm-agents.nix";
 
+    herdr.url = "github:herdrdev/herdr/v0.9.1";
+
     home-manager = {
       url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -58,6 +60,10 @@
         config.allowUnfree = true;
       };
       aiToolsPackages = inputs.llm-agents.packages.${system};
+      herdrPackage = inputs.herdr.packages.${system}.default;
+      kiroPackages = import ./packages/kiro.nix { pkgs = pkgsFor; };
+      dbgatePackage = pkgsFor.callPackage ./packages/dbgate.nix { };
+      dbeaverPackage = import ./packages/dbeaver.nix { pkgs = pkgsFor; };
       aiToolVersions = {
         claudeCode = aiToolsPackages.claude-code.version;
         codex = aiToolsPackages.codex.version;
@@ -134,8 +140,12 @@
               home-manager.extraSpecialArgs = {
                 inherit
                   aiToolsPackages
+                  dbgatePackage
+                  dbeaverPackage
                   fleetInventory
+                  herdrPackage
                   inputs
+                  kiroPackages
                   username
                   workstationNames
                   ;
@@ -162,8 +172,12 @@
           extraSpecialArgs = {
             inherit
               aiToolsPackages
+              dbgatePackage
+              dbeaverPackage
               fleetInventory
+              herdrPackage
               inputs
+              kiroPackages
               username
               workstationNames
               ;
@@ -207,6 +221,11 @@
         nix-config = nixConfigPackages.nixConfig;
         gitleaks = pkgsFor.gitleaks;
         tailscale-policy = tailscalePolicyPrinter;
+        kiro-cli = kiroPackages.cli;
+        kiro = kiroPackages.ide;
+        herdr = herdrPackage;
+        dbgate = dbgatePackage;
+        dbeaver = dbeaverPackage;
       };
       apps.${system} = {
         nix-config = {

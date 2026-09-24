@@ -1,4 +1,10 @@
-{ aiToolsPackages, pkgs, ... }:
+{
+  aiToolsPackages,
+  herdrPackage,
+  kiroPackages,
+  pkgs,
+  ...
+}:
 
 {
   imports = [
@@ -26,8 +32,9 @@
     insomnia
     gotestsum
     mockgen
-    kiro
-    kiro-cli
+    kiroPackages.ide
+    kiroPackages.cli
+    herdrPackage
     antigravity-ide
     aiToolsPackages.claude-code
     aiToolsPackages.codex
