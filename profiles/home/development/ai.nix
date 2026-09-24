@@ -1,8 +1,14 @@
-{ aiToolsPackages, pkgs, ... }:
+{
+  aiToolsPackages,
+  herdrPackage,
+  kiroPackages,
+  ...
+}:
 
 {
   home.packages = [
-    pkgs.kiro-cli
+    kiroPackages.cli
+    herdrPackage
     aiToolsPackages.claude-code
     aiToolsPackages.codex
     aiToolsPackages.opencode

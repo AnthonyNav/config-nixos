@@ -171,6 +171,22 @@ deployment. The absolute managed path can be used immediately. After deploying
 the reviewed shell configuration from `main`, open a new terminal; existing
 shells keep their previous environment.
 
+## Kiro, Herdr, and database clients
+
+Kiro CLI and IDE are pinned separately from `nixpkgs` in `packages/kiro.nix`
+and `packages/kiro-ide.nix`. The CLI retains Nixpkgs' FHS wrapper for its
+embedded Bun runtime. The IDE uses `buildVscode` with the Code OSS version
+from the vendor archive. Both packages are exposed as `.#kiro-cli` and
+`.#kiro` for build validation. The IDE is included on `victus` and `desktop`;
+the CLI is included on all three workstations. `herdr` is pinned to a release
+tag as a flake input and is also included on all three workstations. Update
+Herdr through its flake input, not its self-updater.
+
+DbGate Community is pinned in `packages/dbgate.nix` for `victus` and exposed
+as `.#dbgate`. Database connections and credentials stay in local application
+state, never in this repository. DBeaver is pinned in `packages/dbeaver.nix`
+for `desktop` and exposed as `.#dbeaver`.
+
 ## OpenCode
 
 Claude Code, Codex, OpenCode, and RTK come from the pinned `llm-agents` flake

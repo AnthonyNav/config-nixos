@@ -489,13 +489,15 @@ rm -rf ~/.local/share/kiro-gateway ~/.config/kiro-gateway ~/.config/opencode
 
 ## Base de datos y terminal
 
-Todos los hosts reciben clientes de desarrollo, no un servidor de base de datos:
+Los perfiles de desarrollo incluyen clientes para bases de datos, sin iniciar
+un servidor en cada workstation:
 
-| Herramienta | Uso |
-|---|---|
-| DBeaver | Cliente gráfico universal para SQL y motores con drivers JDBC |
-| MySQL Workbench | Administración y modelado específico de MySQL/MariaDB |
-| `usql` | Cliente universal de terminal para PostgreSQL, MySQL/MariaDB, SQLite, SQL Server, Oracle y otros |
+| Herramienta | Host | Uso |
+|---|---|---|
+| DbGate Community | `victus` | Cliente gráfico para SQL, MongoDB y Redis |
+| DBeaver | `desktop` | Cliente gráfico para SQL y motores con drivers JDBC |
+| MySQL Workbench | `desktop` | Administración y modelado de MySQL/MariaDB |
+| `usql` | Todos | Cliente de terminal para PostgreSQL, MySQL/MariaDB, SQLite, SQL Server, Oracle y otros |
 
 Ejemplos de `usql`:
 
@@ -642,7 +644,7 @@ Si el paso extra molesta a futuro, la salida es comprar **Resolve Studio**
 | **C / C++** | GCC, Make, CMake, GDB |
 | **Data / Python** | Python 3, pip, Micromamba |
 | **DevOps** | Docker + Compose, GitHub CLI (`gh`) |
-| **IA / Agentes** | Claude Code, Codex (OpenAI CLI), Kiro, Kiro CLI, OpenCode |
+| **IA / Agentes** | Claude Code, Codex (OpenAI CLI), Kiro IDE (`victus` y `desktop`), Kiro CLI, OpenCode, Herdr |
 | **3D / Video** | DaVinci Resolve, Blender, Kdenlive, Krita, GIMP, Inkscape, ffmpeg (ver [Edición 3D / Video](#edición-3d--video)) |
 
 ### Herramientas de terminal
