@@ -40,10 +40,6 @@ cat >"$fake_bin/sudo" <<'EOF'
 #!/bin/sh
 printf 'sudo %s\n' "$*" >>"$NIX_CONFIG_TEST_LOG"
 EOF
-cat >"$fake_bin/kiro-gateway-bootstrap" <<'EOF'
-#!/bin/sh
-printf 'kiro %s\n' "$*" >>"$NIX_CONFIG_TEST_LOG"
-EOF
 chmod +x "$fake_bin"/*
 
 export NIXOS_CONFIG_DIR="$repo"

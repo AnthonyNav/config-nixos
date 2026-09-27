@@ -1,7 +1,6 @@
 result
 result-*
 .direnv/
-graphify-out/
 
 # Runtime secrets and credentials must stay outside the repository.
 *.env

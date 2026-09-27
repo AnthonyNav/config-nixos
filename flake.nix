@@ -35,10 +35,6 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    kiro-gateway = {
-      url = "github:AnthonyNav/kiro-gateway/5562ad43b6bd4ce05a663130c574402cef0e2f32";
-      flake = false;
-    };
   };
 
   outputs =
@@ -71,11 +67,6 @@
         rtk = aiToolsPackages.rtk.version;
       };
       treefmtEval = treefmt-nix.lib.evalModule pkgsFor ./treefmt.nix;
-      opencodePackages = import ./modules/home/opencode-packages.nix {
-        inherit lib;
-        opencodePackage = aiToolsPackages.opencode;
-        pkgs = pkgsFor;
-      };
       desktopStyles = {
         caelestia = {
           systemModule = ./desktops/caelestia/system.nix;
@@ -510,28 +501,10 @@
                 ${./scripts/tests/check-input-share.sh} \
                 ${./scripts/input-share-reconcile.sh} \
                 ${./scripts/syncthing-fleet-reconcile.sh} \
-                ${./scripts/lab.sh} \
-                ${./opencode/tests/check-workflow.sh}
+                ${./scripts/lab.sh}
               bash ${./scripts/tests/check-nix-config.sh} ${./scripts/nix-config.sh}
               bash ${./scripts/tests/check-input-share.sh} ${./scripts/input-share-reconcile.sh}
               nix-config --help >/dev/null
-              touch "$out"
-            '';
-        opencode-workflow =
-          pkgsFor.runCommand "opencode-workflow-check"
-            {
-              nativeBuildInputs = [
-                pkgsFor.git
-                pkgsFor.jq
-                aiToolsPackages.opencode
-              ];
-            }
-            ''
-              ${pkgsFor.bash}/bin/bash ${./opencode/tests/check-workflow.sh} \
-                ${lib.getExe opencodePackages.workflow} \
-                ${lib.getExe opencodePackages.managedTreeState} \
-                ${lib.getExe opencodePackages.managedPrepareNewFiles} \
-                ${lib.getExe opencodePackages.managedNixFormatter}
               touch "$out"
             '';
       };

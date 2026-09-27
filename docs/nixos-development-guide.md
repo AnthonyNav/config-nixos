@@ -160,11 +160,11 @@ generation. Check `nixos-rebuild list-generations` or
 ## 8. Keep Exceptions Visible
 
 Not every useful tool is packaged declaratively. This repository currently has
-an externally bootstrapped Kiro Gateway and a downloaded Blender GPU build.
+a downloaded Blender GPU build, downloaded wallpapers, and a user-installed
+Spec Kit CLI.
 Treat each exception as a contract: document its owner, pinned version or hash,
 update method, secrets boundary, and a command that proves it works.
 
 The goal is not to force everything into Nix immediately. The goal is to know
 which state is reproducible, which is intentionally local, and how to recover
-either one on a new machine. Kiro Gateway source is now pinned by the flake;
-only its secrets and virtual environment remain local.
+either one on a new machine.

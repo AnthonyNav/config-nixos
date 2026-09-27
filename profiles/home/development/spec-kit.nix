@@ -51,12 +51,12 @@ let
     text = ''
       default_agent="''${1:-codex}"
       if (( $# > 1 )); then
-        printf 'Usage: speckit-init [codex|claude|kiro-cli|opencode]\n' >&2
+        printf 'Usage: speckit-init [codex|claude|kiro-cli]\n' >&2
         exit 64
       fi
 
       case "$default_agent" in
-        codex|claude|kiro-cli|opencode) ;;
+        codex|claude|kiro-cli) ;;
         *)
           printf 'Unsupported default integration: %s\n' "$default_agent" >&2
           exit 64
@@ -74,12 +74,10 @@ let
         exit 1
       fi
 
-      for agent in codex claude kiro-cli opencode; do
+      for agent in codex claude kiro-cli; do
         if ! jq -e --arg agent "$agent" '.installed_integrations | index($agent) != null' \
           .specify/integration.json >/dev/null; then
-          # --force explicitly opts in when a combination includes an integration
-          # that is not declared multi-install safe (currently OpenCode).
-          specify integration install "$agent" --force
+          specify integration install "$agent"
         fi
       done
 
@@ -100,7 +98,7 @@ let
       fi
 
       mapfile -t integrations < <(
-        jq -r '.installed_integrations[]?' .specify/integration.json
+        jq -r '.installed_integrations[]? | select(. == "codex" or . == "claude" or . == "kiro-cli")' .specify/integration.json
       )
 
       if (( ''${#integrations[@]} == 0 )); then

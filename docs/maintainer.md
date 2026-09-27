@@ -76,18 +76,6 @@ normal command that modifies Git before deployment. See `docs/nix-config.md`.
 - Caelestia Lock is the only session locker. Hypridle owns idle timing, DPMS,
   and suspend, but must not start Hyprlock alongside Caelestia's
   `ext-session-lock` client.
-- Kiro Gateway source is pinned as the `kiro-gateway` flake input. Its `.env`
-  remains local in `~/.config/kiro-gateway/` with mode `0600` and its venv in
-  `~/.local/share/kiro-gateway/`; Nix manages the provider and seed models but
-  never selects Kiro by default. `kiro-gateway-bootstrap` detects only
-  `~/.aws/sso/cache/kiro-auth-token.json` or the Kiro CLI SQLite database after
-  validating any configured credential path, creates the local secret file, and
-  enables its catalog only after service startup and model sync succeed. The
-  gateway discovers the account catalog from `management.<region>.kiro.dev`;
-  the `kiro-opencode-model-sync` timer writes its mutable models overlay under
-  XDG state using the managed config as `--base-config`. Validate it with a real
-  completion, not only `/health` or `/v1/models`.
-- Use Kiro model ID `auto`, never `auto-kiro`.
 - The Catppuccin mode wrapper must override both the Caelestia CLI and shell
   package. The shell has its own wrapped internal PATH.
 - The Caelestia Wi-Fi patch is shared by all desktop hosts. Preserve its
@@ -187,7 +175,7 @@ as `.#dbgate`. Database connections and credentials stay in local application
 state, never in this repository. DBeaver is pinned in `packages/dbeaver.nix`
 for `desktop` and exposed as `.#dbeaver`.
 
-## OpenCode
+## AI tool packages
 
 Claude Code, Codex, OpenCode, and RTK come from the pinned `llm-agents` flake
 input. This keeps these agent tools current without coupling their updates to a
@@ -227,41 +215,9 @@ nix-update
 The first command only builds; it does not activate. Later deployments use the
 daemon settings from `modules/system/core.nix` and need no bootstrap step.
 
-`opencode/opencode.json`, agents, commands, shared skills, the RTK plugin, and
-the `opencode` and `opencode-work` wrappers are deployed by
-`modules/home/opencode.nix`. OpenCode starts without requiring Kiro as its
-default model. After a successful `kiro-gateway-bootstrap`, both wrappers read
-only `PROXY_API_KEY` from the private gateway `.env`; normal `opencode` also
-merges the generated models catalog, while isolated `opencode-work` retains the
-immutable seed catalog. The key must never enter Nix.
-`~/.local/state/opencode/kiro-models.json` is mutable generated state and must
-not be hand-edited. Restart OpenCode after a
-configuration, agent, command, skill, plugin, or catalog change.
-
-Run `/work` only inside `opencode-work`. That launcher isolates global and
-project config, external plugins, Claude compatibility instructions and skills,
-LSPs, formatters, and late caller overrides before loading the deny-by-default
-control plane and seed provider config from the Nix store. `/work` can only
-inspect and produce a contract; the user must invoke `/work-apply <revision>`
-to expose the managed implementer. The apply agent rechecks clean tracked
-state, ignored-state integrity, and symlink absence before delegating
-independent review. Neither command commits, publishes, deploys, or activates.
-
-`nix build --no-link .#checks.x86_64-linux.opencode-workflow` executes the real
-wrapper and validates config isolation, effective tools, exact allowlists, and
-resistance to global/project plugins, conflicting managed names, and late
-environment overrides.
-
-Activation fails rather than deleting user data when either legacy
-`~/.claude/skills/graphify` or `~/.config/opencode/plugins/rtk.ts` remains.
-Review and archive or remove the reported path manually before retrying.
-
-See `docs/opencode.md` for managed skills, context limits, and opt-in MCP
-examples. Do not enable a credential-bearing MCP globally or commit its token.
-
-Claude Code remains installed as a secondary CLI. Its local configuration under
-`~/.claude` is not managed by this repository, preserving the upstream
-first-run experience.
+OpenCode is installed without repository-managed wrappers, providers, agents,
+commands, skills, or plugins. Its configuration and credentials remain user-owned.
+Claude Code also keeps its local configuration under `~/.claude`.
 
 ## Tailnet Policy
 
@@ -296,9 +252,3 @@ Blender's CUDA/OptiX build and themed wallpapers are activation-time downloads.
 They are explicit exceptions to Nix store reproducibility. Keep their version,
 hash, owner, update procedure, and validation command documented when changing
 them; do not let them become unpinned host-local dependencies.
-
-## Optional Local Services
-
-`profiles/system/local-mariadb.nix` is not imported by any host. Import it
-only in a host module that needs a local MariaDB daemon; database GUIs and
-`usql` are clients supplied by the shared `database-tools` profile.

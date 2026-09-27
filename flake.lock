@@ -162,23 +162,6 @@
         "type": "github"
       }
     },
-    "kiro-gateway": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1786305060,
-        "narHash": "sha256-sPURqCqXnWdNQg/iXpTjsW8Fo8gaehVTxtIxZCfWLbI=",
-        "owner": "AnthonyNav",
-        "repo": "kiro-gateway",
-        "rev": "5562ad43b6bd4ce05a663130c574402cef0e2f32",
-        "type": "github"
-      },
-      "original": {
-        "owner": "AnthonyNav",
-        "repo": "kiro-gateway",
-        "rev": "5562ad43b6bd4ce05a663130c574402cef0e2f32",
-        "type": "github"
-      }
-    },
     "llm-agents": {
       "inputs": {
         "bun2nix": "bun2nix",
@@ -293,7 +276,6 @@
         "catppuccin": "catppuccin",
         "herdr": "herdr",
         "home-manager": "home-manager",
-        "kiro-gateway": "kiro-gateway",
         "llm-agents": "llm-agents",
         "nixpkgs": "nixpkgs_3",
         "treefmt-nix": "treefmt-nix_2"

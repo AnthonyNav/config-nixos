@@ -50,15 +50,14 @@ From the repository root:
 speckit-init
 ```
 
-Codex is the default integration. The helper also installs Claude Code, Kiro CLI
-and OpenCode so the same Spec Kit project can be used from any of those tools.
+Codex is the default integration. The helper also installs Claude Code and Kiro CLI
+so the same Spec Kit project can be used from any of those tools.
 The default can be selected at initialization:
 
 ```sh
 speckit-init claude
 speckit-init codex
 speckit-init kiro-cli
-speckit-init opencode
 ```
 
 The project keeps one default integration, but all installed integrations share
@@ -68,11 +67,8 @@ separate roots:
 - Claude Code: `.claude/skills/`
 - Codex CLI: `.agents/skills/`
 - Kiro CLI: `.kiro/prompts/`
-- OpenCode: its Spec Kit integration directory managed by `specify`
 
-Claude, Codex and Kiro CLI are declared multi-install safe by Spec Kit. OpenCode
-is supported but is not currently declared multi-install safe, so the helper
-explicitly opts into that combination with `--force` during installation.
+The helper installs only the Claude, Codex and Kiro CLI integrations.
 
 The shared project state remains under `.specify/` and the generated feature
 artifacts under `specs/`. Commit these project artifacts according to the
@@ -88,7 +84,6 @@ others:
 specify integration use codex
 specify integration use claude
 specify integration use kiro-cli
-specify integration use opencode
 ```
 
 This does not remove the other integrations.
@@ -102,8 +97,9 @@ integrations. After a CLI update, enter each Spec Kit project and run:
 speckit-sync-agents
 ```
 
-The helper reads `.specify/integration.json`, upgrades every installed
-integration, and reports the resulting state. It deliberately does not pass
+The helper reads `.specify/integration.json`, upgrades the installed Codex,
+Claude and Kiro CLI integrations, and reports the resulting state. Other
+project-owned integrations are left untouched. It deliberately does not pass
 `--force` during upgrades so locally modified managed files are not silently
 overwritten.
 
@@ -141,7 +137,6 @@ repository
   -> Claude integration
   -> Codex integration
   -> Kiro CLI integration
-  -> OpenCode integration
 ```
 
 This keeps Spec Kit agent-independent: one agent can create a specification,
