@@ -19,6 +19,14 @@ The installer ISO is not a workstation and does not import Home Manager.
 `desktops/caelestia/`. Add a style to that registry instead of creating a
 long-lived branch per desktop implementation.
 
+## Planned platform evolution
+
+Future fleet, laboratory, AI-environment, project-isolation and Darwin work is
+tracked in [fleet-platform-evolution.md](fleet-platform-evolution.md). Treat
+that document and its linked plans as implementation guidance only: existing
+runtime behavior remains authoritative until each phase is implemented,
+validated and merged through its own PR.
+
 ## Commands
 
 Format and fully validate the current workstation without activation:
