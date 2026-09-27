@@ -10,7 +10,7 @@ Configuración modular de NixOS + Flakes + Home Manager orientada a desarrollo d
 - [Despliegue rápido](#despliegue-rápido)
 - [Atajos de teclado](#atajos-de-teclado)
 - [Escritorio (Caelestia Shell)](#escritorio-caelestia-shell)
-- [Kiro Gateway + opencode](#kiro-gateway--opencode)
+- [Herramientas de IA](#herramientas-de-ia)
 - [Base de datos y terminal](#base-de-datos-y-terminal)
 - [Edición 3D / Video](#edición-3d--video)
 - [Para qué está preparado este entorno](#para-qué-está-preparado-este-entorno)
@@ -60,8 +60,7 @@ nix-update
 
 `nix-update` es el único flujo de despliegue diario: exige un árbol limpio en
 `main`, obtiene `origin/main` solo mediante fast-forward, valida el flake,
-activa el host detectado y actualiza el gateway Kiro si ya está configurado. No
-actualiza inputs de Nix ni mezcla cambios locales.
+activa el host detectado. No actualiza inputs de Nix ni mezcla cambios locales.
 
 La primera vez que una máquina recibe estos comandos, actualiza el checkout de
 `main` y activa la generación una vez con el flujo anterior:
@@ -338,152 +337,14 @@ agregar algo ahí habría que parchar el QML del shell directamente.
 
 ---
 
-## Kiro Gateway + opencode
+## Herramientas de IA
 
-[`kiro-gateway`](https://github.com/AnthonyNav/kiro-gateway) es un proxy de
-comunidad que expone los modelos de Kiro (Claude Opus/Sonnet/Haiku 4.5+,
-DeepSeek, Qwen, GLM, MiniMax...) como una API OpenAI/Anthropic-compatible, para
-poder usarlos desde **opencode** (ya instalado, ver `home.nix`) u otras
-herramientas que acepten `baseURL` + `apiKey`.
+Claude Code, Codex, OpenCode y RTK se instalan desde el input `llm-agents`.
+Kiro CLI e IDE conservan sus paquetes propios. La configuración, los proveedores
+y las credenciales de OpenCode pertenecen al usuario; este repositorio instala
+solo su binario, sin wrappers, agentes, skills, plugins ni gateway personalizados.
 
-**Diseño reproducible con secretos locales:** el código procede del fork
-`AnthonyNav/kiro-gateway` fijado por `flake.lock`. El venv y los secretos quedan
-fuera del store: `~/.local/share/kiro-gateway/` y
-`~/.config/kiro-gateway/.env`. Nix aporta las unidades de usuario y actualiza
-el código con el resto de la configuración. Las dependencias Python probadas se
-fijan en `modules/home/kiro-gateway-requirements.txt`.
-
-### Bootstrap (una sola vez, o para reproducir en otra máquina)
-
-```bash
-kiro-gateway-bootstrap
-```
-
-El comando crea `~/.config/kiro-gateway/` y su `.env` con modo `0600`, genera
-un `PROXY_API_KEY` criptográficamente seguro si hace falta y preserva los
-secretos ya existentes. Detecta primero credenciales JSON válidas de Kiro IDE
-en `~/.aws/sso/cache/kiro-auth-token.json` y, si no encuentra una, la base
-SQLite de `kiro-cli` en `~/.local/share/kiro-cli/data.sqlite3`. Nunca elige un
-JSON AWS SSO arbitrario; una ruta de credenciales configurada previamente debe
-seguir siendo válida. También migra el `.env` previo de
-`~/dev/shared/kiro-gateway/` sin mostrar sus secretos.
-
-Después prepara o actualiza el venv desde la revisión ya fijada, inicia las
-unidades de usuario y sincroniza los modelos hacia OpenCode. Si aún no has
-iniciado sesión en Kiro IDE o `kiro-cli`, crea el `.env` seguro, explica el
-paso pendiente y termina sin iniciar un gateway incompleto. Inicia sesión y
-vuelve a ejecutar el mismo comando; es idempotente.
-
-### Uso diario
-
-```bash
-kgw-status   # ver si está corriendo
-kgw-logs     # seguir logs en vivo
-kgw-restart  # reiniciar (p.ej. tras cambiar .env)
-kgw-up / kgw-down   # arrancar / parar a mano
-```
-
-```bash
-curl http://127.0.0.1:8000/health
-curl http://127.0.0.1:8000/v1/models -H "Authorization: Bearer <tu PROXY_API_KEY>"
-```
-
-**Importante:** `/health` y `/v1/models` (arriba) **no prueban una conexión
-real**. El catálogo es el detectado para la cuenta, pero el chat puede fallar
-por credenciales, región o límites. La prueba real es un mensaje de verdad:
-
-```bash
-opencode run "responde solo con la palabra: funciona" -m kiro/claude-haiku-4.5
-```
-
-Si eso falla (502 / "profileArn is required" / etc.), revisa `kgw-logs` y
-confirma `KIRO_API_REGION` y `PROFILE_ARN` en el `.env` local. La regla de
-validación y el límite de responsabilidad están en
-[docs/maintainer.md](docs/maintainer.md).
-
-### Actualizar las herramientas de IA
-
-Claude Code, Codex, OpenCode y RTK se instalan desde el input dedicado
-`llm-agents`, con versiones fijadas para todos los equipos por `flake.lock`.
-Puedes consultar las versiones con `nix eval --json .#lib.aiToolVersions`. No
-ejecutes sus actualizadores internos (`claude update`, `codex update` u
-`opencode upgrade`): actualiza solamente ese input con `nix flake update
-llm-agents`, abre el PR correspondiente y, tras el merge, aplica `nix-update`.
-Las skills compartidas y el plugin RTK se distribuyen mediante Home Manager;
-reinicia OpenCode después de cambiar una skill o plugin.
-
-### Config de opencode
-
-`opencode/opencode.json` es la configuración canónica, distribuida por Home
-Manager como `~/.config/opencode/opencode.json`. Declara el provider y sus
-modelos semilla, pero no selecciona Kiro como modelo predeterminado, por lo que
-`opencode` inicia normalmente aunque no exista el `.env` del gateway. La clave
-se resuelve en runtime como `{env:PROXY_API_KEY}` y nunca entra al store de Nix.
-
-El comando `opencode` también lo distribuye Home Manager mediante un wrapper:
-solo después de un bootstrap exitoso lee `PROXY_API_KEY` del `.env` privado y
-carga el catálogo dinámico desde `~/.local/state/opencode/kiro-models.json`.
-Ese catálogo solo actualiza `provider.kiro.models`; el sincronizador lo genera
-directamente desde la configuración gestionada mediante `--base-config`.
-No crees `config.json` ni `opencode.jsonc` locales: tendrían precedencia y
-anularían la configuración declarativa.
-
-**Importante sobre el modelo `auto`:** úsalo con el ID literal `"auto"`, **no**
-`"auto-kiro"`. El alias se resuelve para el listado, pero no para solicitudes
-de chat; el ID real `auto` sí funciona. Ver
-[docs/maintainer.md](docs/maintainer.md) para esta regla de operación.
-
-Kiro Gateway consulta el catalogo real de la cuenta en
-`management.<region>.kiro.dev/ListAvailableModels`, igual que Kiro IDE. Como
-OpenCode necesita una lista explicita para providers OpenAI-compatible, el
-timer de usuario `kiro-opencode-model-sync` agrega al catálogo de estado los
-IDs nuevos cada hora, sin modificar la configuración administrada por Nix. Para
-sincronizar sin esperar al timer (excluye el alias `auto-kiro`; usa siempre
-`auto`):
-
-```bash
-kgw-models-sync
-```
-
-Cuando Kiro expone niveles de razonamiento nativos, el sincronizador agrega las
-variantes correspondientes a OpenCode. Abre `/models`, selecciona Luna, Sol o
-Terra y escoge `high` o `max`; el gateway los reenvia como el campo nativo de
-Kiro, no como razonamiento simulado. Actualmente esos tres modelos ofrecen
-`low`, `medium`, `high`, `xhigh` y `max`.
-
-Para inspeccionar el catalogo que el gateway detecto:
-
-```bash
-curl -s http://127.0.0.1:8000/v1/models -H "Authorization: Bearer <tu PROXY_API_KEY>" | jq -r '.data[].id'
-```
-
-Reinicia OpenCode tras la sincronización para que reconozca los IDs agregados.
-Si
-el gateway no esta disponible, revisa `kgw-status` y `kgw-logs`. Kiro IDE sigue
-siendo una fuente util de diagnostico porque sus logs registran cada respuesta
-real de `ListAvailableModelsCommand`:
-
-```bash
-grep -h '"commandName":"ListAvailableModelsCommand"' ~/.config/Kiro/logs/*/window1/exthost/kiro.kiroAgent/q-client.log | tail -1 | \
-  python3 -c "import sys,json; l=sys.stdin.read(); d=json.loads(l[l.find('{'):]); [print(m['modelId']) for m in d['output']['models']]"
-```
-
-(La plantilla actual incluye los 15 modelos —`auto` más 14— que esa consulta
-devolvió al momento de escribir esto: familia Claude completa desde Sonnet 4
-hasta Opus 4.8/Sonnet 5, DeepSeek, MiniMax, GLM y Qwen. El sincronizador agrega
-modelos posteriores que la cuenta tenga habilitados.)
-
-**Para agregar otro provider** (no solo otro modelo de Kiro): declara su
-entrada bajo `"provider"` en `opencode/opencode.json`, con su propio
-`baseURL`/`apiKey`/`models`.
-
-### Desinstalar
-
-```bash
-# 1. Quita el import de kiro-gateway de profiles/home/development.nix y ejecuta nix-home-switch.
-# 2. Borra el venv, secretos y estado local (no están versionados, es seguro):
-rm -rf ~/.local/share/kiro-gateway ~/.config/kiro-gateway ~/.config/opencode
-```
+Consulta [docs/maintainer.md](docs/maintainer.md) para actualizar las versiones.
 
 ---
 
@@ -508,9 +369,7 @@ usql sqlite3://$PWD/dev.db
 ```
 
 `usql` guarda conexiones nombradas en `~/.config/usql/config.yaml`; ese archivo
-puede contener secretos y no se versiona. Para levantar MariaDB localmente,
-importa de forma explícita `profiles/system/local-mariadb.nix` desde el host que
-lo necesite. El perfil no se activa por defecto.
+puede contener secretos y no se versiona. No se declara un servidor MariaDB local.
 
 La terminal incluye `zoxide` (`z <directorio>`), `lazygit`, `delta`, `yazi`,
 completion visual con `fzf-tab` y búsqueda de historial por texto con las
@@ -519,9 +378,7 @@ para uso manual, pero su integración Zsh está desactivada para no instalar
 hooks SQLite redundantes en cada terminal. Zsh deduplica las funciones estándar
 de `fpath` antes de ejecutar `compinit` una sola vez.
 
-La guía de OpenCode y MCPs opt-in está en
-[docs/opencode.md](docs/opencode.md). El protocolo para medir la red ThinkPad
-está en [docs/thinkpad-network.md](docs/thinkpad-network.md).
+El protocolo para medir la red ThinkPad está en [docs/thinkpad-network.md](docs/thinkpad-network.md).
 
 ---
 

@@ -20,8 +20,6 @@ ignore rules are only a safety net; they do not make committed secrets safe.
 
 Current integrations deliberately keep their sensitive state outside the repo:
 
-- Kiro Gateway: `~/.config/kiro-gateway/.env` plus the local Kiro credential
-  stores discovered by its bootstrap.
 - SSH: private keys under `~/.ssh/`; only an SSH public key is declared here.
 - Tailscale: node identity/authentication is owned by `tailscaled` runtime
   state, not Nix source.

@@ -269,15 +269,6 @@ show_status() {
   fi
 }
 
-run_post_deploy() {
-  local bootstrap
-
-  bootstrap="$(command -v kiro-gateway-bootstrap || true)"
-  if [[ -n "$bootstrap" ]] && ! "$bootstrap" --if-configured; then
-    die "the system was activated, but Kiro Gateway bootstrap failed"
-  fi
-}
-
 command="${1:-help}"
 case "$command" in
   help|-h|--help)
@@ -361,7 +352,6 @@ case "$command" in
     run_check current
     require_published_main
     switch_system switch "$host"
-    run_post_deploy
     ;;
   inputs)
     [[ "${2:-}" == "update" && $# -eq 2 ]] || die "usage: nix-config inputs update"

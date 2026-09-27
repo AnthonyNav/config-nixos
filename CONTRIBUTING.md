@@ -41,10 +41,8 @@ both `victus` and `desktop`. Test graphical changes in a real session.
 ## Secrets And Local State
 
 Never commit `.env` files, credentials, tokens, private keys, or generated
-OpenCode catalog state. Kiro Gateway secrets belong in
-`~/.config/kiro-gateway/.env`; its Python environment belongs in
-`~/.local/share/kiro-gateway/`. The source revision is pinned by `flake.lock`
-and the Python constraints live in `modules/home/kiro-gateway-requirements.txt`.
+local application and agent state. Runtime credentials stay outside Git and
+the Nix store.
 
 ## Repository Settings
 
