@@ -1,4 +1,5 @@
 {
+  config,
   lib,
   pkgs,
   username,
@@ -7,15 +8,12 @@
 
 {
   imports = [
-    ./pritunl.nix
     ./tailscale-fleet.nix
     ./syncthing-fleet.nix
     ./remote-workspace.nix
     ./virtualization-lab.nix
     ./resource-policy.nix
   ];
-
-  networking.networkmanager.enable = true;
 
   time.timeZone = "America/Mexico_City";
 
@@ -69,13 +67,7 @@
     isNormalUser = true;
     description = username;
     shell = pkgs.zsh;
-    extraGroups = [
-      "networkmanager"
-      "wheel"
-      "video"
-      "docker"
-      "kvm"
-    ];
+    extraGroups = [ "wheel" ];
     packages = with pkgs; [
       fastfetch
       neovim
@@ -85,49 +77,18 @@
     ];
   };
 
-  hardware.bluetooth.enable = true;
-  services.power-profiles-daemon.enable = true;
-  virtualisation.docker.enable = true;
-
-  security.rtkit.enable = true;
-  services.pipewire = {
-    enable = true;
-    alsa.enable = true;
-    alsa.support32Bit = true;
-    pulse.enable = true;
-    jack.enable = true;
-  };
-
-  zramSwap = {
-    enable = true;
-    algorithm = "zstd";
-    memoryPercent = 50;
-  };
   services.fstrim.enable = true;
   services.fwupd.enable = true;
 
   environment.systemPackages = with pkgs; [
-    google-chrome
     nh
   ];
 
-  xdg.portal = {
-    enable = true;
-    extraPortals = [ pkgs.xdg-desktop-portal-gtk ];
-  };
-
-  environment.pathsToLink = [
-    "/share/applications"
-    "/share/xdg-desktop-portal"
-  ];
-
   environment.variables = {
-    FLAKE = "/home/${username}/nixos-config";
+    FLAKE = "${config.users.users.${username}.home}/nixos-config";
   };
 
   environment.sessionVariables = {
-    FLAKE = "/home/${username}/nixos-config";
-    NIXOS_OZONE_WL = "1";
-    WLR_NO_HARDWARE_CURSORS = "1";
+    FLAKE = "${config.users.users.${username}.home}/nixos-config";
   };
 }

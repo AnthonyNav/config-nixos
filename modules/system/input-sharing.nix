@@ -5,7 +5,7 @@
 }:
 
 let
-  endpoints = import ../../inventory/endpoints.nix;
+  endpoints = import ../../inventory/endpoints.nix { };
   inputSharing = hostFeatures.inputSharing or { };
   enabled = inputSharing.enable or false;
 in

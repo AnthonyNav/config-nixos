@@ -1,7 +1,7 @@
 {
+  config,
   lib,
   pkgs,
-  username,
   ...
 }:
 
@@ -10,7 +10,7 @@ let
   identities = policy.identities;
   work = identities.work;
   personal = identities.personal;
-  homeDir = "/home/${username}";
+  homeDir = config.home.homeDirectory;
   personalRoots = map (root: "${homeDir}/${root}") personal.roots;
 
   personalSsh = pkgs.writeShellScript "git-ssh-personal" ''

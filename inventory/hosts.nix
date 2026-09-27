@@ -1,5 +1,12 @@
 {
   victus = {
+    system = "x86_64-linux";
+    kind = "workstation";
+    # Eligibility does not start services; instances are configured by the host.
+    capabilities = {
+      kubernetes = true;
+      ci = true;
+    };
     role = "creative-ml-workstation";
     systemModule = ../hosts/victus;
     homeModules = [ ../hosts/victus/home.nix ];
@@ -33,6 +40,13 @@
   };
 
   desktop = {
+    system = "x86_64-linux";
+    kind = "workstation";
+    # Eligibility does not start services; instances are configured by the host.
+    capabilities = {
+      kubernetes = true;
+      ci = true;
+    };
     role = "primary";
     systemModule = ../hosts/desktop;
     homeModules = [ ../hosts/desktop/home.nix ];
@@ -65,6 +79,13 @@
   };
 
   thinkpad = {
+    system = "x86_64-linux";
+    kind = "workstation";
+    # Eligibility does not start services; instances are configured by the host.
+    capabilities = {
+      kubernetes = false;
+      ci = false;
+    };
     role = "workstation";
     systemModule = ../hosts/thinkpad;
     homeModules = [ ../hosts/thinkpad/home.nix ];

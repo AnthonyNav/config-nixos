@@ -2,7 +2,8 @@
   lib,
   pkgs,
   username,
-  workstationNames,
+  fleetNames,
+  homeHostNames,
   ...
 }:
 
@@ -12,7 +13,8 @@ let
       lib
       pkgs
       username
-      workstationNames
+      fleetNames
+      homeHostNames
       ;
   };
 in

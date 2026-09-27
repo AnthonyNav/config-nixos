@@ -6,7 +6,7 @@
 }:
 
 let
-  endpoints = import ../../inventory/endpoints.nix;
+  endpoints = import ../../inventory/endpoints.nix { };
   policy = import ../../inventory/tailscale.nix { inherit username; };
   connectivity = hostFeatures.connectivity or { };
   inputSharing = hostFeatures.inputSharing or { };

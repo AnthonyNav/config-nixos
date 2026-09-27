@@ -21,7 +21,7 @@ jobs:
         with:
           extra_nix_config: accept-flake-config = true
       - id: hosts
-        run: printf 'matrix=%s\n' "$(nix eval --json --no-write-lock-file .#lib.workstationNames)" >> "$GITHUB_OUTPUT"
+        run: printf 'matrix=%s\n' "$(nix eval --json --no-write-lock-file .#lib.buildMatrix)" >> "$GITHUB_OUTPUT"
 
   host-build:
     needs: hosts
@@ -29,7 +29,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        host: ${{ fromJSON(needs.hosts.outputs.matrix) }}
+        include: ${{ fromJSON(needs.hosts.outputs.matrix) }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -74,6 +74,7 @@ jobs:
         run: nix build --max-jobs 1 --no-link --no-write-lock-file .#nixosConfigurations.${{ matrix.host }}.config.system.build.toplevel
 
       - name: Build Home Manager
+        if: matrix.home
         run: nix build --max-jobs 1 --no-link --no-write-lock-file '.#homeConfigurations."anthony@${{ matrix.host }}".activationPackage'
 
       - name: Disk usage

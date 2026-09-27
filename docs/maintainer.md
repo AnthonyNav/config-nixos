@@ -2,8 +2,8 @@
 
 ## Architecture
 
-`flake.nix` is the entry point for a single user, `anthony`, on three
-workstations. It composes a shared base, development and database-tools Home
+`flake.nix` is the entry point for a single user, `anthony`, across the inventory in
+`inventory/hosts.nix` (currently three workstations). `flake/hosts.nix` composes a shared base, development and database-tools Home
 Manager profiles, a selected desktop style, and a host overlay.
 
 | Host | Graphics | Home features |
@@ -14,10 +14,38 @@ Manager profiles, a selected desktop style, and a host overlay.
 
 The installer ISO is not a workstation and does not import Home Manager.
 
-`desktopStyles` is a closed registry in `flake.nix`. All current hosts select
+`desktopStyles` is a closed registry in `flake/hosts.nix`. All current hosts select
 `caelestia`, whose system and Home Manager modules live in
 `desktops/caelestia/`. Add a style to that registry instead of creating a
 long-lived branch per desktop implementation.
+
+## Fleet and laboratory boundaries
+
+`inventory/fleet.nix` derives separate host sets for SSH, Syncthing, input
+sharing, lab capabilities, workstation/server kinds and Home Manager outputs.
+Each host declares its own Nix platform. A server can use
+`desktopStyle = null; homeModules = null;` without importing GUI or user
+development profiles. A non-null Home module list must provide the user's
+Home Manager identity and state version.
+
+`modules/system/common.nix` owns shared administration;
+`workstation.nix` adds desktop services and Docker; `server.nix` disables
+sleep and defaults to one Nix job/core. Real server resource tuning still needs
+hardware measurements. K3s, CI agents and publication are opt-in modules under
+`modules/system/lab-platform/`; current Desktop instances live in
+`hosts/desktop/lab.nix`. Victus declares the same Kubernetes/CI capabilities
+but has no enabled K3s/CI instances.
+
+`nix-config build all all` builds each system and only its declared Home output.
+`build home <host>` reports an error for a host without Home Manager.
+CI derives the same conditional matrix from `lib.buildMatrix`. Runners and
+maintenance tooling currently target x86_64 Linux; Darwin is out of scope.
+The `fleet-policy` check covers a synthetic headless host, opt-in Victus lab
+instances and invalid configurations; `headless-system` builds that fixture.
+The fixture is never exported as a deployable host.
+
+See [lab-platform-plan.md](lab-platform-plan.md) for configuration examples
+and the deferred IdeaPad hardware gate.
 
 ## Planned platform evolution
 
@@ -191,7 +219,7 @@ full `nixpkgs` refresh. The input intentionally uses its own tested Nixpkgs
 revision and the signed Numtide binary cache declared in `flake.nix`; do not add
 `inputs.nixpkgs.follows` unless the resulting source builds have been evaluated
 as an explicit tradeoff. The same cache and signing key are configured for the
-Nix daemon in `modules/system/core.nix`, preventing local Codex and RTK source
+Nix daemon in `modules/system/common.nix`, preventing local Codex and RTK source
 builds after the first deployment. Inspect the pinned versions with
 `nix eval --json .#lib.aiToolVersions`.
 
@@ -221,7 +249,7 @@ nix-update
 ```
 
 The first command only builds; it does not activate. Later deployments use the
-daemon settings from `modules/system/core.nix` and need no bootstrap step.
+daemon settings from `modules/system/common.nix` and need no bootstrap step.
 
 OpenCode is installed without repository-managed wrappers, providers, agents,
 commands, skills, or plugins. Its configuration and credentials remain user-owned.

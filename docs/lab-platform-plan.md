@@ -3,7 +3,66 @@
 ## Scope
 
 This document defines the target laboratory capabilities for Desktop, Victus
-and the future IdeaPad server. It is documentation only.
+and the future IdeaPad server. The reusable foundation is implemented by PR 1;
+real IdeaPad onboarding is deferred until the final stage and hardware inspection.
+The address suggested during planning is not a verified hardware identity.
+
+## Implemented module interface
+
+Current instances are declared in `hosts/desktop/lab.nix`. Modules live under
+`modules/system/lab-platform/` and are disabled unless configured. Both Desktop
+and Victus declare `capabilities.kubernetes` and `capabilities.ci`; ThinkPad
+does not. Capability is permission to configure a workload, not an instruction
+to start it. Victus retains its existing Docker-on-demand and GPU/power policy.
+
+An independent Victus experiment could add this to its host module:
+
+```nix
+fleet.lab.kubernetes = {
+  enable = true;
+  clusterInit = true;
+  autoStart = false;
+};
+```
+
+An agent instead needs `role = "agent"`, a `serverAddr`, and an absolute
+runtime `tokenFile` outside the Nix store. Do not put the token into Nix.
+Kubernetes memory limits are optional per-instance `memoryHigh`/`memoryMax`;
+Desktop retains its existing values. A CI instance is keyed by systemd name:
+
+```nix
+fleet.lab.ci.agents.woodpecker-agent-lab = {
+  description = "Victus lab CI agent";
+  environmentFile = "/run/secrets/woodpecker-agent";
+  server = "desktop:9000";
+  hostname = "victus-lab";
+  labels = "repo=owner/project";
+  containerName = "woodpecker-agent-lab";
+  configVolume = "woodpecker-agent-lab-config";
+  autoStart = false;
+};
+```
+
+CI requires enabled Docker and a dedicated root-owned runtime secret file.
+The agent has one workflow slot by default. Docker bridge gRPC/Testcontainers
+firewall exceptions are explicit options, not defaults for every runner.
+
+`fleet.lab.publication.privateUis` maps service names to Kubernetes namespace,
+service, servicePort, localPort and tailscalePort. It requires an auto-started
+local K3s server and Tailscale. Forwarding binds localhost; publication uses
+Tailscale Serve. Woodpecker Funnel requires the additional explicit
+`woodpecker.public.enable` opt-in. Update `inventory/endpoints.nix` and review
+the rendered tailnet policy whenever adding a published instance on another
+host. This PR keeps Desktop's existing ports and visibility.
+
+Validation covers all three real system/Home outputs and an undeployed server
+fixture with no Home Manager, desktop, audio, Bluetooth, Docker or Kubernetes.
+That fixture verifies SSH hardening, Tailscale settings, endpoint membership,
+exclusion from input sharing and server sleep defaults. It cannot prove actual
+hardware support, authentication, runtime workloads or reboot reachability.
+After merge, verify Desktop's existing K3s/CI/Serve/Funnel services, both GPU
+paths, and workstation sessions during normal rollout. No activation occurs
+during development.
 
 ## Desktop and Victus parity
 

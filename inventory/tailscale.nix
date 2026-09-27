@@ -1,7 +1,7 @@
 { username }:
 
 let
-  endpoints = import ./endpoints.nix;
+  endpoints = import ./endpoints.nix { };
   grantIps = builtins.map (
     endpoint: "${endpoint.protocol}:${toString endpoint.port}"
   ) endpoints.tailnet;

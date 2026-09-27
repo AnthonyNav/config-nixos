@@ -2,7 +2,7 @@
   hostFeatures,
   lib,
   pkgs,
-  workstationNames,
+  inputSharingHostNames,
   ...
 }:
 
@@ -47,8 +47,8 @@ in
 {
   assertions = lib.optionals enabled [
     {
-      assertion = builtins.all (peer: builtins.elem peer.host workstationNames) peers;
-      message = "inputSharing.peers may only reference declared workstations.";
+      assertion = builtins.all (peer: builtins.elem peer.host inputSharingHostNames) peers;
+      message = "inputSharing.peers may only reference hosts with input sharing enabled.";
     }
     {
       assertion = builtins.all (peer: peer.host != (hostFeatures.hostName or "")) peers;
