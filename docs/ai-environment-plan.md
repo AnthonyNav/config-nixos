@@ -98,6 +98,11 @@ OpenCode and Kiro.
 Canonical content remains harness-independent. Tool-specific file names,
 JSON/TOML syntax and integration behavior belong in adapters.
 
+This workstream intentionally changes the current OpenCode ownership boundary
+only when its implementation PR lands. That implementation must update the
+corresponding invariant in `docs/maintainer.md` in the same PR; until then,
+OpenCode configuration remains user-owned as documented there.
+
 ## Skills
 
 Use reusable skills for procedures. Initial candidates:
