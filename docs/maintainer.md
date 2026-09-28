@@ -292,3 +292,10 @@ Blender's CUDA/OptiX build and themed wallpapers are activation-time downloads.
 They are explicit exceptions to Nix store reproducibility. Keep their version,
 hash, owner, update procedure, and validation command documented when changing
 them; do not let them become unpinned host-local dependencies.
+
+## Optional Artemis runtime
+
+See [artemis.md](artemis.md) for the pinned Android automation runtime, separate
+installation/MCP controls, runtime credential ownership and rollback. Default
+host profiles do not install or connect Artemis. Never use its upstream global
+installer to modify files owned by Home Manager.

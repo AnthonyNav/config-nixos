@@ -90,8 +90,8 @@ For example, to enable it only for Codex on ThinkPad, change the policy to:
 Unspecified harnesses inherit defaults; an explicit empty list disables that
 host/harness. Configuration generation rejects duplicate IDs, unknown selections,
 unsupported harnesses, non-HTTPS URLs and authenticated entries selected without
-a supported credential mechanism. The current adapter supports credential-free
-HTTP MCPs only. Authenticated integrations need a separate reviewed runtime
+a supported credential mechanism. The adapter supports credential-free HTTPS MCPs and store-backed local stdio
+commands. Local process credentials are supplied at runtime, not in the registry. Authenticated integrations need a separate reviewed runtime
 mechanism, such as sops-nix/agenix or a harness-native OAuth flow; never add
 tokens, secret headers or .env contents to this catalog. Registry metadata must
 not contain credential values. Existing user-managed MCPs are outside this policy.
@@ -121,3 +121,10 @@ external authentication succeeds.
 - [Claude user rules](https://code.claude.com/docs/en/memory) and [hook protocol](https://code.claude.com/docs/en/hooks)
 - [Kiro steering](https://kiro.dev/docs/steering/) and [agent configuration](https://kiro.dev/docs/custom-agents/configuration-reference/)
 - [RTK hooks](https://github.com/rtk-ai/rtk/tree/develop/hooks) (verify supported processors against the pinned binary)
+
+## Optional Android testing
+
+[Artemis](artemis.md) is available through a separate opt-in launcher and per-host
+`fleet.ai.artemis.harnesses` allowlist. Both installation and assistant connections
+are off by default. It adds no global rules and is not required for the normal
+AI or Spec Kit workflow.

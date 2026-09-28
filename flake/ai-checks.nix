@@ -23,6 +23,34 @@ let
     hosts = { };
   };
   enabled = import ../ai (baseArgs // { inherit policy; });
+  localEntry = {
+    id = "artemis";
+    owner = "Google";
+    source = "https://github.com/google/artemis";
+    transport = "stdio";
+    command = "${pkgs.writeShellScript "artemis-fixture" "exit 1"}";
+    args = [ "mcp" ];
+    authentication = "none";
+    requiredSecrets = [ ];
+    harnesses = [
+      "codex"
+      "claude"
+      "kiro"
+    ];
+    defaultEnabled = false;
+    trust = "Test fixture only";
+  };
+  localArgs = {
+    registry = registry ++ [ localEntry ];
+    policy = {
+      defaults = lib.genAttrs [ "codex" "claude" "kiro" ] (_: [
+        "openai-docs"
+        "artemis"
+      ]);
+      hosts = { };
+    };
+  };
+  localEnabled = import ../ai (baseArgs // localArgs);
   rejects = args: !(builtins.tryEval ((import ../ai (baseArgs // args)).selected)).success;
   bundles = lib.genAttrs fleet.workstationNames (
     name: self.homeConfigurations."${username}@${name}".config.fleet.ai.bundle
@@ -32,6 +60,7 @@ let
       hosts = builtins.mapAttrs (_: b: toString b) bundles;
       inventory = fleet.inventory;
       enabled = toString enabled.bundle;
+      localEnabled = toString localEnabled.bundle;
     }
   );
   python = pkgs.python3.withPackages (ps: [ ps.pyyaml ]);
@@ -39,6 +68,13 @@ in
 {
   ai-environment =
     assert rejects { registry = registry ++ registry; };
+    assert rejects (
+      localArgs // { registry = registry ++ [ (localEntry // { command = "/tmp/unmanaged"; }) ]; }
+    );
+    assert rejects (localArgs // { registry = registry ++ [ (localEntry // { args = "mcp"; }) ]; });
+    assert rejects (
+      localArgs // { registry = registry ++ [ (localEntry // { env.SECRET = "forbidden"; }) ]; }
+    );
     assert rejects {
       policy.defaults = {
         codex = [ "missing" ];
@@ -74,6 +110,7 @@ in
           ${../scripts/ai-environment.py} ${../scripts/ai-rtk-hook.py} \
           ${bundles.thinkpad} ${aiToolsPackages.rtk}/bin/rtk
         python ${../scripts/tests/check-ai-bundles.py} ${fixtures}
+        python ${../scripts/tests/check-artemis.py} ${../scripts/artemis.py}
         touch "$out"
       '';
 }

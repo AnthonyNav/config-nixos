@@ -30,21 +30,42 @@ let
   );
   validEntry =
     entry:
-    builtins.attrNames entry == [
-      "authentication"
-      "defaultEnabled"
-      "harnesses"
-      "id"
-      "owner"
-      "requiredSecrets"
-      "source"
-      "transport"
-      "trust"
-      "url"
-    ]
+    (
+      builtins.attrNames entry == builtins.sort builtins.lessThan (
+        [
+          "authentication"
+          "defaultEnabled"
+          "harnesses"
+          "id"
+          "owner"
+          "requiredSecrets"
+          "source"
+          "transport"
+          "trust"
+        ]
+        ++ (
+          if entry.transport == "stdio" then
+            [
+              "command"
+              "args"
+            ]
+          else
+            [ "url" ]
+        )
+      )
+    )
     && builtins.match "[a-z][a-z0-9-]*" entry.id != null
-    && entry.transport == "http"
-    && builtins.match "https://[A-Za-z0-9.-]+(:[0-9]+)?(/[A-Za-z0-9_./-]*)?" entry.url != null
+    && (
+      if entry.transport == "http" then
+        builtins.match "https://[A-Za-z0-9.-]+(:[0-9]+)?(/[A-Za-z0-9_./-]*)?" entry.url != null
+      else if entry.transport == "stdio" then
+        builtins.isString entry.command
+        && builtins.match "/nix/store/[A-Za-z0-9+._/-]+" entry.command != null
+        && builtins.isList entry.args
+        && lib.all builtins.isString entry.args
+      else
+        false
+    )
     && entry.defaultEnabled == false
     && lib.all (h: builtins.elem h harnesses) entry.harnesses;
   validSelection =
@@ -107,14 +128,30 @@ let
     lib.listToAttrs (
       map (id: {
         name = "fleet-${id}";
-        value = (lib.optionalAttrs (harness == "claude") { type = "http"; }) // {
-          url = catalog.${id}.url;
-        };
+        value =
+          if catalog.${id}.transport == "stdio" then
+            (lib.optionalAttrs (harness == "claude") { type = "stdio"; })
+            // {
+              inherit (catalog.${id}) command args;
+            }
+          else
+            (lib.optionalAttrs (harness == "claude") { type = "http"; })
+            // {
+              url = catalog.${id}.url;
+            };
       }) selected.${harness}
     );
   codexConfig = lib.concatMapStringsSep "\n" (id: ''
     [mcp_servers."fleet-${id}"]
-    url = ${builtins.toJSON catalog.${id}.url}
+    ${
+      if catalog.${id}.transport == "stdio" then
+        ''
+          command = ${builtins.toJSON catalog.${id}.command}
+          args = ${builtins.toJSON catalog.${id}.args}
+        ''
+      else
+        "url = ${builtins.toJSON catalog.${id}.url}"
+    }
   '') selected.codex;
   mcpEntries =
     harness: root:
