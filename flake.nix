@@ -177,6 +177,16 @@
             self
             username
             ;
+        })
+        // (import ./flake/ai-checks.nix {
+          inherit
+            lib
+            self
+            fleet
+            username
+            aiToolsPackages
+            ;
+          pkgs = pkgsFor;
         });
       devShells.${system}.default = pkgsFor.mkShell {
         packages = with pkgsFor; [
