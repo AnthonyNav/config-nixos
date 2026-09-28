@@ -1,5 +1,10 @@
 # Project Environments and macOS Plan
 
+See [project-environments.md](project-environments.md) for the implemented
+compatibility switches and per-project migration procedure. Six local migrations
+are recorded in [project-migration-status.md](project-migration-status.md);
+remaining consumers and removal of global fallbacks still require validation.
+
 ## Project environment goal
 
 The machine should provide general development infrastructure while each

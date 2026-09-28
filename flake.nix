@@ -187,6 +187,10 @@
             aiToolsPackages
             ;
           pkgs = pkgsFor;
+        })
+        // (import ./flake/project-checks.nix {
+          inherit lib;
+          pkgs = pkgsFor;
         });
       devShells.${system}.default = pkgsFor.mkShell {
         packages = with pkgsFor; [

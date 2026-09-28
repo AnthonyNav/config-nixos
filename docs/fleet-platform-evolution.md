@@ -83,11 +83,21 @@ Implement canonical context, skills, harness adapters, RTK policy, MCP registry
 and diagnostics as one coherent change. Follow [ai-environment-plan.md](ai-environment-plan.md).
 Do not reintroduce the removed custom OpenCode configuration or kiro-gateway.
 
+PR 2 is implemented in #65. Native harness/runtime validation remains a
+post-deployment check; see [ai-environment.md](ai-environment.md).
+
 ### PR 3 — project isolation and final server onboarding
 
 Standardize project devShell patterns, migrate toolchains incrementally, and
 replace global workarounds only after validating their project replacements.
 Preserve working Flutter/Android tooling during the transition.
+
+The first project-isolation slice adds per-language compatibility switches and
+a separate switch for the global Jupyter library workaround. All remain enabled
+until project validation; see [project-environments.md](project-environments.md).
+Six local project migrations and their validation are tracked in
+[project-migration-status.md](project-migration-status.md). Remaining consumers
+and Flutter hardware/runtime checks still gate global fallback removal.
 
 Leave IdeaPad onboarding until the end. Inspect hardware and confirm identity
 and remote access before adding a real host, selecting a Kubernetes role or
