@@ -128,6 +128,7 @@
       packages.${system} = {
         nix-config = nixConfigPackages.nixConfig;
         gitleaks = pkgsFor.gitleaks;
+        artemis = import ./packages/artemis.nix { pkgs = pkgsFor; };
         tailscale-policy = tailscalePolicyPrinter;
         kiro-cli = kiroPackages.cli;
         kiro = kiroPackages.ide;

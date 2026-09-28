@@ -47,3 +47,20 @@ for target in (".claude.json", ".kiro/settings/mcp.json"):
     assert entry["path"] == ["mcpServers", "fleet-openai-docs"]
     assert entry["value"]["url"] == "https://developers.openai.com/mcp"
 print("All host contexts, skills and MCP adapters validated.")
+
+local = Path(fixtures["localEnabled"])
+manifest = json.loads((local / "manifest.json").read_text())
+connection = tomllib.loads(manifest["text"][".codex/config.toml"])["mcp_servers"]["fleet-artemis"]
+assert connection["command"].startswith("/nix/store/")
+assert connection["args"] == ["mcp"] and "url" not in connection
+for target in (".claude.json", ".kiro/settings/mcp.json"):
+    entry = next(e for e in manifest["json"][target] if e["path"][-1] == "fleet-artemis")
+    assert entry["value"]["command"] == connection["command"]
+    assert entry["value"]["args"] == ["mcp"]
+    assert "env" not in entry["value"] and "url" not in entry["value"]
+    if target == ".claude.json":
+        assert entry["value"]["type"] == "stdio"
+agent = json.loads((local / "kiro-agent.json").read_text())
+assert agent["allowedTools"] == []
+assert agent["mcpServers"]["fleet-artemis"] == connection
+print("Opt-in stdio adapters validated without auto-approving tools.")

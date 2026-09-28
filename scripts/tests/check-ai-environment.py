@@ -115,6 +115,26 @@ class Integration(unittest.TestCase):
         with self.assertRaises(ValueError):
             manager.merge_text(owned, None, owned, True)
 
+    def test_optional_stdio_enable_disable_preserves_normal_workflow(self):
+        personal = {"mcpServers": {"personal": {"command": "user-tool", "args": []}}}
+        self.seed(".claude.json", json.dumps(personal))
+        self.seed(".kiro/settings/mcp.json", json.dumps(personal))
+        self.seed(".codex/config.toml", 'model = "personal-model"\n')
+        manager.reconcile(self.home, self.manifest, False)
+        normal = {str(p.relative_to(self.home)): p.read_text() for p in self.home.rglob('*') if p.is_file() and not p.name.endswith('fleet-ai-backup')}
+        optional = copy.deepcopy(self.manifest)
+        command = "/nix/store/fixture-fleet-artemis/bin/fleet-artemis"
+        for name in (".claude.json", ".kiro/settings/mcp.json"):
+            optional["json"][name] = [{"path": ["mcpServers", "fleet-artemis"], "kind": "set", "value": {"command": command, "args": ["mcp"]}}]
+        optional["text"][".codex/config.toml"] = '[mcp_servers."fleet-artemis"]\ncommand = "' + command + '"\nargs = ["mcp"]\n'
+        manager.reconcile(self.home, optional, False)
+        manager.reconcile(self.home, self.manifest, False)
+        for name in (".claude.json", ".kiro/settings/mcp.json"):
+            self.assertEqual(json.loads((self.home / name).read_text()), personal)
+        self.assertEqual(tomllib.loads((self.home / ".codex/config.toml").read_text()), {"model": "personal-model"})
+        self.assertEqual((self.home / ".claude/settings.json").read_text(), normal[".claude/settings.json"])
+        self.assertEqual((self.home / ".codex/AGENTS.md").read_text(), normal[".codex/AGENTS.md"])
+
     def test_doctor_detects_missing_integration_without_connecting(self):
         with contextlib.redirect_stdout(io.StringIO()):
             self.assertTrue(manager.doctor(self.home, bundle))
