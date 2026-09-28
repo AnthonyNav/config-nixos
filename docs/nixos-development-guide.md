@@ -46,7 +46,8 @@ separate opt-in capability and must not be added to the ThinkPad profile.
 
 ## 3. Use Reproducible Project Environments
 
-For a project, create a `flake.nix` and `.envrc`:
+Follow [the migration procedure](project-environments.md) before retiring global
+SDKs or native-library workarounds. For a project, create a `flake.nix` and `.envrc`:
 
 ```nix
 {
