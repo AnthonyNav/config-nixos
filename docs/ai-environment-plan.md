@@ -11,7 +11,8 @@ Provide one declarative source of truth so every supported AI harness knows:
 - which MCP servers are known and enabled;
 - what belongs to system, Home Manager or project configuration.
 
-This document defines architecture only.
+The Linux implementation is documented in [ai-environment.md](ai-environment.md).
+This document retains the broader architectural goals; Darwin remains deferred.
 
 ## Canonical source
 
@@ -91,17 +92,14 @@ Do not duplicate changing hardware facts in multiple AI files.
 
 ## Harness adapters
 
-Home Manager should expose canonical context/skills in the global
-locations/formats expected by supported harnesses such as Codex, Claude Code,
-OpenCode and Kiro.
+Home Manager exposes shared context and skills to Codex, Claude Code and Kiro.
+The implementation preserves personal settings and uses a conservative Claude
+RTK hook; other harnesses receive instruction fallback.
 
-Canonical content remains harness-independent. Tool-specific file names,
-JSON/TOML syntax and integration behavior belong in adapters.
-
-This workstream intentionally changes the current OpenCode ownership boundary
-only when its implementation PR lands. That implementation must update the
-corresponding invariant in `docs/maintainer.md` in the same PR; until then,
-OpenCode configuration remains user-owned as documented there.
+OpenCode remains user-owned by explicit user decision. Do not restore its
+removed custom configuration or Kiro Gateway. The wider adapter examples below
+do not override that boundary. See [ai-environment.md](ai-environment.md) for
+the exact supported paths, MCP authentication limits and rollout checks.
 
 ## Skills
 

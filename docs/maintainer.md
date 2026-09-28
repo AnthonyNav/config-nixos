@@ -253,7 +253,11 @@ daemon settings from `modules/system/common.nix` and need no bootstrap step.
 
 OpenCode is installed without repository-managed wrappers, providers, agents,
 commands, skills, or plugins. Its configuration and credentials remain user-owned.
-Claude Code also keeps its local configuration under `~/.claude`.
+The shared [AI environment](ai-environment.md) adds fleet context and five
+skills for Codex, Claude Code and Kiro. Mutable settings stay user-owned; an
+activation reconciler updates only recorded fleet entries and preserves local
+permissions, credentials and unrelated hooks. MCP enablement defaults to empty.
+Run `ai-doctor` after an authorized deployment to check the local integration.
 
 ## Tailnet Policy
 
