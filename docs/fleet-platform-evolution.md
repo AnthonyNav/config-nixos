@@ -1,7 +1,7 @@
 # Platform Evolution Roadmap
 
 This document is the entry point for the planned evolution of this repository.
-It documents future work only; it does not authorize activation or deployment.
+It tracks the implementation sequence; it does not authorize activation or deployment.
 
 ## Goals
 
@@ -12,7 +12,7 @@ It documents future work only; it does not authorize activation or deployment.
 - Move project-specific SDKs toward devShell + nix-direnv.
 - Maintain one declarative source for global AI context, skills, MCP definitions
   and RTK policy.
-- Prepare shared configuration for future Apple Silicon macOS via nix-darwin.
+- Defer macOS until a real Mac and a dedicated validation path are available.
 
 ## Target ownership model
 
@@ -58,64 +58,46 @@ ai/{context,skills,mcp}/
 
 Do not move files solely for aesthetics; introduce boundaries incrementally.
 
-## Recommended implementation phases
+## Implementation sequence (three PRs)
 
-### Phase 1 — platform foundation
+### PR 1 — fleet foundation and reusable laboratory
 
-- modularize root flake responsibilities;
-- make host platform/system explicit;
-- allow headless hosts;
-- remove shared path assumptions that block server/Darwin portability.
+Combine the structural and fleet changes with the extraction of K3s, CI agents
+and publication modules. Preserve the current three workstations, including
+their GPU, power, firewall and running-service configuration. Desktop and
+Victus declare equivalent lab capabilities; enabling an instance is a separate
+host policy decision. Validate an undeployed synthetic headless host so the
+foundation does not depend on access to the IdeaPad.
 
-### Phase 2 — fleet model
+Operational fixes to existing Desktop instances are also deferred until the final
+stage; this PR only extracts their current declarations.
 
-- split common/workstation/server concerns;
-- introduce host kinds and capabilities;
-- derive feature-specific host sets from inventory.
+The implementation uses `inventory/hosts.nix`, derived sets in
+`inventory/fleet.nix`, composition in `flake/hosts.nix`, and
+`modules/system/{common,workstation,server,lab-platform}`. Home Manager and
+desktop selection are optional. Commands and CI skip absent Home outputs.
 
-### Phase 3 — laboratory platform
+### PR 2 — global AI environment
 
-- extract reusable K3s/CI/lab behavior from Desktop;
-- give Desktop and Victus equivalent lab capability;
-- preserve their different GPU/power implementations.
+Implement canonical context, skills, harness adapters, RTK policy, MCP registry
+and diagnostics as one coherent change. Follow [ai-environment-plan.md](ai-environment-plan.md).
+Do not reintroduce the removed custom OpenCode configuration or kiro-gateway.
 
-### Phase 4 — IdeaPad server
+### PR 3 — project isolation and final server onboarding
 
-- inspect hardware first;
-- add the minimal headless host;
-- apply measured low-resource policy;
-- enforce and validate Tailscale SSH;
-- verify remote access after reboot before relying on headless operation.
+Standardize project devShell patterns, migrate toolchains incrementally, and
+replace global workarounds only after validating their project replacements.
+Preserve working Flutter/Android tooling during the transition.
 
-### Phase 5 — global AI environment
+Leave IdeaPad onboarding until the end. Inspect hardware and confirm identity
+and remote access before adding a real host, selecting a Kubernetes role or
+setting resource limits. If access remains unavailable, finish project isolation
+and keep onboarding explicitly pending; do not invent hardware configuration.
+First activation and reboot/access verification happen only from reviewed main
+with a recovery path, following [lab-platform-plan.md](lab-platform-plan.md).
 
-- canonical global/platform/host context;
-- canonical Agent Skills;
-- harness adapters;
-- RTK hooks/plugins where supported;
-- MCP registry/policy;
-- diagnostics and CI validation.
-
-### Phase 6 — project isolation
-
-- standardize per-project devShell patterns;
-- move language/toolchain versions incrementally;
-- remove the global Jupyter library workaround only after replacement;
-- validate Flutter/Android behavior before changing working tooling.
-
-### Phase 7 — macOS
-
-- add nix-darwin only while onboarding a real Mac;
-- reuse shared Home Manager/AI layers;
-- add a Darwin-compatible build/validation path.
-
-### Phase 8 — fleet build optimization
-
-- evaluate distributed Nix builders;
-- add a binary cache only when repeated private builds justify it;
-- keep the low-resource IdeaPad out of heavy-build scheduling by default.
-
-Do not combine all phases in one PR.
+macOS and distributed builders/cache work are outside these three PRs.
+Revisit them only with concrete hardware and measured build needs.
 
 ## Rules for implementation agents
 

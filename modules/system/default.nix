@@ -1,10 +1,9 @@
-{ ... }:
-
+{ hostFeatures, lib, ... }:
 {
   imports = [
-    ./core.nix
-    ./ai-helper.nix
-    ./input-sharing.nix
-    ./gpu-compute.nix
-  ];
+    ./common.nix
+    ./lab-platform
+  ]
+  ++ lib.optional (hostFeatures.kind == "workstation") ./workstation.nix
+  ++ lib.optional (hostFeatures.kind == "server") ./server.nix;
 }

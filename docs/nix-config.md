@@ -64,3 +64,9 @@ nix run .#nix-config -- check all
 On an existing workstation receiving these commands for the first time, update
 a clean `main` and use the old `nix-switch` once. On a new installation, use the
 documented direct `nixos-rebuild switch --flake ...` bootstrap command.
+
+
+For fleet hosts with `homeModules = null`, `build all`, `check`, and
+`deploy` validate/build only the NixOS system. `build home all` selects only
+hosts with Home Manager, while `build home <host>` rejects an absent Home
+output. The inventory-derived host list includes servers as well as workstations.

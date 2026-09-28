@@ -6,6 +6,7 @@ readonly config_user="${NIX_CONFIG_USER:?NIX_CONFIG_USER is not set}"
 readonly supported_hosts="${NIX_CONFIG_HOSTS:?NIX_CONFIG_HOSTS is not set}"
 read -r -a host_names <<<"$supported_hosts"
 readonly host_names
+readonly home_hosts="${NIX_CONFIG_HOME_HOSTS?NIX_CONFIG_HOME_HOSTS is not set}"
 
 repo=""
 flake=""
@@ -75,7 +76,7 @@ resolve_host() {
     fi
   done
 
-  die "$candidate is not a declared workstation"
+  die "$candidate is not a declared fleet host"
 }
 
 require_clean_main() {
@@ -172,8 +173,17 @@ build_system() {
   (cd "$repo" && nix build --no-link --no-write-lock-file "$(system_installable "$host")")
 }
 
+has_home() {
+  local host="$1" allowed
+  for allowed in $home_hosts; do
+    [[ "$host" != "$allowed" ]] || return 0
+  done
+  return 1
+}
+
 build_home() {
   local host="$1"
+  has_home "$host" || die "$host has no Home Manager output"
   (cd "$repo" && nix build --no-link --no-write-lock-file "$(home_installable "$host")")
 }
 
@@ -186,7 +196,7 @@ build_host() {
     home) build_home "$host" ;;
     all)
       build_system "$host"
-      build_home "$host"
+      if has_home "$host"; then build_home "$host"; fi
       ;;
     *) die "unknown build target: $target" ;;
   esac
@@ -199,6 +209,7 @@ build_scope() {
 
   if [[ "$selection" == "all" ]]; then
     for host in "${host_names[@]}"; do
+      if [[ "$target" == "home" ]] && ! has_home "$host"; then continue; fi
       build_host "$target" "$host"
     done
   else

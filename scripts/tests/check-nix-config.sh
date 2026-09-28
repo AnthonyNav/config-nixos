@@ -43,7 +43,8 @@ EOF
 chmod +x "$fake_bin"/*
 
 export NIXOS_CONFIG_DIR="$repo"
-export NIX_CONFIG_HOSTS="thinkpad victus desktop"
+export NIX_CONFIG_HOSTS="thinkpad victus desktop server-test"
+export NIX_CONFIG_HOME_HOSTS="thinkpad victus desktop"
 export NIX_CONFIG_TEST_LOG="$log"
 export NIX_CONFIG_USER="anthony"
 export PATH="$fake_bin:$PATH"
@@ -129,3 +130,34 @@ if grep -q 'path:' "$log"; then
   printf 'input update used an unfiltered path flake reference\n' >&2
   exit 1
 fi
+
+# Headless fleet members build their system without requesting a missing Home output.
+: >"$log"
+bash "$script" build all server-test
+grep -q 'nixosConfigurations.server-test.config.system.build.toplevel' "$log"
+if grep -q 'homeConfigurations' "$log"; then
+  printf 'headless system build requested Home Manager\n' >&2
+  exit 1
+fi
+: >"$log"
+if bash "$script" build home server-test >"$tmp/stdout" 2>"$tmp/stderr"; then
+  printf 'explicit home build accepted a host without Home Manager\n' >&2
+  exit 1
+fi
+grep -q 'has no Home Manager output' "$tmp/stderr"
+[[ ! -s "$log" ]]
+: >"$log"
+bash "$script" build home all
+[[ "$(grep -c 'homeConfigurations' "$log")" -eq 3 ]]
+if grep -q 'server-test' "$log"; then exit 1; fi
+
+# An entirely headless fleet still has usable build commands.
+export NIX_CONFIG_HOSTS="server-test"
+export NIX_CONFIG_HOME_HOSTS=""
+: >"$log"
+bash "$script" build all all
+[[ "$(grep -c 'nixosConfigurations' "$log")" -eq 1 ]]
+if grep -q 'homeConfigurations' "$log"; then exit 1; fi
+: >"$log"
+bash "$script" build home all
+[[ ! -s "$log" ]]

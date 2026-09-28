@@ -8,7 +8,7 @@
 }:
 
 let
-  endpoints = import ../../inventory/endpoints.nix;
+  endpoints = import ../../inventory/endpoints.nix { };
   policy = import ../../inventory/syncthing.nix;
   connectivity = hostFeatures.connectivity or { };
   enabled = connectivity.syncthing or false;

@@ -536,9 +536,9 @@ pritunl                      # abre la GUI de Pritunl VPN
 ### VPN Pritunl
 
 El cliente Pritunl (`pritunl-client`) se instala a nivel de **sistema**
-(`modules/system/pritunl.nix`, importado globalmente desde
-`modules/system/core.nix`, así que está disponible en cualquier host del
-repo) — no hace falta descargar nada a mano ni AppImages: nixpkgs ya trae el
+(`modules/system/pritunl.nix`, importado desde
+`modules/system/workstation.nix`, así que está disponible en las estaciones
+de trabajo del repo) — no hace falta descargar nada a mano ni AppImages: nixpkgs ya trae el
 paquete completo (CLI + daemon privilegiado + GUI Electron), compilado desde
 fuente. El daemon (`pritunl-client.service`) arranca solo con el sistema.
 

@@ -2,7 +2,8 @@
   lib,
   pkgs,
   username,
-  workstationNames,
+  fleetNames,
+  homeHostNames,
 }:
 
 let
@@ -16,7 +17,8 @@ let
     ];
     text = ''
       export NIX_CONFIG_USER=${lib.escapeShellArg username}
-      export NIX_CONFIG_HOSTS=${lib.escapeShellArg (lib.concatStringsSep " " workstationNames)}
+      export NIX_CONFIG_HOSTS=${lib.escapeShellArg (lib.concatStringsSep " " fleetNames)}
+      export NIX_CONFIG_HOME_HOSTS=${lib.escapeShellArg (lib.concatStringsSep " " homeHostNames)}
       ${builtins.readFile ../../scripts/nix-config.sh}
     '';
   };

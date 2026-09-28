@@ -1,1 +1,1 @@
-(import ./endpoints.nix).remoteWorkspace
+(import ./endpoints.nix { }).remoteWorkspace

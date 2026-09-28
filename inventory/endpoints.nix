@@ -1,9 +1,8 @@
+{
+  fleet ? import ./fleet.nix { },
+}:
 let
-  workstationNames = [
-    "desktop"
-    "thinkpad"
-    "victus"
-  ];
+  inherit (fleet) workstationNames;
   ports = {
     ssh = 22;
     syncthing = 22000;
@@ -53,7 +52,7 @@ in
       name = "ssh";
       protocol = "tcp";
       port = ports.ssh;
-      hosts = workstationNames;
+      hosts = fleet.sshHostNames;
     }
     {
       name = "remote-workspace-desktop";
@@ -71,13 +70,13 @@ in
       name = "syncthing";
       protocol = "tcp";
       port = ports.syncthing;
-      hosts = workstationNames;
+      hosts = fleet.syncthingHostNames;
     }
     {
       name = "lan-mouse";
       protocol = "udp";
       port = ports.lanMouse;
-      hosts = workstationNames;
+      hosts = fleet.inputSharingHostNames;
     }
   ]
   ++ builtins.map (name: {

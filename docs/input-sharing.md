@@ -53,7 +53,7 @@ lan-mouse cli list
 ```
 
 The first run defaults to `all`, so every host configures both declared peers.
-The allowed peers and their screen edges live in `inventory/workstations.nix`;
+The allowed peers and their screen edges live in `inventory/hosts.nix`;
 `input-share` derives their current Tailscale IPv4 addresses and persists the
 selected topology into Lan Mouse's local runtime configuration.
 
@@ -94,7 +94,7 @@ lan-mouse                   # graphical pairing/status frontend
 `input-share pair` rejects the local host and any name outside the declared
 peer allowlist. If a Tailscale node identity/IP changes, run `input-share
 reconcile`. If the physical layout changes, update the `position` fields in
-`inventory/workstations.nix` and merge/deploy normally rather than editing Lan
+`inventory/hosts.nix` and merge/deploy normally rather than editing Lan
 Mouse clients by hand.
 
 ## Clipboard

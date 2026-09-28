@@ -1,7 +1,7 @@
 {
+  config,
   lib,
   pkgs,
-  username,
   ...
 }:
 
@@ -10,7 +10,7 @@ let
   identities = policy.identities;
   defaultIdentity = identities.${policy.default};
   personalIdentity = identities.personal;
-  homeDir = "/home/${username}";
+  homeDir = config.home.homeDirectory;
 
   rootPath = root: "${homeDir}/${root}";
   sshKeyPath = identity: "${homeDir}/${identity.sshKey}";
