@@ -43,6 +43,26 @@ The package already supplies the CLI; skip Orca's optional CLI registration.
 If a prior manual installation shadows it, inspect `type -a orca-ide` before
 removing or changing anything.
 
+## Shared workspace skill
+
+Victus's Orca opt-in also installs `fleet-orca-workspaces` from
+`ai/orca/skills/fleet-orca-workspaces/SKILL.md`. Home Manager links the same
+source into Orca's shared `~/.agents/skills` discovery directory and the
+Codex, Claude Code and Kiro skill directories. OpenCode reads the shared
+directory. The managed Victus context tells Codex, Claude and Kiro to load the
+skill for Orca sessions and Fleet project work; OpenCode can select it from
+its skill catalog when the task is relevant. A skill is discovered on session
+start, but its full instructions are loaded on demand rather than injected
+into every agent turn. Start a new agent session after deployment to pick up
+new skill metadata.
+
+The skill resolves a project under `~/Sync/Fleet/projects` through its
+`project.json` and `.code-workspace`; those directories are coordination
+folders, not necessarily Git repositories. It verifies component checkouts
+before using Orca's repo and worktree CLI. Its references to
+`orca-ide skills get` load command guidance bundled with the installed Orca
+version; no upstream skill self-updater or mutable app configuration is required.
+
 ## Development checks
 
 From a short-lived branch based on current main:
@@ -70,6 +90,8 @@ published main through the normal `nix-update` / `nix-switch` workflow.
 2. Check `orca-ide --version`, `type -a claude codex opencode kiro-cli` and
    `ai-doctor` inside an Orca terminal. Compare with a fresh external terminal.
    Verify existing fleet context/skills and the Claude RTK hook remain intact.
+   In a new agent session, verify `fleet-orca-workspaces` is discoverable and
+   Orca's Skills page shows its shared Agent Skills source.
 3. Add one development repository, fetch its base and create two short-lived
    branches/worktrees from the updated base. Run at most two agents initially.
    Do not launch installers or agent self-updaters from Orca.

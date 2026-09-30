@@ -5,6 +5,7 @@
   homeDirectory,
   rtk,
   enabled ? true,
+  orcaEnabled ? false,
   registry ? import ./mcp/registry.nix,
   policy ? import ./mcp/policy.nix,
 }:
@@ -95,6 +96,12 @@ let
     builtins.readFile ./context/global.md
     + "\n"
     + builtins.readFile ./context/nixos.md
+    + lib.optionalString orcaEnabled ''
+
+      When working in an Orca session or with a project under
+      ~/Sync/Fleet/projects, load the fleet-orca-workspaces skill before
+      registering a repository, opening a terminal, or creating a worktree.
+    ''
     + "\n# Evaluated host facts\n\n"
     + lib.concatStringsSep "\n" [
       "OS: ${facts.os}"

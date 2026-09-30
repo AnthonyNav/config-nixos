@@ -25,6 +25,7 @@ let
     inherit (config.home) homeDirectory;
     rtk = aiToolsPackages.rtk;
     enabled = cfg.enable;
+    orcaEnabled = cfg.orca.enable;
     inherit policy;
     registry =
       import ../../ai/mcp/registry.nix

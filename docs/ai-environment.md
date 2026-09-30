@@ -21,9 +21,10 @@ remains installed with user-owned configuration. Kiro Gateway is not restored.
 | Claude Code | `~/.claude/rules/nixos-fleet.md` | `~/.claude/skills/fleet-*` | Conservative PreToolUse hook |
 | Kiro | `~/.kiro/steering/nixos-fleet.md` | `~/.kiro/skills/fleet-*` | Instruction fallback |
 
-The Codex skill path matches the existing fleet installations. Current Codex
-also supports `~/.agents/skills`; this change uses assistant-specific paths to
-avoid implicitly adding custom OpenCode skills through a shared discovery root.
+The Codex skill path matches the existing fleet installations. The five shared
+AI procedures use assistant-specific paths. Victus's explicit Orca opt-in adds
+one workspace skill to the shared `~/.agents/skills` root so OpenCode and Orca
+can discover it too; Desktop and ThinkPad do not get this skill by default.
 Kiro custom agents may omit global steering. The provided `nixos-fleet` agent
 explicitly references the managed context and skills:
 `kiro-cli chat --agent nixos-fleet`. It does not auto-trust tools or replace your
@@ -117,9 +118,10 @@ external authentication succeeds.
 ## Optional Orca desktop pilot
 
 [Orca](orca.md) is packaged separately and enabled only on Victus through
-`fleet.ai.orca.enable`. It uses the existing agent CLIs and leaves this module's
-context, settings reconciliation and MCP policy unchanged. Desktop and ThinkPad
-do not install it by default. Remote Orca services and mobile pairing are deferred.
+`fleet.ai.orca.enable`. It uses the existing agent CLIs, adds a shared Orca
+workspace skill and a short Victus-only context cue, and leaves mutable agent
+settings reconciliation and MCP policy unchanged. Desktop and ThinkPad do not
+install it by default. Remote Orca services and mobile pairing are deferred.
 
 ## Upstream references
 
