@@ -206,6 +206,11 @@ the CLI is included on all three workstations. `herdr` is pinned to a release
 tag as a flake input and is also included on all three workstations. Update
 Herdr through its flake input, not its self-updater.
 
+Orca's [Victus-only pilot](orca.md) is pinned in `packages/orca-ide.nix` and
+exposed as `.#orca-ide`. Its Linux CLI is `orca-ide`; the application launcher is
+`orca-ide-gui`. Update the package version/hash through review and revalidate
+upstream's externally-managed-install guard. Mutable application state is local.
+
 DbGate Community is pinned in `packages/dbgate.nix` for `victus` and exposed
 as `.#dbgate`. Database connections and credentials stay in local application
 state, never in this repository. DBeaver is pinned in `packages/dbeaver.nix`

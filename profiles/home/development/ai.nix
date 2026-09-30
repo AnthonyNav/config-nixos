@@ -7,7 +7,10 @@
 }:
 
 {
-  imports = [ ../../../modules/home/ai-environment.nix ];
+  imports = [
+    ../../../modules/home/ai-environment.nix
+    ../../../modules/home/orca.nix
+  ];
   fleet.ai.enable = lib.mkDefault true;
 
   home.packages = [
