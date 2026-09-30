@@ -53,7 +53,10 @@
         localSystem = system;
         config.allowUnfree = true;
       };
-      aiToolsPackages = inputs.llm-agents.packages.${system};
+      aiToolsPackages = import ./packages/ai-tools.nix {
+        pkgs = pkgsFor;
+        llmAgents = inputs.llm-agents.packages.${system};
+      };
       herdrPackage = inputs.herdr.packages.${system}.default;
       kiroPackages = import ./packages/kiro.nix { pkgs = pkgsFor; };
       dbgatePackage = pkgsFor.callPackage ./packages/dbgate.nix { };

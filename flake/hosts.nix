@@ -45,7 +45,10 @@ let
     in
     (argsFor name host)
     // {
-      aiToolsPackages = inputs.llm-agents.packages.${host.system};
+      aiToolsPackages = import ../packages/ai-tools.nix {
+        inherit pkgs;
+        llmAgents = inputs.llm-agents.packages.${host.system};
+      };
       herdrPackage = inputs.herdr.packages.${host.system}.default;
       kiroPackages = import ../packages/kiro.nix { inherit pkgs; };
       dbgatePackage = pkgs.callPackage ../packages/dbgate.nix { };

@@ -103,6 +103,7 @@
 
         claude --version | grep -F ${lib.escapeShellArg aiToolVersions.claudeCode}
         codex --version | grep -F ${lib.escapeShellArg aiToolVersions.codex}
+        codex features list | grep -E '^daemon_auto_start +[a-z]+ +false$'
         opencode --version | grep -F ${lib.escapeShellArg aiToolVersions.opencode}
         rtk --version | grep -F ${lib.escapeShellArg aiToolVersions.rtk}
         touch "$out"
