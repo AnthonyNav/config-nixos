@@ -134,6 +134,7 @@
         kiro = kiroPackages.ide;
         herdr = herdrPackage;
         dbgate = dbgatePackage;
+        orca-ide = pkgsFor.callPackage ./packages/orca-ide.nix { };
         dbeaver = dbeaverPackage;
       };
       apps.${system} = {
