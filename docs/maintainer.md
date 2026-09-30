@@ -228,6 +228,13 @@ Nix daemon in `modules/system/common.nix`, preventing local Codex and RTK source
 builds after the first deployment. Inspect the pinned versions with
 `nix eval --json .#lib.aiToolVersions`.
 
+`packages/ai-tools.nix` wraps Codex (`packages/codex.nix`) with
+`-c features.daemon_auto_start=false`. Since 0.159 Codex starts a shared
+app-server daemon by default, which requires the upstream `codex-package.json`
+layout that the source-built `llm-agents` package lacks; without the wrapper
+`codex` fails with "this CLI has no complete local package". Remove the wrapper
+once the pinned package ships that layout.
+
 Update this toolchain only on a dedicated branch and PR:
 
 ```sh
