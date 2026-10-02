@@ -114,12 +114,12 @@ build-time checks cover generated JSON and resource structure instead.
 No build-time test proves that a model followed the instructions or that
 external authentication succeeds.
 
-## Optional Orca desktop pilot
+## Optional Orca application
 
-[Orca](orca.md) is packaged separately and enabled only on Victus through
-`fleet.ai.orca.enable`. It uses the existing agent CLIs and leaves this module's
-context, settings reconciliation and MCP policy unchanged. Desktop and ThinkPad
-do not install it by default. Remote Orca services and mobile pairing are deferred.
+[Orca](orca.md) is packaged separately and enabled on Victus, Desktop and ThinkPad
+through `fleet.ai.orca.enable`. It uses the existing agent CLIs and leaves this
+module's context, settings reconciliation and MCP policy unchanged. The opt-in
+remains per host. Remote Orca services and mobile pairing are deferred.
 
 ## Upstream references
 

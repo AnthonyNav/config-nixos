@@ -10,4 +10,6 @@
     ../../modules/home/creative-suite.nix
     ../../modules/home/monitors-desktop.nix
   ];
+
+  fleet.ai.orca.enable = true;
 }
