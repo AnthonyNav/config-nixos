@@ -1,8 +1,9 @@
-# Orca desktop pilot
+# Orca on the workstations
 
-Orca is an optional Home Manager application, currently enabled only on Victus
-with `fleet.ai.orca.enable = true`. Desktop and ThinkPad retain the default
-`false`. The installer and headless hosts do not acquire a GUI dependency.
+Orca is an optional Home Manager application, enabled on Victus, Desktop and
+ThinkPad with `fleet.ai.orca.enable = true` in each host's Home Manager overlay.
+The module defaults to `false`; the installer and headless hosts do not acquire
+a GUI dependency.
 
 ## Package and ownership
 
@@ -64,9 +65,9 @@ published main through the normal `nix-update` / `nix-switch` workflow.
 
 ## Local acceptance after deployment
 
-1. Launch **Orca** from the application menu on Victus. Check rendering, resizing,
-   clipboard, terminal and browser under the normal Hyprland/AMD session. Do not
-   force NVIDIA PRIME offload for routine IDE work.
+1. Launch **Orca** from the application menu on the workstation being validated.
+   Check rendering, resizing, clipboard, terminal and browser under its normal
+   Hyprland session. Do not force NVIDIA PRIME offload for routine IDE work.
 2. Check `orca-ide --version`, `type -a claude codex opencode kiro-cli` and
    `ai-doctor` inside an Orca terminal. Compare with a fresh external terminal.
    Verify existing fleet context/skills and the Claude RTK hook remain intact.
@@ -89,23 +90,24 @@ published main through the normal `nix-update` / `nix-switch` workflow.
    a newer release is available. Do not treat an unavailable update as a
    successful exercise of the update guard.
 
-Record runtime results before extending enablement to Desktop or ThinkPad.
-Herdr and the existing editors remain available during the pilot.
+Run and record this acceptance separately on each workstation after deployment.
+Herdr and the existing editors remain available.
 
 ## Remote and mobile follow-up
 
 SSH, Orca Server, mobile pairing, computer use and scheduled automations are
-outside this pilot. In particular, upstream's SSH mode installs a remote relay
-and may build node-pty: validate NixOS dependencies and the existing Tailscale
-ProxyCommand before adopting it. Check disconnect/session lease behavior rather
+outside this desktop application rollout. In particular, upstream's SSH mode
+installs a remote relay and may build node-pty: validate NixOS dependencies and
+the existing Tailscale ProxyCommand before adopting it. Check disconnect/session lease behavior rather
 than assuming indefinite persistence. Desktop's existing Zellij Remote Workspace
 remains independent; no ports, firewall rules or Tailscale policy change here.
 
 ## Disable
 
-Remove Victus's opt-in or set `fleet.ai.orca.enable = false`, validate and deploy
-reviewed main. This removes the managed application while preserving local
-Orca data and Git worktrees. Close running Orca sessions separately when safe.
+Remove the target host's opt-in or set `fleet.ai.orca.enable = false`, validate
+and deploy reviewed main. This removes the managed application while preserving
+local Orca data and Git worktrees. Close running Orca sessions separately when
+safe.
 
 ## References
 
