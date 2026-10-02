@@ -232,9 +232,17 @@ builds after the first deployment. Inspect the pinned versions with
 `packages/ai-tools.nix` wraps Codex (`packages/codex.nix`) with
 `-c features.daemon_auto_start=false`. Since 0.159 Codex starts a shared
 app-server daemon by default, which requires the upstream `codex-package.json`
-layout that the source-built `llm-agents` package lacks; without the wrapper
-`codex` fails with "this CLI has no complete local package". Remove the wrapper
-once the pinned package ships that layout.
+layout that the source-built `llm-agents` package lacks; without this flag
+`codex` fails with "this CLI has no complete local package". Remove the daemon
+flag once the pinned package ships that layout, retaining the Git/SSH behavior.
+
+The same wrapper sets `GIT_TERMINAL_PROMPT=0` and adds `-o BatchMode=yes` to
+the inherited SSH command, preserving the personal-context identity wrapper.
+Without an inherited command it uses pinned OpenSSH. Git operations inside
+Codex require non-interactive authentication, such as the correct key loaded
+in the SSH agent, and fail instead of prompting when it is unavailable. See
+[codex-git-prompt-plan.md](codex-git-prompt-plan.md) for the reported TUI issue,
+validation scope and real-session follow-up.
 
 Update this toolchain only on a dedicated branch and PR:
 
