@@ -40,9 +40,10 @@ and preserves the current directory and shell environment. Finish other Android
 builds using that Gradle version first: the stop command is not project-scoped.
 It does not delete APKs or build caches; the next build starts a daemon again.
 
-This repository has four relevant profile layers: `base`, `development`,
-`database-tools`, and a selected desktop style. Creative NVIDIA software is a
-separate opt-in capability and must not be added to the ThinkPad profile.
+This repository composes a shared `base`, a selected desktop style, and
+host-selected roles under `profiles/home/roles`. Desktop and Victus share the
+creative/ML development role. Creative NVIDIA software is a separate opt-in
+capability and must not be added to the ThinkPad profile.
 
 ## 3. Use Reproducible Project Environments
 

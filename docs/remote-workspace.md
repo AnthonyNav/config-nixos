@@ -1,6 +1,6 @@
 # Generic Remote Workspace
 
-The remote workspace is deliberately independent from any AI provider and is currently enabled only on `desktop`.
+The optional remote workspace is independent from any AI provider. It is currently disabled on all fleet workstations. Desktop's former instance is retired as part of its [return to interactive workstation use](desktop-workstation.md); runtime tokens and session data are retained.
 
 ## Architecture
 
@@ -22,17 +22,26 @@ Zellij owns terminal sessions and its web authentication. Tailscale owns private
 
 No Claude, Codex, OpenCode, Kiro, GitHub, or model-provider credential is copied into this layer.
 
-## Host scope
+## Host scope and explicit opt-in
 
-`desktop` is the only current Remote Workspace host. It publishes the localhost backend through private Tailscale HTTPS on port `8448`; port `8082` is never opened by the NixOS firewall.
+Desktop, ThinkPad and Victus set `features.remoteWorkspace.enable = false`.
+They remain interactive workstations reachable through Tailscale SSH while
+awake. The declared fleet has no Serve/Funnel publications or remote workspace
+endpoints. The diagram above shows the former example port, not an active
+endpoint.
 
-ThinkPad and Victus deliberately set `features.remoteWorkspace.enable = false`. They remain normal interactive workstations reachable through Tailscale SSH without running a persistent Zellij Web service.
-
-The tailnet policy remains self-scoped. Funnel is not used for the remote workspace; Desktop's separate Woodpecker endpoint remains the only public Funnel.
+The reusable system and Home Manager modules remain available. A future
+reviewed opt-in must enable the host feature, add its HTTPS endpoint and tailnet
+grant in `inventory/endpoints.nix`, and import `modules/home/remote-workspace.nix`
+in that host's Home configuration. Its backend remains localhost-only on port
+`8082`. Publication is private Tailscale Serve; the tailnet policy remains
+self-scoped. The system module enables user linger only for an enabled host.
+Re-enabling it on retired Desktop also requires removing that host's explicit
+`users.users.${username}.linger = false` retirement setting.
 
 ## First use
 
-After activating the configuration on Desktop:
+After explicitly enabling the feature and deploying reviewed `main` on the selected host:
 
 ```bash
 remote-workspace status
@@ -46,7 +55,7 @@ Open the URL reported by `remote-workspace url` from an authenticated Tailscale 
 
 ## Sessions
 
-Normal Zellij usage remains available on Desktop:
+On an enabled host, normal Zellij usage remains available:
 
 ```bash
 zellij --session backend
@@ -81,7 +90,7 @@ remote-workspace create-read-only-token
 
 ## Host lifetime
 
-The Desktop user systemd manager uses linger so the web service can start at boot and survive logout. Host shutdown, reboot, suspension, or explicit session/process termination remain execution boundaries.
+An enabled host uses user systemd linger so the web service can start at boot and survive logout. The current workstations do not enable linger. Host shutdown, reboot, suspension, or explicit session/process termination remain execution boundaries.
 
 ## Future Agent Hub
 

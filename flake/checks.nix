@@ -45,6 +45,8 @@
       );
       thinkpad = configs.thinkpad;
       victus = configs.victus;
+      desktop = configs.desktop;
+      desktopHome = self.homeConfigurations."${username}@desktop".config;
       thinkpadFallbackSwap = builtins.filter (
         swap: swap.device == "/var/lib/nixos-memory-swapfile"
       ) thinkpad.swapDevices;
@@ -55,9 +57,9 @@
     assert lib.all (c: c.nix.settings.cores > 0 && c.nix.settings."max-jobs" > 0) (
       builtins.attrValues configs
     );
-    assert thinkpad.nix.settings."max-jobs" <= configs.desktop.nix.settings."max-jobs";
-    assert configs.desktop.nix.settings."max-jobs" == 1;
-    assert configs.desktop.nix.settings.cores == 1;
+    assert thinkpad.nix.settings."max-jobs" <= desktop.nix.settings."max-jobs";
+    assert desktop.nix.settings."max-jobs" == 2;
+    assert desktop.nix.settings.cores == 2;
     assert builtins.length thinkpadFallbackSwap == 1;
     assert (builtins.head thinkpadFallbackSwap).randomEncryption.enable;
     assert (builtins.head thinkpadFallbackSwap).priority < thinkpad.zramSwap.priority;
@@ -70,16 +72,26 @@
     assert !victus.systemd.sleep.settings.Sleep.AllowHibernation;
     assert !victus.systemd.sleep.settings.Sleep.AllowHybridSleep;
     assert !victus.systemd.sleep.settings.Sleep.AllowSuspendThenHibernate;
-    assert !(builtins.elem "multi-user.target" thinkpad.systemd.services.docker.wantedBy);
-    assert builtins.elem "sockets.target" thinkpad.systemd.sockets.docker.wantedBy;
-    assert !(builtins.elem "multi-user.target" victus.systemd.services.docker.wantedBy);
-    assert builtins.elem "sockets.target" victus.systemd.sockets.docker.wantedBy;
-    assert thinkpad.virtualisation.docker.enable && !thinkpad.virtualisation.docker.enableOnBoot;
-    assert victus.virtualisation.docker.enable && !victus.virtualisation.docker.enableOnBoot;
-    assert
-      configs.desktop.virtualisation.docker.enable && configs.desktop.virtualisation.docker.enableOnBoot;
+    assert desktop.systemd.sleep.settings.Sleep.AllowSuspend;
+    assert !desktop.systemd.sleep.settings.Sleep.AllowHibernation;
+    assert !desktop.systemd.sleep.settings.Sleep.AllowHybridSleep;
+    assert !desktop.systemd.sleep.settings.Sleep.AllowSuspendThenHibernate;
+    assert desktopHome.estoma.idle.suspendTimeoutSeconds == 1800;
+    assert lib.all (
+      c:
+      c.virtualisation.docker.enable
+      && !c.virtualisation.docker.enableOnBoot
+      && !(builtins.elem "multi-user.target" c.systemd.services.docker.wantedBy)
+      && builtins.elem "sockets.target" c.systemd.sockets.docker.wantedBy
+    ) (builtins.attrValues configs);
     assert victus.hardware.nvidia-container-toolkit.enable;
-    assert configs.desktop.services.k3s.enable;
+    assert desktop.hardware.nvidia-container-toolkit.enable;
+    assert !desktop.services.k3s.enable;
+    assert desktop.fleet.lab.ci.agents == { };
+    assert !desktop.fleet.lab.publication.woodpecker.enable;
+    assert desktop.fleet.lab.publication.privateUis == { };
+    assert (desktop.networking.firewall.interfaces.docker0.allowedTCPPorts or [ ]) == [ ];
+    assert (desktop.networking.firewall.interfaces.docker0.allowedTCPPortRanges or [ ]) == [ ];
     pkgsFor.runCommand "resource-policy-check" { } ''
       touch "$out"
     '';
@@ -146,9 +158,13 @@
     assert builtins.length tailnetGrantBindings == builtins.length (lib.unique tailnetGrantBindings);
     assert lib.all (host: declaredInputPeers host == expectedInputPeers host) inputSharingHostNames;
     assert builtins.attrNames fleetEndpoints.remoteWorkspace.hosts == expectedRemoteWorkspaceHosts;
+    assert fleetEndpoints.public == [ ];
     assert
-      fleetEndpoints.remoteWorkspace.hosts.desktop.httpsPort
-      != fleetEndpoints.desktop.woodpeckerHttp.httpsPort;
+      lib.sort builtins.lessThan tailnetGrantBindings == [
+        "tcp:22"
+        "tcp:22000"
+        "udp:4242"
+      ];
     pkgsFor.runCommand "network-endpoints-check" { } ''
       touch "$out"
     '';
@@ -249,19 +265,22 @@
     '';
   remote-workspace-policy =
     let
-      systemConfig = self.nixosConfigurations.desktop.config;
       remotePolicy = import ../inventory/remote-workspace.nix;
-      remoteEndpoint = remotePolicy.hosts.desktop;
-      globalTcpPorts = systemConfig.networking.firewall.allowedTCPPorts or [ ];
-      tailscaleTcpPorts = systemConfig.networking.firewall.interfaces.tailscale0.allowedTCPPorts or [ ];
+      systemConfigs = map (name: self.nixosConfigurations.${name}.config) workstationNames;
+      homeConfigs = map (name: self.homeConfigurations."${username}@${name}".config) workstationNames;
     in
-    assert workstations.desktop.features.remoteWorkspace.enable;
-    assert !workstations.thinkpad.features.remoteWorkspace.enable;
-    assert !workstations.victus.features.remoteWorkspace.enable;
-    assert builtins.attrNames remotePolicy.hosts == [ "desktop" ];
-    assert builtins.elem remoteEndpoint.httpsPort tailscaleTcpPorts;
-    assert !(builtins.elem remotePolicy.backend.port globalTcpPorts);
-    assert !(builtins.elem remotePolicy.backend.port tailscaleTcpPorts);
+    assert lib.all (host: !host.features.remoteWorkspace.enable) (builtins.attrValues workstations);
+    assert remotePolicy.hosts == { };
+    assert self.nixosConfigurations.desktop.config.users.users.${username}.linger == false;
+    assert lib.all (
+      c:
+      (c.users.users.${username}.linger != true)
+      && !(builtins.hasAttr "remote-workspace-serve" c.systemd.services)
+      && !(builtins.elem remotePolicy.backend.port c.networking.firewall.allowedTCPPorts)
+      && !(builtins.elem remotePolicy.backend.port c.networking.firewall.interfaces.tailscale0.allowedTCPPorts)
+      && !(builtins.elem 8448 c.networking.firewall.interfaces.tailscale0.allowedTCPPorts)
+    ) systemConfigs;
+    assert lib.all (c: !(builtins.hasAttr "remote-workspace" c.systemd.user.services)) homeConfigs;
     assert remotePolicy.backend.hostname == "127.0.0.1";
     assert aiToolsPackages ? codex;
     pkgsFor.runCommand "remote-workspace-policy-check" { } ''
