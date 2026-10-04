@@ -7,7 +7,7 @@
 
 let
   policy = import ../../inventory/identities.nix;
-  identities = policy.identities;
+  inherit (policy) identities;
   defaultIdentity = identities.${policy.default};
   personalIdentity = identities.personal;
   homeDir = config.home.homeDirectory;

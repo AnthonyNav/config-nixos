@@ -23,7 +23,7 @@ let
   environment = import ../../ai {
     inherit lib pkgs hostFeatures;
     inherit (config.home) homeDirectory;
-    rtk = aiToolsPackages.rtk;
+    inherit (aiToolsPackages) rtk;
     enabled = cfg.enable;
     inherit policy;
     registry =

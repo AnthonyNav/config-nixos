@@ -68,7 +68,7 @@ let
       style = styleFor host;
     in
     inputs.nixpkgs.lib.nixosSystem {
-      system = host.system;
+      inherit (host) system;
       specialArgs = argsFor name host;
       modules = [
         host.systemModule

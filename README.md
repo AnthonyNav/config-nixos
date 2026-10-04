@@ -223,13 +223,26 @@ caelestia scheme set --name dracula --mode dark
 caelestia scheme set --name catppuccin --flavour mocha  # esquema por defecto
 ```
 
-Kitty hereda el esquema activo automáticamente: no tiene una paleta fija
-propia, sino que Caelestia renderiza sus colores en caliente cada vez que
-corres `caelestia scheme set` (o eliges "Scheme"/"Variant" desde el
-launcher). El motor vive en `modules/home/theme-sync.nix` (plantilla tipo
-pywal + `postHook` que recarga kitty vía socket de control remoto). Nota:
-Rofi y Starship siguen fijos en Catppuccin Mocha real; sincronizarlos
-requeriría más trabajo y queda pendiente como mejora futura.
+Kitty, Rofi, Starship y los bordes de Hyprland heredan el esquema activo.
+Caelestia renderiza sus plantillas en el directorio de estado del usuario;
+Kitty y Hyprland se recargan en caliente. Catppuccin Mocha y Latte usan sus
+colores originales con acento lavender y contraste legible.
+
+### Perfiles de personalización
+
+```bash
+desktop-preset list
+desktop-preset apply diario   # Mocha, transparencias moderadas
+desktop-preset apply claro    # Latte, superficies opacas
+desktop-preset apply enfoque  # Mocha, sin animaciones ni transparencias
+desktop-preset status
+```
+
+También aparecen como acciones del launcher: abre `Super+R` y escribe `>`.
+Incluyen luz cálida, No molestar, captura congelada, QPWGraph, monitores y
+`workstation-doctor`. Los perfiles conservan tus fuentes, favoritos y ajustes
+ajenos a su apariencia. Consulta [docs/personalization.md](docs/personalization.md)
+para los valores concretos, la recuperación ante errores y las pruebas en sesión.
 
 ### Modo claro / oscuro
 
@@ -263,7 +276,7 @@ perfiles guardados por UUID, no fija BSSID y no borra perfiles cuando un intento
 falla. Esto permite roaming entre puntos de acceso que publican el mismo SSID.
 
 `~/.config/caelestia/shell.json` es intencionalmente mutable. Home Manager
-instala valores iniciales sólo cuando el archivo no existe; después los cambios
+instala valores iniciales y completa únicamente las opciones ausentes; los cambios
 hechos desde Nexus persisten entre reinicios y actualizaciones. Las plantillas,
 wrappers y políticas que sí forman parte del sistema continúan declaradas en
 Nix.
@@ -306,13 +319,12 @@ Para elegirlo, sin tocar la terminal:
   de `paths.wallpaperDir`).
 - **Launcher** (Super+R): busca el wallpaper por nombre, igual que una app.
 
-`~/Pictures/Wallpapers/` trae subcarpetas por tema (`catppuccin/`, `nord/`,
-`dracula/`, `gruvbox/`, `tokyo-dark/moon/storm/`, `solarized/`, `onedark/`)
-que combinan con los esquemas de color de arriba — se descargan solas la
-primera vez desde
-[`yukazakiri/themed-wallpapers`](https://github.com/yukazakiri/themed-wallpapers)
-(ver `modules/home/wallpapers.nix`). Cualquier imagen que agregues ahí (o en
-cualquier otra subcarpeta) aparece también en el selector.
+`~/Pictures/Wallpapers/Fleet-Catppuccin/` incluye tres fondos de
+[`yukazakiri/themed-wallpapers`](https://github.com/yukazakiri/themed-wallpapers),
+fijados por revisión y hash en `packages/catppuccin-wallpapers.nix`. Se obtienen
+durante el build, sin clonar repositorios al iniciar la sesión. Tus imágenes y
+las colecciones anteriores se conservan; cualquier imagen que agregues bajo
+`~/Pictures/Wallpapers/` aparece también en el selector.
 
 Si prefieres terminal de todos modos: `caelestia wallpaper -f <ruta>` fija una
 imagen puntual, `caelestia wallpaper -r` elige una al azar.
@@ -388,52 +400,31 @@ mediante PRIME offload y `desktop` usa su RTX 3060 Ti como GPU principal.
 La selección común de `homeProfiles` incluye `creative` en ambos equipos.
 El perfil requiere capacidad NVIDIA; la base diaria no depende de ese hardware.
 
-**Importante sobre Blender:** el paquete `blender` de nixpkgs se compila
-**sin ningún backend GPU de Cycles** (confirmado en su derivación:
-`WITH_CYCLES_CUDA_BINARIES=FALSE`, `WITH_CYCLES_DEVICE_OPTIX=FALSE`) — con
-él, Preferences > System solo lista "None"/"CUDA" y CUDA no encuentra ningún
-dispositivo, aunque la GPU esté sana. Por eso `modules/home/blender-gpu.nix`
-descarga (una sola vez, versión+hash fijados a mano, checksum SHA-256
-verificado) el **build oficial de blender.org** a `~/.local/opt/blender`,
-que sí trae esos kernels precompilados. El binario standalone es una excepción
-documentada al modelo reproducible; el paquete Nix permanece como respaldo
-CPU-only.
+**Blender:** el archivo oficial de blender.org **5.2.1**, con los backends
+GPU de Cycles, está empaquetado en `packages/blender-standalone.nix` con versión
+y SHA-256 fijos. Nix resuelve sus bibliotecas y lo construye antes de actualizar
+el equipo. El paquete de nixpkgs sigue disponible como alternativa CPU; las
+instalaciones antiguas en `~/.local/opt/blender` se conservan sin usarse.
 
-### Lanzadores (definidos en `modules/home/creative-shell.nix`)
+### Lanzadores
 
 ```bash
-resolve       # DaVinci Resolve, forzado a la RTX + XWayland (QT_QPA_PLATFORM=xcb)
-blender-gpu   # Blender standalone, forzado a la RTX + fix de LD_LIBRARY_PATH (ver abajo)
+resolve       # DaVinci Resolve, GPU dedicada y XWayland
+blender-gpu   # Blender oficial mediante gpu-launch
+blender       # Blender oficial, con selección normal de GPU
+blender-cpu   # Blender de nixpkgs
 ```
 
-`kdenlive`, `krita`, `gimp` e `inkscape` no necesitan `nvidia-offload`: se
-lanzan directo por su nombre normal. `blender` a secas también resuelve ya
-al binario standalone (gana en PATH), pero sin el offload a la dGPU — para
-render en GPU usa siempre `blender-gpu`.
+Son ejecutables declarados, disponibles para la sesión gráfica y las terminales.
+Los lanzadores de escritorio llaman a los mismos wrappers; tras actualizar
+desde main revisado, vuelve a iniciar la sesión para renovar su entorno.
+`kdenlive`, `krita`, `gimp` e `inkscape` se lanzan directamente.
 
-**Nota:** estas funciones/PATH nuevas solo existen en terminales *abiertas
-después* de correr `nix-home-switch` — si sigues en la misma terminal donde
-corriste el switch, ábrela de nuevo.
-
-**Lanzar Resolve/Blender desde rofi (drun) también funciona**, no solo desde
-terminal: `modules/home/gpu-launchers.nix` sobreescribe los `.desktop` de
-ambas apps (mismo nombre de archivo que el original, prioridad alta vía
-`xdg.desktopEntries` + `lib.hiPrio`) para que también lleven
-`nvidia-offload`/XWayland/`LD_LIBRARY_PATH` — un `.desktop` a secas no pasa
-por zsh, así que sin esto rofi lanzaba las apps sin ninguno de esos fixes
-(Resolve fallaba bajo Wayland nativo; Blender abría el binario CPU-only de
-Nix en vez del standalone). El de Blender usa ruta absoluta a
-`~/.local/opt/blender/blender` a propósito: el PATH de la sesión gráfica
-(el que usa rofi) no es el de zsh, así que un `Exec=blender` a secas ahí
-habría vuelto a resolver al paquete de Nix.
-
-**El fix de `LD_LIBRARY_PATH` en `blender-gpu`, explicado:** el loader
-interno de Blender para CUDA (CUEW) hace `dlopen("libcuda.so")` en runtime.
-NixOS no expone esa librería en una ruta estándar — vive en
-`/run/opengl-driver/lib` — así que sin agregarla al `LD_LIBRARY_PATH` del
-proceso, Blender no la encuentra aunque exista en el sistema. Confirmado:
-sin el fix, Preferences > System solo lista "None"; con él, lista **OptiX**
-y **CUDA** con la RTX 4050 real.
+El paquete oficial usa SDL3 de Nix y expone `/run/opengl-driver/lib` al loader.
+Las bibliotecas CUDA/OptiX y los controladores opcionales de Intel/AMD dependen
+del hardware activo. La prueba automática abre Blender en segundo plano y
+comprueba Cycles; la interfaz, los dispositivos CUDA/OptiX y un render real
+deben comprobarse en Desktop y Victus después del despliegue de main.
 
 ### Flujo de trabajo con Resolve (versión gratis)
 
@@ -470,10 +461,20 @@ Si el paso extra molesta a futuro, la salida es comprar **Resolve Studio**
 - **natron** (compositor nodal FOSS, alternativo a Fusion) se evaluó pero
   está marcado `broken` en el pin actual de nixpkgs-unstable — omitido por
   ahora; Fusion (dentro de Resolve) cubre ese rol.
-- **Actualizar la versión de Blender standalone:** edita `blenderVersion` y
-  `blenderSha256` en `modules/home/blender-gpu.nix` (el hash real se saca del
-  `blender-X.Y.Z.sha256` que publica `download.blender.org/release/`), borra
-  `~/.local/opt/blender` y corre `nix-home-switch` — se re-descarga y verifica solo.
+- **Actualizar Blender standalone:** cambia la versión y el hash en
+  `packages/blender-standalone.nix`, construye ambos sistemas y hogares, y
+  revísalo mediante PR. No hace falta borrar instalaciones ni datos locales.
+
+---
+
+## Recuperación y seguridad pendiente
+
+Los respaldos Restic están preparados y **desactivados** hasta definir destino
+y carpetas. Docker conserva su configuración actual; la opción sin privilegios
+requiere una migración revisada de datos y GPU. El cifrado de discos también
+requiere un procedimiento de recuperación antes de migrar. La ThinkPad sigue
+retirada de la flota y sus datos se conservan. Consulta
+[docs/recovery.md](docs/recovery.md) para estos procedimientos.
 
 ---
 

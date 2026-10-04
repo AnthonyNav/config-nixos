@@ -7,7 +7,7 @@
     systemd.enable = true;
 
     settings = {
-      # Safe startup/unknown-output default; Kanshi owns connected topologies.
+      # Safe startup default; monitor-layout owns connected topologies.
       monitor = lib.mkDefault ", preferred, auto, 1";
 
       "exec-once" = [
@@ -135,7 +135,7 @@
         # (modules/home/night-light.nix, auto día/noche). Caelestia no trae
         # control nativo de temperatura de color (confirmado en su código
         # fuente), así que se resuelve con este atajo en vez de parchar el shell.
-        "$mainMod SHIFT, W, exec, systemctl --user is-active --quiet wlsunset.service && (systemctl --user stop wlsunset.service && notify-send 'Luz cálida' 'Desactivada') || (systemctl --user start wlsunset.service && notify-send 'Luz cálida' 'Activada (automática)')"
+        "$mainMod SHIFT, W, exec, night-light-toggle"
 
         # Navegación del Foco
         "$mainMod, left, movefocus, l"
@@ -216,6 +216,8 @@
     # Submap de resize: Super+S activa el modo; flechas redimensionan la
     # ventana activa; Escape o Enter vuelven al modo normal.
     extraConfig = ''
+      source = ${config.xdg.stateHome}/caelestia/theme/hyprland-colors.conf
+      source = ${config.xdg.stateHome}/caelestia/theme/hyprland-preset.conf
       bind = $mainMod, S, submap, resize
       submap = resize
       binde = , right, resizeactive,  20 0

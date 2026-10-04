@@ -71,8 +71,8 @@ normal command that modifies Git before deployment. See `docs/nix-config.md`.
 - Caelestia owns files it dynamically renders, including GTK output, Kitty
   colors, and rendered template targets. Home Manager manages the Kitty
   template source, not the Caelestia-rendered output.
-- `~/.config/caelestia/shell.json` is mutable. Home Manager seeds it once from
-  `modules/home/caelestia.nix`; do not restore `programs.caelestia.settings`,
+- `~/.config/caelestia/shell.json` is mutable. Home Manager seeds it from
+  `modules/home/caelestia.nix` and merges absent personalization fields; do not restore `programs.caelestia.settings`,
   because the upstream module would replace it with a read-only store symlink
   and Nexus could no longer persist changes.
 - Caelestia is the shell; Hyprland owns window navigation, scratchpad,
@@ -93,8 +93,8 @@ normal command that modifies Git before deployment. See `docs/nix-config.md`.
 - Keep `catppuccin.hyprland.enable = false` while
   `wayland.windowManager.hyprland.configType = "hyprlang"`. Catppuccin emits
   a Lua `colors._var` block that Hyprlang rejects as unknown
-  `colors:_var:_type` and `colors:_var:expr` options. Hyprland colors remain
-  explicitly defined in `modules/home/hyprland.nix`.
+  `colors:_var:_type` and `colors:_var:expr` options. Hyprland has safe static
+  defaults overridden by the Caelestia-rendered colour and preset sources.
 - Kitty control sockets are PID-suffixed. Reload code must glob `/tmp/kitty-*`.
 - Pritunl is a system module because its daemon needs root.
 - The creative suite is imported only by NVIDIA hosts. The Blender launcher and
@@ -242,18 +242,27 @@ policy mutation to routine PR checks.
 ## Contributions
 
 All changes use a short-lived branch and a PR to `main`. Read
-`CONTRIBUTING.md` before opening a PR. CI formats, evaluates, builds the
-repository policy checks, and plans both the NixOS and Home Manager output for
-every workstation without building their closures. Full workstation builds
-remain a local validation. Branch protection must require those checks and a
-review.
+`CONTRIBUTING.md` before opening a PR. CI formats, evaluates, builds repository
+checks and builds NixOS plus Home Manager for every workstation. Require `check`,
+`full-build-gate` and one review on main; the desired ruleset is
+`.github/main-ruleset.json`. Local full builds are required before review too.
+See `CONTRIBUTING.md` for external application and verification of that ruleset.
 
 ## External Artifacts
 
-Blender's CUDA/OptiX build and themed wallpapers are activation-time downloads.
-They are explicit exceptions to Nix store reproducibility. Keep their version,
-hash, owner, update procedure, and validation command documented when changing
-them; do not let them become unpinned host-local dependencies.
+Blender's CUDA/OptiX build and the curated Catppuccin wallpapers are fixed-hash
+Nix packages. Activation performs no downloads for them. Update Blender's version
+and SHA-256 in `packages/blender-standalone.nix`, and the wallpaper revision and
+individual hashes in `packages/catppuccin-wallpapers.nix`. Old local copies remain
+user-owned; the store-backed commands no longer use them. Blender uses Nixpkgs
+SDL3 and treats optional GPU driver loaders as runtime dependencies. Its headless
+check does not prove GPU/GUI health; validate NVIDIA direct and PRIME after
+authorized deployment from main.
+
+Appearance is documented in [personalization.md](personalization.md), and backup,
+rootless Docker and disk encryption in [recovery.md](recovery.md). Backups and
+rootless Docker default off; enabling them requires a concrete destination/data
+migration and a reviewed rollout.
 
 ## Optional Artemis runtime
 

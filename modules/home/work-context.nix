@@ -7,9 +7,9 @@
 
 let
   policy = import ../../inventory/identities.nix;
-  identities = policy.identities;
-  work = identities.work;
-  personal = identities.personal;
+  inherit (policy) identities;
+  inherit (identities) work;
+  inherit (identities) personal;
   homeDir = config.home.homeDirectory;
   personalRoots = map (root: "${homeDir}/${root}") personal.roots;
 

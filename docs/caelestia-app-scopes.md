@@ -10,17 +10,19 @@ environment. No shell command string is assembled or expanded by systemd-run.
 
 Detached processes normally inherit `caelestia.service`'s cgroup. The new scopes
 are siblings under `app.slice`, so launched applications no longer count toward
-the shell's 2 GiB memory and 512 MiB swap caps or stop with that service. Other
-shell helpers still belong to the shell's cgroup. Theme and Wi-Fi patches remain
-in the same custom package.
+the shell's 2 GiB memory and 512 MiB swap caps or stop with that service. The
+custom action launcher also scopes external commands, including terminals and
+audio tools. Native session actions, autocompletion and colour-mode handling
+keep their upstream flow. Other internal helpers still belong to the shell's
+cgroup. Theme and Wi-Fi patches remain in the same package; the Wi-Fi patch is
+a separate file under `modules/home/patches/`.
 
 ## Development verification
 
 Build the package and exercise its patched launcher without activation:
 
 ```sh
-nix build --no-link --print-out-paths '.#homeConfigurations."anthony@victus".config.programs.caelestia.package'
-node scripts/test-caelestia-app-scopes.mjs /nix/store/<built-package>/share/caelestia-shell/modules/launcher/services/Apps.qml
+nix build --no-link --print-build-logs .#checks.x86_64-linux.caelestia-launchers
 ```
 
 Also run `nix fmt`, `nix flake check --no-build --no-write-lock-file`, and the
@@ -33,7 +35,8 @@ with `nix-update`. Do not activate the development branch.
 
 1. Record the start time (`date --iso-8601=seconds`). Close Chrome completely,
    including background processes, then launch Chrome and a terminal from
-   Caelestia. Chrome can reuse an existing browser process and its old cgroup;
+   Caelestia. Also launch Audio and the diagnostic terminal from the action
+   launcher. Chrome can reuse an existing browser process and its old cgroup;
    opening another window is not sufficient to test a fresh launch.
 2. Find the new browser and terminal PIDs, then inspect `/proc/<PID>/cgroup` and
    `systemctl --user status <PID>`. Each application must belong to a distinct

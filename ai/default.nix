@@ -82,14 +82,14 @@ let
     os = "NixOS";
     host = hostFeatures.hostName;
     platform = hostFeatures.system;
-    kind = hostFeatures.kind;
-    role = hostFeatures.role;
+    inherit (hostFeatures) kind;
+    inherit (hostFeatures) role;
     capabilities = hostFeatures.capabilities // {
       virtualization = hostFeatures.virtualization.enable or false;
       gpuCompute = hostFeatures.gpuCompute.enable or false;
     };
     graphics = hostFeatures.graphics or "none";
-    connectivity = hostFeatures.connectivity;
+    inherit (hostFeatures) connectivity;
   };
   context =
     builtins.readFile ./context/global.md
@@ -244,7 +244,7 @@ assert lib.all (h: validSelection h selected.${h}) harnesses;
     kiroAgent
     selected
     ;
-  bundle = pkgs.linkFarm "nixos-ai-${facts.host}" ([
+  bundle = pkgs.linkFarm "nixos-ai-${facts.host}" [
     {
       name = "context.md";
       path = pkgs.writeText "fleet-context.md" context;
@@ -259,5 +259,5 @@ assert lib.all (h: validSelection h selected.${h}) harnesses;
     (jsonFile "manifest.json" manifest)
     (jsonFile "files.json" files)
     (jsonFile "kiro-agent.json" kiroAgent)
-  ]);
+  ];
 }

@@ -33,3 +33,38 @@ for (const runInTerminal of [false, true]) {
   }
 }
 console.log('Caelestia launcher: GUI/terminal arguments and working directories preserved');
+
+const actionsSource = readFileSync(process.argv[3], 'utf8');
+const actionBody = actionsSource.match(/function onClicked\(list: AppList\): void \{([\s\S]*?)\n        \}/)?.[1];
+assert.ok(actionBody, 'action function exists');
+const literalCommand = ['kitty', '--hold', '-e', 'example', '$HOME', 'a space', '', "a'b"];
+for (const [command, sessionHandled] of [
+  [[], false], [['autocomplete', 'wallpaper'], false], [['setMode', 'light'], false],
+  [['poweroff'], true], [literalCommand, false],
+]) {
+  const list = { search: { text: '' }, screenState: { launcher: true } };
+  let detached, mode, sessionCommand;
+  vm.runInNewContext(`(function(list) {${actionBody}\n})(list)`, {
+    list, command,
+    GlobalConfig: { launcher: { actionPrefix: '>' } },
+    Colours: { setMode: value => { mode = value; } },
+    SessionManager: { exec: value => { sessionCommand = value; return sessionHandled; } },
+    Quickshell: { execDetached: value => { detached = Array.from(value); } },
+  });
+  if (command.length === 0) {
+    assert.equal(list.screenState.launcher, true);
+  } else if (command[0] === 'autocomplete') {
+    assert.equal(list.search.text, '>wallpaper ');
+    assert.equal(list.screenState.launcher, true);
+  } else if (command[0] === 'setMode') {
+    assert.equal(mode, 'light');
+  } else {
+    assert.equal(sessionCommand, command);
+    if (!sessionHandled) {
+      assert.match(detached.shift(), /^\/nix\/store\/[^/]+\/bin\/systemd-run$/);
+      assert.deepEqual(detached, ['--user', '--scope', '--slice=app.slice', '--collect', '--quiet', '--expand-environment=no', '--', ...command]);
+    }
+  }
+  if (command !== literalCommand) assert.equal(detached, undefined);
+}
+console.log('Caelestia actions: literal arguments scoped; native session and search actions preserved');

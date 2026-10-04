@@ -11,6 +11,7 @@
     ./tailscale-fleet.nix
     ./syncthing-fleet.nix
     ./resource-policy.nix
+    ./backup.nix
   ];
 
   time.timeZone = "America/Mexico_City";

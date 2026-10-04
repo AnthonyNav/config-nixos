@@ -1,11 +1,42 @@
 {
-  config,
   lib,
-  pkgs,
   ...
 }:
 
 {
+  xdg.configFile."caelestia/templates/hyprland-colors.conf".text = ''
+    general {
+      col.active_border = rgba({{ primary.hex }}ff) rgba({{ secondary.hex }}ff) 45deg
+      col.inactive_border = rgba({{ outlineVariant.hex }}ff)
+    }
+  '';
+  xdg.configFile."caelestia/templates/rofi.rasi".text = ''
+    * {
+      bg-col: #{{ surface.hex }};
+      border-col: #{{ primary.hex }};
+      selected-col: #{{ surfaceContainer.hex }};
+      text-col: #{{ onSurface.hex }};
+      accent-text: #{{ onPrimary.hex }};
+    }
+    ${builtins.readFile ../../dotfiles/rofi/layout.rasi}
+  '';
+  xdg.configFile."caelestia/templates/starship.toml".text =
+    let
+      palette = (import ./catppuccin-palette.nix).mocha;
+      # Semantic/terminal roles exist in every native scheme, including saved
+      # palettes from before this PR. Catppuccin-specific names do not.
+      roles = {
+        red = "error";
+        green = "term2";
+        yellow = "term3";
+        blue = "term4";
+        mauve = "secondary";
+        lavender = "primary";
+      };
+    in
+    lib.replaceStrings (map (name: palette.${name}) (builtins.attrNames roles)) (map (
+      name: "{{ ${roles.${name}}.hex }}"
+    ) (builtins.attrNames roles)) (builtins.readFile ../../dotfiles/starship/starship.toml);
   # Motor de sincronización de temas: kitty lee sus colores DEL esquema activo
   # de Caelestia (en vez de tener su propia paleta catppuccin estática y
   # desincronizada). Caelestia trae un sistema de plantillas tipo pywal ya
@@ -39,16 +70,6 @@
     color15 #{{ term15.hex }}
   '';
 
-  # Bootstrap: la primera vez que se activa este perfil (o en cualquier host
-  # nuevo), ~/.local/state/caelestia/theme/kitty-colors.conf todavía no existe
-  # (kitty fallaría al incluir un archivo inexistente). Se genera una sola vez
-  # con el esquema por defecto; en adelante el usuario lo controla con
-  # `caelestia scheme set`. No se repite en cada switch (idempotente).
-  home.activation.bootstrapCaelestiaTheme = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-    state_file="$HOME/.local/state/caelestia/theme/kitty-colors.conf"
-    if [ ! -f "$state_file" ]; then
-      $DRY_RUN_CMD ${config.programs.caelestia.cli.package}/bin/caelestia scheme set \
-        --name catppuccin --flavour mocha --mode dark || true
-    fi
-  '';
+  # personalizeCaelestia seeds every rendered file after linkGeneration, using
+  # the saved user scheme or Mocha on a new machine. No activation download.
 }

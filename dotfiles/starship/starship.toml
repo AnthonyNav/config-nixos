@@ -1,30 +1,31 @@
 # Shared prompt; credentials and runtime state do not belong here.
 add_newline = false
+palette = "caelestia"
 format = "$directory$git_branch$git_status$python$conda$nodejs$golang$nix_shell$cmd_duration$line_break$character"
 
 [character]
-error_symbol = "[❯](bold #f38ba8)"
-success_symbol = "[❯](bold #a6e3a1)"
+error_symbol = "[❯](bold danger)"
+success_symbol = "[❯](bold success)"
 
 [cmd_duration]
 format = "[⏱ $duration ]($style)"
 min_time = 2000
-style = "bold #fab387"
+style = "bold warning"
 
 [conda]
 format = "[$symbol$environment ]($style)"
 ignore_base = false
-style = "bold #a6e3a1"
+style = "bold success"
 symbol = "󱔎 "
 
 [directory]
 read_only = " 󰌾"
-style = "bold #89b4fa"
+style = "bold info"
 truncate_to_repo = true
 
 [git_branch]
 format = "on [$symbol$branch]($style) "
-style = "bold #cba6f7"
+style = "bold accent"
 symbol = " "
 
 [git_status]
@@ -34,33 +35,41 @@ deleted = "✘$count"
 diverged = "⇕⇡$ahead_count⇣$behind_count"
 modified = "!$count"
 staged = "+$count"
-style = "bold #f38ba8"
+style = "bold danger"
 untracked = "?$count"
 
 [golang]
 detect_extensions = ["go"]
 detect_files = ["go.mod","go.sum"]
 format = "[$symbol$version ]($style)"
-style = "bold #89dceb"
+style = "bold secondary"
 symbol = " "
 
 [nix_shell]
 format = "[$symbol$name ]($style)"
-impure_msg = "[impure](#fab387)"
-pure_msg = "[pure](#a6e3a1)"
-style = "bold #74c7ec"
+impure_msg = "[impure](warning)"
+pure_msg = "[pure](success)"
+style = "bold secondary"
 symbol = " "
 
 [nodejs]
 detect_extensions = ["js","ts","mjs","cjs"]
 detect_files = ["package.json",".nvmrc",".node-version"]
 format = "[$symbol$version ]($style)"
-style = "bold #a6e3a1"
+style = "bold success"
 symbol = " "
 
 [python]
 detect_extensions = ["py"]
 detect_files = [".python-version","requirements.txt","pyproject.toml","setup.py","Pipfile"]
 format = "[$symbol($virtualenv )]($style)"
-style = "bold #f9e2af"
+style = "bold warning"
 symbol = " "
+
+[palettes.caelestia]
+danger = "#f38ba8"
+success = "#a6e3a1"
+warning = "#f9e2af"
+info = "#89b4fa"
+secondary = "#cba6f7"
+accent = "#b4befe"
