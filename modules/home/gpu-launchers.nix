@@ -1,4 +1,4 @@
-{ config, ... }:
+_:
 
 {
   # Los .desktop originales (davinci-resolve, blender — vienen empaquetados
@@ -18,12 +18,8 @@
   # fusionado y reemplaza solo ese archivo — el resto del paquete (binario,
   # iconos, otros .desktop como davinci-control-panels-setup) queda intacto.
   #
-  # Blender usa ruta absoluta a propósito (no el `blender` de PATH): el PATH
-  # de la sesión gráfica (la que usa rofi/Hyprland para lanzar .desktop) es
-  # el de systemd/PAM, NO el de zsh — el `export PATH=...` que prioriza
-  # ~/.local/opt/blender vive en `initContent` de zsh.nix, que solo corre en
-  # shells interactivas. Sin la ruta absoluta, este .desktop resolvería
-  # `blender` contra el paquete de Nix (CPU-only) otra vez, mismo bug.
+  # blender-gpu is a real executable for terminal and desktop launches. It
+  # selects the store-backed official build and the host's PRIME wrapper.
   xdg.desktopEntries = {
     davinci-resolve = {
       name = "Davinci Resolve";
@@ -55,11 +51,7 @@
         "Graphics"
         "3DGraphics"
       ];
-      # Mismo comando que la función `blender-gpu` de zsh.nix, pero con ruta
-      # absoluta al standalone (ver comentario arriba del por qué). Usa el
-      # wrapper `gpu-launch` — ver zsh.nix sobre por qué ya no es
-      # `nvidia-offload` a secas.
-      exec = "gpu-launch env LD_LIBRARY_PATH=/run/opengl-driver/lib ${config.home.homeDirectory}/.local/opt/blender/blender %f";
+      exec = "blender-gpu %f";
       settings.StartupWMClass = "Blender";
     };
   };

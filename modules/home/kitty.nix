@@ -1,4 +1,4 @@
-{ ... }:
+_:
 
 {
   # El tema estático de catppuccin.nix para kitty se apaga: los colores ahora
@@ -12,11 +12,14 @@
     # Necesario para que el postHook de Caelestia pueda recargar los colores
     # de kitty en caliente tras `caelestia scheme set` (ver theme-sync.nix).
     settings = {
-      allow_remote_control = "yes";
+      # Theme reloads use the local socket. Reject control sequences from a
+      # program's terminal output, including remote SSH sessions.
+      allow_remote_control = "socket-only";
       listen_on = "unix:/tmp/kitty";
 
       # Configuración de Ventana y Estética
-      background_opacity = "0.85"; # Transparencia facha
+      background_opacity = "0.94";
+      dynamic_background_opacity = true;
       window_padding_width = 12; # Margen interno elegante
       hide_window_decorations = "yes";
       confirm_os_window_close = 0;
@@ -35,6 +38,7 @@
     # Caelestia. Se regenera cada vez que corres `caelestia scheme set ...`.
     extraConfig = ''
       include ~/.local/state/caelestia/theme/kitty-colors.conf
+      include ~/.local/state/caelestia/theme/kitty-opacity.conf
     '';
   };
 }

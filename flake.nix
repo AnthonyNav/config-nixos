@@ -45,7 +45,7 @@
       ...
     }@inputs:
     let
-      lib = nixpkgs.lib;
+      inherit (nixpkgs) lib;
       system = "x86_64-linux";
       username = "anthony";
       specialArgs = { inherit inputs username; };
@@ -76,7 +76,7 @@
       hostOutputs = import ./flake/hosts.nix { inherit inputs username fleet; };
       fleetEndpoints = import ./inventory/endpoints.nix { };
       tailscalePolicyConfig = import ./inventory/tailscale.nix { inherit username; };
-      tailnetPolicy = tailscalePolicyConfig.tailnetPolicy;
+      inherit (tailscalePolicyConfig) tailnetPolicy;
       tailnetPolicyFile = pkgsFor.writeText "tailscale-policy.json" (builtins.toJSON tailnetPolicy);
       tailscalePolicyPrinter = pkgsFor.writeShellApplication {
         name = "tailscale-policy";
@@ -128,7 +128,7 @@
       formatter.${system} = treefmtEval.config.build.wrapper;
       packages.${system} = {
         nix-config = nixConfigPackages.nixConfig;
-        gitleaks = pkgsFor.gitleaks;
+        inherit (pkgsFor) gitleaks;
         artemis = import ./packages/artemis.nix { pkgs = pkgsFor; };
         tailscale-policy = tailscalePolicyPrinter;
         kiro-cli = kiroPackages.cli;
@@ -138,6 +138,8 @@
         sonobus = pkgsFor.callPackage ./packages/sonobus.nix { };
         orca-ide = pkgsFor.callPackage ./packages/orca-ide.nix { };
         dbeaver = dbeaverPackage;
+        blender-standalone = pkgsFor.callPackage ./packages/blender-standalone.nix { };
+        catppuccin-wallpapers = pkgsFor.callPackage ./packages/catppuccin-wallpapers.nix { };
       };
       apps.${system} = {
         nix-config = {
@@ -195,7 +197,33 @@
         // (import ./flake/project-checks.nix {
           inherit lib;
           pkgs = pkgsFor;
-        });
+        })
+        // (import ./flake/desktop-checks.nix {
+          inherit
+            lib
+            self
+            username
+            workstationNames
+            ;
+          pkgs = pkgsFor;
+        })
+        // {
+          maintenance-lint =
+            pkgsFor.runCommand "maintenance-lint-check"
+              {
+                nativeBuildInputs = [
+                  pkgsFor.statix
+                  pkgsFor.deadnix
+                ];
+              }
+              ''
+                statix check --config ${./statix.toml} ${self}
+                deadnix --fail --exclude \
+                  ${self}/hosts/desktop/hardware-configuration.nix \
+                  ${self}/hosts/victus/hardware-configuration.nix -- ${self}
+                touch "$out"
+              '';
+        };
       devShells.${system}.default = pkgsFor.mkShell {
         packages = with pkgsFor; [
           treefmtEval.config.build.wrapper

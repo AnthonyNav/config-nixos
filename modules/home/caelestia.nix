@@ -10,13 +10,25 @@ let
   # Tras cada cambio de esquema (comando, atajo o el switch claro/oscuro del
   # panel de Caelestia, ver modules/home/caelestia-scheme.nix para el porqué
   # ese switch necesita el wrapper de la CLI): recarga kitty (ya existía),
-  # corrige el tema GTK3 y relanza el fondo acorde al modo.
+  # corrige GTK3 y recarga los colores de Hyprland. El fondo es independiente.
   #
   # apply_gtk() en caelestia-cli (utils/theme.py) fija el tema GTK a
   # "adw-gtk3-dark" SIEMPRE, sin importar el modo — solo ajusta
   # color-scheme/icon-theme vía dconf. Sin este fix, Thunar (GTK3) se quedaría
   # oscuro en modo claro aunque el resto de la UI ya esté en Latte.
   postHook = pkgs.writeShellScript "caelestia-post-hook" ''
+    opacity=0.94
+    preset="$(${pkgs.jq}/bin/jq -r '.preset // "diario"' \
+      "$HOME/.local/state/caelestia/desktop-preset.json" 2>/dev/null || true)"
+    if [ "''${SCHEME_MODE:-dark}" = light ] || [ "$preset" = enfoque ]; then
+      opacity=1.0
+    fi
+    opacity_file="$HOME/.local/state/caelestia/theme/kitty-opacity.conf"
+    if [ ! -L "$opacity_file" ]; then
+      tmp="$(${pkgs.coreutils}/bin/mktemp "''${opacity_file}.XXXXXX")"
+      printf 'background_opacity %s\n' "$opacity" > "$tmp"
+      ${pkgs.coreutils}/bin/mv "$tmp" "$opacity_file"
+    fi
     # kitty.nix fija `listen_on = "unix:/tmp/kitty"`, pero kitty le SUFIJA el
     # PID a esa ruta (el socket real es /tmp/kitty-<PID>, confirmado con
     # `ls /tmp/kitty*`) — el literal "unix:/tmp/kitty" nunca existe, así que
@@ -31,7 +43,14 @@ let
       [ -S "$sock" ] || continue
       kitty @ --to "unix:$sock" set-colors -a -c \
         "$HOME/.local/state/caelestia/theme/kitty-colors.conf" 2>/dev/null || true
+      kitty @ --to "unix:$sock" set-background-opacity --all "$opacity" 2>/dev/null || true
     done
+
+    # The source files are already rendered by the CLI. Reload the compositor
+    # without inheriting Python/Jupyter library overrides from an agent shell.
+    if [ -n "''${HYPRLAND_INSTANCE_SIGNATURE:-}" ]; then
+      ${pkgs.coreutils}/bin/env -u LD_LIBRARY_PATH ${pkgs.hyprland}/bin/hyprctl reload >/dev/null || true
+    fi
 
     case "''${SCHEME_MODE:-dark}" in
       light) dconf write /org/gnome/desktop/interface/gtk-theme "'adw-gtk3'" ;;

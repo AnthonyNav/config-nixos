@@ -2,16 +2,8 @@
 
 {
   programs.zsh.initContent = ''
-    # Blender standalone debe ganar al fallback CPU-only de nixpkgs, pero solo
-    # en hosts que importan la suite creativa con NVIDIA.
-    export PATH="$HOME/.local/opt/blender:$PATH"
-
     resolve() {
       gpu-launch env QT_QPA_PLATFORM=xcb davinci-resolve "$@"
-    }
-
-    blender-gpu() {
-      gpu-launch env LD_LIBRARY_PATH="/run/opengl-driver/lib:$LD_LIBRARY_PATH" "$HOME/.local/opt/blender/blender" "$@"
     }
 
     to-dnxhr() {
@@ -39,6 +31,14 @@
   # Los .desktop y las funciones de Zsh comparten este ejecutable. PRIME se
   # detecta al ejecutar para conservar el mismo módulo en victus y desktop.
   home.packages = [
+    (pkgs.writeShellApplication {
+      name = "blender-gpu";
+      text = ''exec gpu-launch blender-standalone "$@"'';
+    })
+    (pkgs.writeShellApplication {
+      name = "blender-cpu";
+      text = ''exec ${pkgs.blender}/bin/blender "$@"'';
+    })
     (pkgs.writeShellScriptBin "gpu-launch" ''
       if command -v nvidia-offload >/dev/null 2>&1; then
         exec nvidia-offload "$@"

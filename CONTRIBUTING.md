@@ -47,7 +47,14 @@ the Nix store.
 ## Repository Settings
 
 Enable branch protection for `main` in GitHub: require a pull request, one
-approval, and `Flake checks / check` plus each matrix instance of
-`Flake checks / plan-host-build`. CI executes every repository policy check and
-plans both NixOS and Home Manager for every workstation; full builds remain
-required local validation. Disallow force pushes and direct pushes.
+approval, and the Actions check contexts `check` and `full-build-gate`. CI executes
+every repository check and builds NixOS plus Home Manager for every workstation.
+The aggregate gate fails if inventory discovery or any build fails/is skipped.
+Local full builds remain required. Disallow deletion, force pushes and direct
+pushes to main.
+
+The desired ruleset is `.github/main-ruleset.json`, targeting `refs/heads/main`.
+Changing this file does not change GitHub settings. Apply it through the ruleset
+API/UI under explicitly authorized repository administration. Verify effective
+rules and match the check names to actual Actions runs. Publication, merge and
+deployment are distinct actions.

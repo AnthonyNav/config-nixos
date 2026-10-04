@@ -88,8 +88,8 @@
       configs = lib.mapAttrs (_: host: host.config) (
         lib.getAttrs workstationNames self.nixosConfigurations
       );
-      victus = configs.victus;
-      desktop = configs.desktop;
+      inherit (configs) victus;
+      inherit (configs) desktop;
       desktopHome = self.homeConfigurations."${username}@desktop".config;
       victusFallbackSwap = builtins.filter (
         swap: swap.device == "/var/lib/nixos-victus-memory-swapfile"

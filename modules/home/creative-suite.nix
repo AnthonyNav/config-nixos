@@ -35,9 +35,7 @@
   home.packages = with pkgs; [
     davinci-resolve
     kdePackages.kdenlive # NLE de respaldo: sí ingesta H.264 directo (NVENC), sin transcodificar
-    blender # respaldo CPU-only/reproducible; el binario con CUDA/OptiX real es
-    # el standalone en ~/.local/opt/blender (ver modules/home/blender-gpu.nix
-    # y creative-shell.nix), que gana en PATH.
+    blender # CPU fallback via blender-cpu; the official store build wins PATH.
     krita # pintura/raster — equivalente Photoshop
     gimp # edición de foto — equivalente Photoshop
     inkscape # vectorial — equivalente Illustrator

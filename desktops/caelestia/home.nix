@@ -27,11 +27,13 @@ in
     ../../modules/home/input-sharing.nix
     ../../modules/home/caelestia.nix
     ../../modules/home/caelestia-scheme.nix
+    ../../modules/home/caelestia-personalization.nix
     ../../modules/home/theme-mode.nix
     ../../modules/home/monitors.nix
     ../../modules/home/monitor-profiles.nix
     ../../modules/home/theme-sync.nix
     ../../modules/home/wallpapers.nix
+    ../../modules/home/workstation-doctor.nix
   ];
 
   home.packages = with pkgs; [
@@ -78,7 +80,7 @@ in
     autoEnable = true;
     # Catppuccin emits Lua that the Hyprlang configuration rejects.
     hyprland.enable = false;
-    # Starship already uses the explicit Catppuccin palette in zsh.nix.
+    # Caelestia renders Starship's semantic palette from the active scheme.
     starship.enable = false;
   };
 }

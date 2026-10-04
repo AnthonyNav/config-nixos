@@ -17,7 +17,7 @@ let
         hostName = representative;
       };
     homeDirectory = "/home/${username}";
-    rtk = aiToolsPackages.rtk;
+    inherit (aiToolsPackages) rtk;
   };
   registry = import ../ai/mcp/registry.nix;
   policy = {
@@ -57,14 +57,14 @@ let
     };
   };
   localEnabled = import ../ai (baseArgs // localArgs);
-  rejects = args: !(builtins.tryEval ((import ../ai (baseArgs // args)).selected)).success;
+  rejects = args: !(builtins.tryEval (import ../ai (baseArgs // args)).selected).success;
   bundles = lib.genAttrs fleet.workstationNames (
     name: self.homeConfigurations."${username}@${name}".config.fleet.ai.bundle
   );
   fixtures = pkgs.writeText "ai-fixtures.json" (
     builtins.toJSON {
-      hosts = builtins.mapAttrs (_: b: toString b) bundles;
-      inventory = fleet.inventory;
+      hosts = builtins.mapAttrs (_: toString) bundles;
+      inherit (fleet) inventory;
       enabled = toString enabled.bundle;
       localEnabled = toString localEnabled.bundle;
     }

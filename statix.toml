@@ -1,0 +1,4 @@
+# Repeating module namespaces is an intentional NixOS/Home Manager idiom.
+# Keep all other lints enabled; generated hardware files have their own owner.
+disabled = ["repeated_keys"]
+ignore = [".direnv", "hosts/desktop/hardware-configuration.nix", "hosts/victus/hardware-configuration.nix"]

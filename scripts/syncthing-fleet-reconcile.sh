@@ -27,13 +27,13 @@ esac
 [[ -n "$host_name" ]] || { echo "SYNCTHING_FLEET_HOST is required." >&2; exit 64; }
 
 api_key=""
-api() { curl -fsS -H "X-API-Key: $api_key" "$@"; }
+api() { curl -fsS --connect-timeout 3 --max-time 15 -H "X-API-Key: $api_key" "$@"; }
 
 wait_for_syncthing() {
   for _ in $(seq 1 60); do
     if [[ -r "$config_dir/config.xml" ]]; then
       api_key="$(xmllint --xpath 'string(configuration/gui/apikey)' "$config_dir/config.xml" 2>/dev/null || true)"
-      if [[ -n "$api_key" ]] && curl -fsS -H "X-API-Key: $api_key" "$api_url/rest/system/ping" 2>/dev/null | jq -e '.ping == "pong"' >/dev/null 2>&1; then
+      if [[ -n "$api_key" ]] && api "$api_url/rest/system/ping" 2>/dev/null | jq -e '.ping == "pong"' >/dev/null 2>&1; then
         return 0
       fi
     fi
@@ -101,19 +101,45 @@ if [[ "$mode" == "check" ]]; then
   exit 0
 fi
 
-device_default="$(api "$api_url/rest/config/defaults/device")"
+# Read both collections before any mutation. Defaults are only for creation:
+# POST replaces an existing object, whereas PATCH changes its supplied fields.
+existing_devices="$(api "$api_url/rest/config/devices" | jq -ce 'if type == "array" then . else error("Expected devices array") end')" || { echo "Could not read Syncthing devices; leaving configuration unchanged." >&2; exit 75; }
+existing_folders="$(api "$api_url/rest/config/folders" | jq -ce 'if type == "array" then . else error("Expected folders array") end')" || { echo "Could not read Syncthing folders; leaving configuration unchanged." >&2; exit 75; }
+managed_device_ids="$(jq -c --arg prefix "$managed_device_prefix" '[.[] | select((.name // "") | startswith($prefix)) | .deviceID]' <<<"$existing_devices")"
+device_default="$(api "$api_url/rest/config/defaults/device" | jq -ce 'if type == "object" then . else error("Expected device defaults object") end')" || { echo "Could not read device defaults; leaving configuration unchanged." >&2; exit 75; }
+folder_default="$(api "$api_url/rest/config/defaults/folder" | jq -ce 'if type == "object" then . else error("Expected folder defaults object") end')" || { echo "Could not read folder defaults; leaving configuration unchanged." >&2; exit 75; }
 while IFS=$'\t' read -r peer ip device_id; do
-  payload="$(jq -c --arg id "$device_id" --arg name "${managed_device_prefix}${peer}" --arg address "tcp://${ip}:22000" '.deviceID = $id | .name = $name | .addresses = [$address] | .introducer = false | .autoAcceptFolders = false | .paused = false' <<<"$device_default")"
-  api -X POST -H 'Content-Type: application/json' --data-binary "$payload" "$api_url/rest/config/devices" >/dev/null
+  payload="$(jq -cn --arg name "${managed_device_prefix}${peer}" --arg address "tcp://${ip}:22000" '{name: $name, addresses: [$address], introducer: false, autoAcceptFolders: false}')"
+  existing="$(jq -c --arg id "$device_id" 'map(select(.deviceID == $id))[0] // null' <<<"$existing_devices")"
+  if [[ "$existing" == "null" ]]; then
+    payload="$(jq -c --arg id "$device_id" --argjson fields "$payload" '. + $fields + {deviceID: $id}' <<<"$device_default")"
+    api -X POST -H 'Content-Type: application/json' --data-binary "$payload" "$api_url/rest/config/devices" >/dev/null
+  elif ! jq -e --argjson fields "$payload" '. as $existing | $fields | to_entries | all(.[]; $existing[.key] == .value)' <<<"$existing" >/dev/null; then
+    encoded_id="$(jq -rn --arg id "$device_id" '$id | @uri')"
+    api -X PATCH -H 'Content-Type: application/json' --data-binary "$payload" "$api_url/rest/config/devices/$encoded_id" >/dev/null
+  fi
 done < <(jq -r '.[] | [.host, .ip, .id] | @tsv' <<<"$resolved_devices")
 
-folder_default="$(api "$api_url/rest/config/defaults/folder")"
 while IFS= read -r folder; do
   folder_id="$(jq -r '.id' <<<"$folder")"; label="$(jq -r '.label' <<<"$folder")"; path="$(jq -r '.path' <<<"$folder")"; folder_type="$(jq -r '.type' <<<"$folder")"
   mkdir -p "$path"
-  devices="$(jq -c --argjson ids "$id_map" '[.hosts[] as $host | {deviceId: $ids[$host]}]' <<<"$folder")"
-  payload="$(jq -c --arg id "$folder_id" --arg label "$label" --arg path "$path" --arg type "$folder_type" --argjson devices "$devices" '.id = $id | .label = $label | .path = $path | .type = $type | .devices = $devices | .paused = false' <<<"$folder_default")"
-  api -X POST -H 'Content-Type: application/json' --data-binary "$payload" "$api_url/rest/config/folders" >/dev/null
+  existing="$(jq -c --arg id "$folder_id" 'map(select(.id == $id))[0] // null' <<<"$existing_folders")"
+  # Keep per-device fields and user-added shares. Only obsolete fleet shares
+  # are removed; replacing the child array must not reset encryption options.
+  devices="$(jq -c --argjson ids "$id_map" --argjson existing "$existing" --argjson managed "$managed_device_ids" '
+    [.hosts[] as $host | $ids[$host]] as $desired
+    | ($existing.devices // []) as $old
+    | ([$desired[] as $id | ($old | map(select(.deviceId == $id))[0] // {deviceId: $id})]
+      + [$old[] | .deviceId as $id | select(($desired | index($id)) == null and ($managed | index($id)) == null)])
+    | sort_by(.deviceId)' <<<"$folder")"
+  payload="$(jq -cn --arg label "$label" --arg path "$path" --arg type "$folder_type" --argjson devices "$devices" '{label: $label, path: $path, type: $type, devices: $devices}')"
+  if [[ "$existing" == "null" ]]; then
+    payload="$(jq -c --arg id "$folder_id" --argjson fields "$payload" '. + $fields + {id: $id}' <<<"$folder_default")"
+    api -X POST -H 'Content-Type: application/json' --data-binary "$payload" "$api_url/rest/config/folders" >/dev/null
+  elif ! jq -e --argjson fields "$payload" '. as $existing | $fields | to_entries | all(.[]; $existing[.key] == .value)' <<<"$existing" >/dev/null; then
+    encoded_id="$(jq -rn --arg id "$folder_id" '$id | @uri')"
+    api -X PATCH -H 'Content-Type: application/json' --data-binary "$payload" "$api_url/rest/config/folders/$encoded_id" >/dev/null
+  fi
 done < <(jq -c '.[]' <<<"$folders_json")
 
 desired_folder_ids="$(jq -c '[.[].id]' <<<"$folders_json")"

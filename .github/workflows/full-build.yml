@@ -1,14 +1,17 @@
 name: Full host builds
 
 on:
+  pull_request:
+  push:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: full-host-builds
-  cancel-in-progress: false
+  group: full-host-builds-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   hosts:
@@ -26,6 +29,7 @@ jobs:
   host-build:
     needs: hosts
     runs-on: ubuntu-latest
+    timeout-minutes: 120
     strategy:
       fail-fast: false
       matrix:
@@ -71,11 +75,11 @@ jobs:
             auto-optimise-store = true
 
       - name: Build NixOS system
-        run: nix build --max-jobs 1 --no-link --no-write-lock-file .#nixosConfigurations.${{ matrix.host }}.config.system.build.toplevel
+        run: nix build --max-jobs 1 --cores 2 --no-link --print-build-logs --no-write-lock-file .#nixosConfigurations.${{ matrix.host }}.config.system.build.toplevel
 
       - name: Build Home Manager
         if: matrix.home
-        run: nix build --max-jobs 1 --no-link --no-write-lock-file '.#homeConfigurations."anthony@${{ matrix.host }}".activationPackage'
+        run: nix build --max-jobs 1 --cores 2 --no-link --print-build-logs --no-write-lock-file '.#homeConfigurations."anthony@${{ matrix.host }}".activationPackage'
 
       - name: Disk usage
         if: always()
@@ -83,3 +87,14 @@ jobs:
           df -h / /mnt || true
           sudo du -sh /nix/store 2>/dev/null || true
           sudo du -sh /mnt/nix-build 2>/dev/null || true
+
+  full-build-gate:
+    if: always()
+    needs: [hosts, host-build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require all inventory builds
+        env:
+          HOSTS_RESULT: ${{ needs.hosts.result }}
+          BUILDS_RESULT: ${{ needs.host-build.result }}
+        run: test "$HOSTS_RESULT" = success && test "$BUILDS_RESULT" = success

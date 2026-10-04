@@ -11,19 +11,18 @@
     ./input-sharing.nix
     ./gpu-compute.nix
     ./virtualization.nix
+    ./containers.nix
   ];
   networking.networkmanager.enable = true;
   users.users.${username}.extraGroups = lib.mkMerge [
     (lib.mkBefore [ "networkmanager" ])
     (lib.mkAfter [
       "video"
-      "docker"
       "kvm"
     ])
   ];
   hardware.bluetooth.enable = true;
   services.power-profiles-daemon.enable = true;
-  virtualisation.docker.enable = true;
 
   security.rtkit.enable = true;
   services.pipewire = {

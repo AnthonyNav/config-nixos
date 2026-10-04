@@ -162,9 +162,10 @@ generation. Check `nixos-rebuild list-generations` or
 
 ## 8. Keep Exceptions Visible
 
-Not every useful tool is packaged declaratively. This repository currently has
-a downloaded Blender GPU build, downloaded wallpapers, and a user-installed
-Spec Kit CLI.
+Blender's official GPU build and the curated wallpaper collection are now
+fixed-hash Nix packages, downloaded during builds rather than activation.
+Previous local copies remain user-owned. A user-installed Spec Kit CLI is still
+an explicit exception.
 Treat each exception as a contract: document its owner, pinned version or hash,
 update method, secrets boundary, and a command that proves it works.
 
