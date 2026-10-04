@@ -293,6 +293,38 @@
     pkgsFor.runCommand "syncthing-policy-check" { } ''
       touch "$out"
     '';
+  nvidia-suspend =
+    let
+      configs = map (name: self.nixosConfigurations.${name}.config) workstationNames;
+      suspendingNvidia = builtins.filter (
+        c:
+        builtins.elem "nvidia" c.services.xserver.videoDrivers
+        && (c.systemd.sleep.settings.Sleep.AllowSuspend or true)
+      ) configs;
+      preservesVram =
+        c:
+        let
+          nvidia = c.hardware.nvidia;
+          suspend = c.systemd.services.nvidia-suspend or { };
+          resume = c.systemd.services.nvidia-resume or { };
+        in
+        nvidia.powerManagement.enable
+        && (nvidia.moduleParams.nvidia.NVreg_PreserveVideoMemoryAllocations or 0) == 1
+        && (
+          if nvidia.powerManagement.kernelSuspendNotifier then
+            (nvidia.moduleParams.nvidia.NVreg_UseKernelSuspendNotifiers or 0) == 1
+          else
+            (suspend.enable or false)
+            && (resume.enable or false)
+            && builtins.elem "systemd-suspend.service" (suspend.before or [ ])
+            && builtins.elem "systemd-suspend.service" (suspend.requiredBy or [ ])
+            && builtins.elem "systemd-suspend.service" (resume.after or [ ])
+            && builtins.elem "systemd-suspend.service" (resume.requiredBy or [ ])
+        );
+    in
+    assert lib.assertMsg (lib.all preservesVram suspendingNvidia)
+      "Suspending NVIDIA workstations must preserve VRAM with an ordered suspend/resume integration.";
+    pkgsFor.runCommand "nvidia-suspend-check" { } ''touch "$out"'';
   workstation-policy =
     let
       systemConfigs = map (name: self.nixosConfigurations.${name}.config) workstationNames;
