@@ -489,17 +489,58 @@ stable release during implementation and revalidate:
 - application start/restart;
 - skill commands.
 
-At plan creation, upstream stable is 1.4.220.
+Verified on 2026-10-04, GitHub's latest non-prerelease release is **v1.4.220**
+(published 2026-10-04). The repository pin at plan creation remains 1.4.216, so
+an update is available and is part of this implementation.
 
 Do not enable Orca's own self-updater to mutate Nix-managed application files.
 
 ## Permissions
 
-Prefer manual/agent-native permission handling instead of globally bypassing
-agent approval systems.
+Set **Settings -> Agents -> Agent Permissions -> Manual** as the recommended
+fleet mode for uncustomized Codex/Claude launches. Orca's built-in default
+otherwise pre-fills approval-bypass flags for supported agents.
+
+Manual mode keeps the agent's native approval/question flow available so a
+human can review sensitive decisions locally or from Orca Mobile.
 
 The fleet credential wrappers remain authoritative regardless of Orca's agent
-permission mode.
+permission mode. A mobile approval must never be able to bypass the
+work/personal/neutral credential boundary.
+
+## Mobile control and approvals
+
+Treat Orca Mobile as a first-class control surface for long-running agent work,
+not as the execution host. Desktop/Victus remains the source of truth for the
+agent session.
+
+For recognized chat-capable agents such as Claude and Codex, validate Orca
+Mobile Chat UI with:
+
+- readable session transcript and status;
+- sending follow-up prompts from the phone;
+- Claude structured questions such as `AskUserQuestion`;
+- Codex structured approval/question requests that Orca currently supports;
+- approving/rejecting agent permission prompts from the phone where exposed;
+- switching a session between Chat UI and Terminal View;
+- using Terminal View as the fallback when a prompt is not represented as a
+  structured mobile card;
+- reconnecting to the same paired workstation without starting a duplicate
+  agent session.
+
+Do not rely on push notifications as a correctness mechanism for every pending
+approval. The workflow must remain recoverable by opening Orca Mobile and
+checking sessions that are `waiting on input`.
+
+Record the known upstream limitation: open issue
+`stablyai/orca#20073` reports that Codex `request_user_input_async` questions
+may show their prose on mobile without the expected decision card. This is not
+a reason to use YOLO mode globally. Validate the installed Orca/Codex versions
+after the update and keep Terminal View as the fallback until upstream closes
+or supersedes that issue.
+
+The E2E acceptance must use the user's Android phone paired to each workstation
+being validated. No automated build check can prove the mobile interaction.
 
 ## Remote use
 
@@ -835,7 +876,18 @@ After merge and deployment from clean `main`:
 13. Test Postman import/file chooser and a local API request.
 14. Test Bruno, Posting and one Hurl test.
 15. Verify Docker remains inactive before first Docker API use.
-16. Observe CPU/RAM pressure with one and two simultaneous Orca agents.
+16. Set Orca Agent Permissions to Manual and pair the Android companion.
+17. Start one Claude session that asks a structured question/permission and
+    answer it from Orca Mobile Chat UI; verify the desktop session continues.
+18. Start one Codex session that requests an approval/question and answer it
+    from mobile when a structured card is available.
+19. Exercise the Codex async-question edge case; if the installed version still
+    reproduces upstream issue #20073, confirm Terminal View can unstick the
+    session without restarting or duplicating the agent.
+20. Repeat the mobile approval path against the second workstation or its
+    paired/remote session, confirming the phone always controls the original
+    Desktop/Victus agent rather than creating a cloud-side copy.
+21. Observe CPU/RAM pressure with one and two simultaneous Orca agents.
 
 ---
 
@@ -908,7 +960,16 @@ The PR is complete only when all of the following are true:
 - Orca-owned skills remain Orca-owned/updatable rather than Home Manager-owned.
 - MCP registry/policy is canonical and context-aware.
 - No runtime secret value is written into Git or the Nix store.
-- Orca is updated and its NixOS-specific package invariants are revalidated.
+- Orca is updated from 1.4.216 to the verified stable v1.4.220 (or a newer
+  reviewed stable release if upstream publishes one before implementation) and
+  its NixOS-specific package invariants are revalidated.
+- Orca Agent Permissions is documented/validated in Manual mode for the
+  supervised fleet workflow.
+- Android Orca Mobile can answer at least one Claude structured
+  question/permission and one supported Codex approval/question against the
+  original workstation session.
+- The Codex async-question limitation is explicitly tested and has a working
+  Terminal View fallback while upstream issue #20073 remains unresolved.
 - Bruno is updated to the reviewed 4.2.1 security release.
 - Postman has the NixOS GSettings workaround and runtime acceptance evidence, or
   is explicitly documented as compatibility-only if it still fails.
@@ -925,6 +986,10 @@ The PR is complete only when all of the following are true:
 - Orca CLI: https://www.onorca.dev/docs/cli/reference
 - Orca worktrees: https://www.onorca.dev/docs/model/worktrees
 - Orca releases: https://github.com/stablyai/orca/releases
+- Orca Mobile: https://www.onorca.dev/docs/mobile
+- Orca native Chat UI: https://www.onorca.dev/docs/agents/native-chat
+- Orca agent permissions: https://www.onorca.dev/docs/agents/supported
+- Codex mobile async-question bug: https://github.com/stablyai/orca/issues/20073
 - OpenCode Agent Skills: https://opencode.ai/docs/skills
 - Bruno releases: https://github.com/usebruno/bruno/releases
 - Posting releases: https://github.com/darrenburns/posting/releases
