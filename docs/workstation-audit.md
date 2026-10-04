@@ -9,7 +9,7 @@ suspensión, audio ni autenticación. No se activó ni desplegó esta rama.
 
 ## Change Surface
 
-Modified: 52 archivos. Added: 20 archivos. Deleted: 25 archivos.
+Modified: 53 archivos. Added: 20 archivos. Deleted: 25 archivos.
 Conteo del diff completo contra main, incluyendo este informe.
 
 Áreas principales: inventario/composición, perfiles de Home Manager, módulos

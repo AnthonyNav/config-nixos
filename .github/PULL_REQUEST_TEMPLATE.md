@@ -7,7 +7,7 @@ Describe the user-visible configuration change and why it belongs in this reposi
 - [ ] Shared configuration
 - [ ] Victus
 - [ ] Desktop
-- [ ] ThinkPad
+- [ ] Host lifecycle / inventory
 - [ ] Flake input update
 - [ ] Documentation only
 
