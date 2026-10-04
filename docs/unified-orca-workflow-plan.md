@@ -540,7 +540,11 @@ after the update and keep Terminal View as the fallback until upstream closes
 or supersedes that issue.
 
 The E2E acceptance must use the user's Android phone paired to each workstation
-being validated. No automated build check can prove the mobile interaction.
+being validated. At plan update time, the releases page lists
+`mobile-android-v0.0.52` as the newest Android companion release; prefer that
+release (or a newer reviewed mobile release) for acceptance rather than relying
+on the older APK version mentioned in static documentation. No automated build
+check can prove the mobile interaction.
 
 ## Remote use
 
