@@ -13,7 +13,7 @@
 
     llm-agents.url = "github:numtide/llm-agents.nix";
 
-    herdr.url = "github:herdrdev/herdr/v0.9.1";
+    herdr.url = "github:herdrdev/herdr/v0.9.3";
 
     home-manager = {
       url = "github:nix-community/home-manager";

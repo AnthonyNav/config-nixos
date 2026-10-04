@@ -7,12 +7,12 @@
 
 (buildVscode {
   pname = "kiro";
-  version = "1.1.14";
+  version = "1.1.70";
   vscodeVersion = "1.131.0";
 
   src = fetchurl {
-    url = "https://prod.download.desktop.kiro.dev/releases/stable/linux-x64/signed/1.1.14/tar/kiro-ide-1.1.14-stable-linux-x64.tar.gz";
-    hash = "sha256-moJzNkB89QKNzTTVzUNvzKS5WZ1qkM9cw4+WMeVtWP0=";
+    url = "https://prod.download.desktop.kiro.dev/releases/stable/linux-x64/signed/1.1.70/tar/kiro-ide-1.1.70-stable-linux-x64.tar.gz";
+    hash = "sha256-ev50WJtx9MnPFx4uKh9wEroFyuFYTxNgcumxzKGEf1Q=";
   };
 
   commandLineArgs = "";
