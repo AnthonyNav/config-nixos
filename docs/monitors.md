@@ -8,7 +8,8 @@ aplica cambios si la geometría/modo difieren. No usa un timer ni polling.
 ## Selección
 
 - Tres externos conocidos: LG central QHD a 99.95 Hz, laterales FHD a 165 Hz,
-  izquierda 90° y derecha 270°. No depende de HDMI-A-1/DP-1/DP-3.
+  HGC CR270C a la izquierda a 90° y XXX CR270C-P a la derecha a 270°.
+  No depende de HDMI-A-1/DP-1/DP-3.
 - Dos externos conocidos: conserva sus posiciones; si falta el LG, junta
   los dos laterales. Un panel interno activo se coloca debajo, a y=1920.
 - Otras combinaciones, incluido portátil + dos externos: distribución horizontal
@@ -29,7 +30,8 @@ idénticos sin serial. En ese caso se evita el perfil conocido.
 monitor-auto status
 monitor-layout --dry-run       # consulta y muestra; no escribe en Hyprland
 monitor-auto off
-set-monitor left portrait DP-3 HDMI-A-1
+set-monitor left portrait DP-2 HDMI-A-1
+set-monitor right portrait-inv DP-3 HDMI-A-1
 monitor-auto on
 journalctl --user -u monitor-layout.service -b
 ```
@@ -40,6 +42,26 @@ si estaba activo; no comunica un éxito falso ni reactiva una pausa previa.
 Con tres o más pantallas exige OUTPUT y ANCHOR. Los ajustes manuales duran la
 sesión o hasta `monitor-auto on`; una nueva sesión recupera el servicio.
 Los comandos Nix descartan el LD_LIBRARY_PATH heredado sólo para sus hijos.
+
+## Persistencia del montaje confirmado
+
+El orden físico y los giros confirmados en Desktop el 2026-10-04 se guardan
+en el inventario, no en ajustes IPC de una sesión. El HGC va a la izquierda,
+el LG al centro y el XXX a la derecha. Los giros siguen al panel identificado
+por su EDID, aunque cambie de conector. Se conservan los 165 Hz declarados para
+los laterales; el comando manual usa `preferred`, no esa frecuencia fija.
+
+Editar o integrar el archivo en Git no reemplaza la política ya instalada.
+Después de revisar e integrar el PR, desde main limpio:
+
+```sh
+nix-update
+monitor-auto on
+```
+
+Sólo reactiva el automatismo después de aplicar la nueva configuración;
+antes restauraría el perfil instalado anterior. Una nueva sesión cargará el
+perfil actualizado sin depender de los ajustes manuales previos.
 
 ## Por qué no Kanshi en esta integración
 
