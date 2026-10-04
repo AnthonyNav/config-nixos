@@ -45,11 +45,12 @@ or its database/message-broker integration.
 - Keep global compatibility switches enabled until remaining consumers on each
   host are validated. No global SDK or Jupyter fallback was removed in this slice.
 - AI runtime rollout and Desktop service verification remain main-only operational
-  work. IdeaPad, macOS and distributed builders remain deferred.
+  work. macOS and distributed builders remain outside the current scope.
 
 ## Fleet validation
 
 Formatting, flake evaluation, the project-environments behavior check and all
-six NixOS/Home Manager builds for ThinkPad, Victus and Desktop passed without
+the six then-current NixOS/Home outputs (including the now-retired ThinkPad)
+passed without
 activation. The new check covers legacy defaults, selective Go removal, all
 SDK switches disabled, native-library opt-out and repeated shell initialization.

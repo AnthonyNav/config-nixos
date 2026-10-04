@@ -2,61 +2,27 @@
 
 ## Architecture
 
-`flake.nix` is the entry point for a single user, `anthony`, across the inventory
-in `inventory/hosts.nix` (currently three workstations). `flake/hosts.nix`
-composes a shared Home Manager base, a selected desktop style, and a host overlay
-that chooses its development role and hardware-specific user configuration.
+The inventory currently contains Desktop and Victus. Both consume one daily
+Home environment and select development, data-science and creative profiles.
+Hardware modules stay under `hosts/<name>/`; explicit per-program Home modules
+and static `dotfiles/` are shared. See [workstation-architecture.md](workstation-architecture.md)
+for extension rules, [monitors.md](monitors.md) for topology selection and
+[workstation-research.md](workstation-research.md) for update decisions.
 
-| Host | Graphics | Home features |
-|---|---|---|
-| `victus` | AMD iGPU + NVIDIA PRIME | Creative suite, AMD monitoring |
-| `desktop` | NVIDIA only | Creative + ML profile, fixed three-monitor profile |
-| `thinkpad` | Integrated graphics | Development-only profile, network diagnostics |
+`flake/hosts.nix` composes NixOS, Home Manager and a registered desktop style.
+All inventory members are daily workstations with Home Manager; the installer
+is a separate output. SSH, Syncthing, input-sharing peers and CI's build matrix
+are inventory-derived. Shared changes require two systems and two Home builds.
+The integrated-GPU fixture verifies the daily environment without development,
+creative, compute or virtualization dependencies; it is not deployable.
 
-The installer ISO is not a workstation and does not import Home Manager.
+Local Docker and virt-manager/libvirt remain. Server provisioning, CI agents,
+headless profiles, public/web-terminal publication and ThinkPad are retired.
+Removing their declarations never authorizes deletion of local data or external
+identities. This repository does not publish tailnet policy or deploy itself.
 
-`desktopStyles` is a closed registry in `flake/hosts.nix`. All current hosts select
-`caelestia`, whose system and Home Manager modules live in
-`desktops/caelestia/`. Add a style to that registry instead of creating a
-long-lived branch per desktop implementation.
-
-## Fleet and laboratory boundaries
-
-`inventory/fleet.nix` derives separate host sets for SSH, Syncthing, input
-sharing, lab capabilities, workstation/server kinds and Home Manager outputs.
-Each host declares its own Nix platform. A server can use
-`desktopStyle = null; homeModules = null;` without importing GUI or user
-development profiles. A non-null Home module list must provide the user's
-Home Manager identity and state version.
-
-`modules/system/common.nix` owns shared administration;
-`workstation.nix` adds desktop services and Docker; `server.nix` disables
-sleep and defaults to one Nix job/core. Real server resource tuning still needs
-hardware measurements. K3s, CI agents and publication are opt-in modules under
-`modules/system/lab-platform/`. Desktop and Victus declare the same
-Kubernetes/CI capabilities, with no enabled instances. Both use the shared
-creative/ML workstation profile and Docker socket activation. See
-[desktop-workstation.md](desktop-workstation.md) for the Desktop transition
-and preservation of its former infrastructure data.
-
-`nix-config build all all` builds each system and only its declared Home output.
-`build home <host>` reports an error for a host without Home Manager.
-CI derives the same conditional matrix from `lib.buildMatrix`. Runners and
-maintenance tooling currently target x86_64 Linux; Darwin is out of scope.
-The `fleet-policy` check covers a synthetic headless host, opt-in Victus lab
-instances and invalid configurations; `headless-system` builds that fixture.
-The fixture is never exported as a deployable host.
-
-See [lab-platform-plan.md](lab-platform-plan.md) for configuration examples
-and the deferred IdeaPad hardware gate.
-
-## Planned platform evolution
-
-Future fleet, laboratory, AI-environment, project-isolation and Darwin work is
-tracked in [fleet-platform-evolution.md](fleet-platform-evolution.md). Treat
-that document and its linked plans as implementation guidance only: existing
-runtime behavior remains authoritative until each phase is implemented,
-validated and merged through its own PR.
+`desktopStyles` is a closed registry in `flake/hosts.nix`. Current machines use
+Caelestia. New desktop variants belong there, not in permanent branches.
 
 ## Commands
 
@@ -76,9 +42,9 @@ nix-check all
 Build a narrower scope without activation when appropriate:
 
 ```sh
-nix-config build system thinkpad
-nix-config build home thinkpad
-nix-config build all thinkpad
+nix-config build system victus
+nix-config build home victus
+nix-config build all victus
 ```
 
 Receive the reviewed configuration from `main`, validate it, and apply it:
@@ -133,36 +99,20 @@ normal command that modifies Git before deployment. See `docs/nix-config.md`.
 - Pritunl is a system module because its daemon needs root.
 - The creative suite is imported only by NVIDIA hosts. The Blender launcher and
   desktop entry require `LD_LIBRARY_PATH=/run/opengl-driver/lib`.
-- ThinkPad is development-only. It must not import `creative-suite.nix`, GPU
-  launchers, Blender, Resolve, or fixed desktop monitor rules.
+- Creative profiles require declared NVIDIA capabilities; the daily base must
+  remain usable without NVIDIA, creative launchers or SDKs.
 
-## Host-Specific Changes
+## Host-specific changes
 
-See [resource-policy.md](resource-policy.md) for build concurrency, ThinkPad's
-encrypted swap and on-demand Docker, measurement criteria, and rollback.
+Keep generated hardware files local to each host. Put drivers, PCI addresses,
+boot/disks and power quirks under `hosts/<name>/`. Select functional Home
+profiles in the inventory; optional `homeModules` are narrow exceptions, not
+duplicated daily environments. A shared module must not assume direct NVIDIA,
+PRIME or AMD. Display identities describe physical desks, not computers.
 
-Keep generated `hardware-configuration.nix` files local to their host. Put
-system hardware settings in `hosts/<name>/default.nix` and Home Manager
-features in `hosts/<name>/home.nix`. A common module must never assume PRIME,
-NVIDIA, a fixed monitor layout, or an AMD GPU.
-
-When changing a shared profile, evaluate all hosts. When changing NVIDIA or
-creative behavior, build both `victus` and `desktop`; PRIME and direct NVIDIA
-are different runtime paths. Keep Wi-Fi experiments in
-`hosts/thinkpad/default.nix` and follow `docs/thinkpad-network.md`.
-
-Caelestia, Hyprland, lock/idle, Zsh, and development-profile changes are shared
-by all three workstations. Build the NixOS and Home Manager outputs for
-`thinkpad`, `victus`, and `desktop` before activation.
-
-### Desktop infrastructure retirement
-
-Desktop's K3s instance, both Woodpecker agents, UI forwarding, Serve/Funnel
-publication and persistent Zellij web terminal have been removed from the
-declared workstation configuration. Existing runtime data and credentials are
-retained. Follow [desktop-workstation.md](desktop-workstation.md) after the
-reviewed change is published on `main`; development builds do not stop active
-services or remove existing Tailscale publications.
+Build both Desktop and Victus for shared changes. Their GPU paths differ;
+evaluation cannot prove rendering/suspend. Follow [resource-policy.md](resource-policy.md)
+and perform main-only runtime acceptance after authorized deployment.
 
 ## Development command resolution
 
@@ -193,12 +143,11 @@ and `packages/kiro-ide.nix`. The CLI retains Nixpkgs' FHS wrapper for its
 embedded Bun runtime. The IDE uses `buildVscode` with the Code OSS version
 from the vendor archive. Both packages are exposed as `.#kiro-cli` and
 `.#kiro` for build validation. The IDE is included on `victus` and `desktop`;
-the CLI is included on all three workstations. `herdr` is pinned to a release
-tag as a flake input and is also included on all three workstations. Update
+the CLI is included on both workstations. `herdr` is pinned to a release
+tag as a flake input and is also included on both workstations. Update
 Herdr through its flake input, not its self-updater.
 
-Orca's [workstation application](orca.md) is enabled on Victus, Desktop and
-ThinkPad, pinned in `packages/orca-ide.nix` and exposed as `.#orca-ide`.
+Orca's [workstation application](orca.md) is enabled in the shared daily profile for Desktop and Victus, pinned in `packages/orca-ide.nix` and exposed as `.#orca-ide`.
 Its Linux CLI is `orca-ide`; the application launcher is `orca-ide-gui`.
 Update the package version/hash through review and revalidate
 upstream's externally-managed-install guard. Mutable application state is local.
@@ -235,7 +184,8 @@ in the SSH agent, and fail instead of prompting when it is unavailable. See
 [codex-git-prompt-plan.md](codex-git-prompt-plan.md) for the reported TUI issue,
 validation scope and real-session follow-up.
 
-Update this toolchain only on a dedicated branch and PR:
+Update this toolchain through a reviewed branch and PR; when included in a larger
+approved change, keep its dependency update separately identifiable:
 
 ```sh
 nix flake update llm-agents
@@ -245,7 +195,7 @@ nix flake check --no-build --no-write-lock-file
 nix build --no-link --print-build-logs .#checks.x86_64-linux.ai-tools
 ```
 
-Then perform the required NixOS and Home Manager builds for all three
+Then perform the required NixOS and Home Manager builds for both
 workstations. Do not use `claude update`, `codex update`, `opencode upgrade`, or
 another tool's self-updater: those bypass the repository lock and cannot update
 binaries in the Nix store.

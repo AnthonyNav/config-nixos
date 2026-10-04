@@ -10,8 +10,6 @@
   imports = [
     ./tailscale-fleet.nix
     ./syncthing-fleet.nix
-    ./remote-workspace.nix
-    ./virtualization-lab.nix
     ./resource-policy.nix
   ];
 
@@ -68,10 +66,6 @@
     description = username;
     shell = pkgs.zsh;
     extraGroups = [ "wheel" ];
-    packages = with pkgs; [
-      fastfetch
-      neovim
-    ];
     openssh.authorizedKeys.keys = [
       "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMSZBAoRb/gxevgsIFbtcg/hPx+gvv0tfj25KtubL0xd anthony@config-nixos"
     ];

@@ -7,7 +7,7 @@
 
 {
   # Stack de creación 3D/video para hosts con NVIDIA. Victus usa PRIME offload;
-  # desktop usa su RTX como GPU principal. ThinkPad no importa este módulo.
+  # desktop usa su RTX como GPU principal. La base diaria no importa este módulo.
   imports = [
     ./blender-gpu.nix # binario standalone con CUDA/OptiX, requiere NVIDIA dedicada
     ./creative-shell.nix

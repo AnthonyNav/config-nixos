@@ -1,9 +1,8 @@
 # Orca on the workstations
 
-Orca is an optional Home Manager application, enabled on Victus, Desktop and
-ThinkPad with `fleet.ai.orca.enable = true` in each host's Home Manager overlay.
-The module defaults to `false`; the installer and headless hosts do not acquire
-a GUI dependency.
+Orca is an optional Home Manager application, enabled in the shared daily
+profile for Desktop and Victus through `fleet.ai.orca.enable = true`.
+The module defaults to false; the installer does not import the daily profile.
 
 ## Package and ownership
 
@@ -56,7 +55,7 @@ nix-check all
 ```
 
 The shared AI profile imports the optional module, so evaluate and build system
-and Home Manager outputs for Victus, Desktop and ThinkPad. Package CLI checks
+and Home Manager outputs for Desktop and Victus. Package CLI checks
 can use the built store path's `bin/orca-ide --version` and `--help` without
 activating the branch. They do not prove GUI, authentication or agent health.
 
@@ -93,19 +92,9 @@ published main through the normal `nix-update` / `nix-switch` workflow.
 Run and record this acceptance separately on each workstation after deployment.
 Herdr and the existing editors remain available.
 
-## Remote and mobile follow-up
-
-SSH, Orca Server, mobile pairing, computer use and scheduled automations are
-outside this desktop application rollout. In particular, upstream's SSH mode
-installs a remote relay and may build node-pty: validate NixOS dependencies and
-the existing Tailscale ProxyCommand before adopting it. Check disconnect/session lease behavior rather
-than assuming indefinite persistence. The optional Zellij Remote Workspace
-is independent of Orca and currently disabled on all fleet workstations;
-see [remote-workspace.md](remote-workspace.md).
-
 ## Disable
 
-Remove the target host's opt-in or set `fleet.ai.orca.enable = false`, validate
+Override the option through an explicit Home exception or set `fleet.ai.orca.enable = false`, validate
 and deploy reviewed main. This removes the managed application while preserving
 local Orca data and Git worktrees. Close running Orca sessions separately when
 safe.
@@ -117,7 +106,5 @@ safe.
 - [Pinned external package ownership detection](https://github.com/stablyai/orca/blob/v1.4.216/src/main/linux-update-package-type.ts)
 - [Pinned updater tests](https://github.com/stablyai/orca/blob/v1.4.216/src/main/updater.linux-externally-managed.test.ts)
 - [Telemetry control](https://www.onorca.dev/docs/telemetry)
-- [SSH relay requirements](https://www.onorca.dev/docs/ssh)
 - [Project environments](project-environments.md)
 - [Fleet AI environment](ai-environment.md)
-- [Remote Workspace](remote-workspace.md)

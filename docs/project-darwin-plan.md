@@ -158,24 +158,6 @@ When nix-darwin is introduced:
 - do not claim Linux CI proves Darwin runtime behavior;
 - validate macOS-specific launchd, GUI and Xcode-dependent workflows on the Mac.
 
-## Distributed builds
-
-After platform boundaries are stable, evaluate distributed builders.
-
-Possible future flow:
-
-```text
-ThinkPad -> heavy Linux build -> Desktop/Victus
-Mac      -> Linux build       -> Linux builder
-Linux    -> Darwin build      -> Mac builder
-```
-
-Builder selection should be resource-aware. The legacy IdeaPad must not receive
-heavy builds by default just because it is a fleet host.
-
-A binary cache may be added later if repeated private builds justify the
-operational cost.
-
 ## Acceptance criteria
 
 - New projects can obtain language SDKs without modifying `config-nixos`.
@@ -186,4 +168,3 @@ operational cost.
 - Flutter migration preserves working Android/Gradle/emulator behavior.
 - Shared configuration has no Linux-home-path assumption that blocks Darwin.
 - A future Apple Silicon host can reuse common Home Manager and AI policy.
-- Distributed-build support, if added, does not overload the IdeaPad.

@@ -1,6 +1,12 @@
 { lib, ... }:
 
 {
+  # The observed journal used 3.9 GiB. Bound future retention, not app memory.
+  services.journald.settings.Journal = {
+    SystemMaxUse = "1G";
+    RuntimeMaxUse = "128M";
+    MaxRetentionSec = "14day";
+  };
   # Bound both levels of build parallelism. These are defaults, not CPU or
   # memory quotas: a package can ignore NIX_BUILD_CORES.
   nix.settings = {

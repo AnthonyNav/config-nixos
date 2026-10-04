@@ -1,6 +1,6 @@
 # NixOS Multi-Host Dev Environment
 
-Configuración modular de NixOS + Flakes + Home Manager orientada a desarrollo diario con escritorio Wayland (Hyprland), herramientas modernas de IA y soporte multi-máquina.
+Configuración modular de NixOS + Flakes + Home Manager orientada al uso diario, desarrollo y creación audiovisual con escritorio Wayland (Hyprland), herramientas modernas de IA y soporte multi-máquina.
 
 ---
 
@@ -25,8 +25,11 @@ Configuración modular de NixOS + Flakes + Home Manager orientada a desarrollo d
 | Host | Estado | Hardware |
 |---|---|---|
 | `victus` | Activo | HP Victus — AMD HawkPoint + NVIDIA RTX 4050 |
-| `thinkpad` | Activo | ThinkPad con gráficos integrados |
 | `desktop` | Activo | Desktop — NVIDIA RTX 3060 Ti |
+
+La arquitectura y el procedimiento para extender dotfiles están en
+[docs/workstation-architecture.md](docs/workstation-architecture.md).
+ThinkPad fue retirado del inventario; este repo no administra servidores.
 
 ---
 
@@ -271,36 +274,23 @@ delegan en Caelestia para evitar dos clientes `ext-session-lock` concurrentes.
 
 ### Monitores externos
 
-`set-monitor` (`modules/home/monitors.nix`) posiciona (izquierda/derecha) y
-rota (paisaje/retrato) un monitor externo recién conectado, sin depender de
-nombres de salida fijos — a diferencia de kanshi, no necesita conocer de
-antemano qué monitor vas a conectar; lee el estado real vía `hyprctl monitors
--j` en cada invocación. Es puramente manual: no reemplaza la regla global
-`monitor = ", preferred, auto, 1"` de `hyprland.nix`, solo la sobreescribe en
-caliente para la sesión actual — hay que volver a correrlo si reconectas el
-monitor o reinicias Hyprland/la sesión.
+La distribución se activa por las pantallas conectadas, no por el hostname.
+Tres monitores del escritorio conocido conservan el LG central y los laterales
+a 90°/270°, con refrescos 99.95/165 Hz. Dos externos conocidos tienen su perfil;
+un portátil con dos pantallas desconocidas recibe un layout horizontal seguro.
+Las identidades EDID están en `inventory/displays.nix`, sin conectores fijos.
 
 ```bash
-set-monitor right                  # extiende a la derecha del ancla, sin rotar
-set-monitor left portrait          # a la izquierda, en vertical (90°)
-set-monitor right portrait-inv     # 270° — probar si "portrait" queda al revés
-set-monitor right normal DP-2      # 3+ monitores conectados: nombre explícito
+monitor-auto status
+monitor-layout --dry-run          # muestra el perfil sin aplicarlo
+set-monitor left portrait DP-3 HDMI-A-1  # pausa automatismo y ajusta manualmente
+monitor-auto on                  # vuelve a los perfiles automáticos
 ```
 
-`set-monitor` descarta `LD_LIBRARY_PATH` únicamente para su proceso y sus
-herramientas Nix: las bibliotecas de Python/Jupyter heredadas de la terminal
-pueden ser incompatibles con `hyprctl`. El entorno de la terminal no cambia.
-Si falla la consulta de monitores, se muestra el error original de `hyprctl`.
-
-El "ancla" (monitor de referencia) es `eDP-1` (panel interno) si está
-presente, si no el monitor enfocado, si no el de menor id — cubre tanto
-laptops (victus, thinkpad) como `desktop` (sin panel interno). Con más de 2
-monitores conectados y sin nombre explícito, el comando lista
-`nombre / descripción` de cada uno para que elijas.
-
-Atajos de Hyprland para el caso más común (extender sin rotar):
-`Super+Alt+→` = `set-monitor right`, `Super+Alt+←` = `set-monitor left`. Los
-casos con rotación quedan solo como comando de terminal.
+Con tres o más monitores, `set-monitor` requiere OUTPUT y ANCHOR explícitos.
+El controlador escucha eventos de Hyprland, no hace polling, y acompaña la
+sesión gráfica. Consulta [docs/monitors.md](docs/monitors.md) para la selección,
+las pruebas físicas pendientes y las limitaciones.
 
 ### Wallpapers
 
@@ -355,9 +345,9 @@ un servidor en cada workstation:
 
 | Herramienta | Host | Uso |
 |---|---|---|
-| DbGate Community | `victus` | Cliente gráfico para SQL, MongoDB y Redis |
-| DBeaver | `desktop` | Cliente gráfico para SQL y motores con drivers JDBC |
-| MySQL Workbench | `desktop` | Administración y modelado de MySQL/MariaDB |
+| DbGate Community | Ambos | Cliente gráfico para SQL, MongoDB y Redis |
+| DBeaver | Opcional con `nix run .#dbeaver` | Cliente gráfico para SQL y motores con drivers JDBC |
+| MySQL Workbench | Ambos | Administración y modelado de MySQL/MariaDB |
 | `usql` | Todos | Cliente de terminal para PostgreSQL, MySQL/MariaDB, SQLite, SQL Server, Oracle y otros |
 
 Ejemplos de `usql`:
@@ -378,7 +368,6 @@ para uso manual, pero su integración Zsh está desactivada para no instalar
 hooks SQLite redundantes en cada terminal. Zsh deduplica las funciones estándar
 de `fpath` antes de ejecutar `compinit` una sola vez.
 
-El protocolo para medir la red ThinkPad está en [docs/thinkpad-network.md](docs/thinkpad-network.md).
 
 ---
 
@@ -396,9 +385,8 @@ mediante PRIME offload y `desktop` usa su RTX 3060 Ti como GPU principal.
 | Photoshop | **Krita** + **GIMP 3** | `modules/home/creative-suite.nix` (`krita`, `gimp`) |
 | Illustrator | **Inkscape** | `modules/home/creative-suite.nix` (`inkscape`) |
 
-**Todo este stack es opt-in por host**: `hosts/victus/home.nix` y
-`hosts/desktop/home.nix` lo importan; `thinkpad` usa el perfil base y no
-instala nada de esto.
+La selección común de `homeProfiles` incluye `creative` en ambos equipos.
+El perfil requiere capacidad NVIDIA; la base diaria no depende de ese hardware.
 
 **Importante sobre Blender:** el paquete `blender` de nixpkgs se compila
 **sin ningún backend GPU de Cycles** (confirmado en su derivación:

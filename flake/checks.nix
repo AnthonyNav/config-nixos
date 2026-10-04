@@ -17,6 +17,51 @@
   nixConfigPackages,
 }:
 {
+  monitor-layout =
+    pkgsFor.runCommand "monitor-layout-check"
+      {
+        nativeBuildInputs = [ pkgsFor.python3 ];
+      }
+      ''
+        python ${../scripts/tests/check-monitor-layout.py} ${../scripts/monitor-layout.py} ${pkgsFor.writeText "monitor-policy.json" (builtins.toJSON (import ../inventory/displays.nix))}
+        touch "$out"
+      '';
+  manual-monitors =
+    pkgsFor.runCommand "manual-monitors-check"
+      {
+        nativeBuildInputs = [
+          pkgsFor.bash
+          pkgsFor.python3
+          pkgsFor.jq
+          pkgsFor.gawk
+          pkgsFor.shellcheck
+        ];
+      }
+      ''
+        shellcheck ${../scripts/set-monitor.sh}
+        python ${../scripts/tests/check-set-monitor.py} ${../scripts/set-monitor.sh}
+        touch "$out"
+      '';
+  dotfiles =
+    let
+      settings =
+        self.homeConfigurations."${username}@${builtins.head workstationNames}".config.programs.starship.settings;
+    in
+    assert settings == builtins.fromTOML (builtins.readFile ../dotfiles/starship/starship.toml);
+    pkgsFor.runCommand "dotfiles-check"
+      {
+        nativeBuildInputs = [ pkgsFor.neovim-unwrapped ];
+      }
+      ''
+        export XDG_CONFIG_HOME="$TMPDIR/config"
+        export XDG_DATA_HOME="$TMPDIR/data"
+        export XDG_STATE_HOME="$TMPDIR/state"
+        export XDG_CACHE_HOME="$TMPDIR/cache"
+        nvim --headless -i NONE -u ${../dotfiles/neovim/options.lua} \
+          "+lua if not (vim.o.number and vim.o.relativenumber and vim.o.expandtab and vim.o.tabstop == 2 and vim.o.shiftwidth == 2 and vim.o.undofile) then vim.cmd('cquit 1') end" \
+          +qa
+        touch "$out"
+      '';
   development-path = pkgsFor.runCommand "development-path-check" { } ''
     mkdir -p "$TMPDIR"/{managed,project,home/.local/bin,home/.local/share/pnpm,home/.npm-global/bin}
     touch "$TMPDIR/managed/codex" "$TMPDIR/project/codex" \
@@ -43,13 +88,9 @@
       configs = lib.mapAttrs (_: host: host.config) (
         lib.getAttrs workstationNames self.nixosConfigurations
       );
-      thinkpad = configs.thinkpad;
       victus = configs.victus;
       desktop = configs.desktop;
       desktopHome = self.homeConfigurations."${username}@desktop".config;
-      thinkpadFallbackSwap = builtins.filter (
-        swap: swap.device == "/var/lib/nixos-memory-swapfile"
-      ) thinkpad.swapDevices;
       victusFallbackSwap = builtins.filter (
         swap: swap.device == "/var/lib/nixos-victus-memory-swapfile"
       ) victus.swapDevices;
@@ -57,18 +98,11 @@
     assert lib.all (c: c.nix.settings.cores > 0 && c.nix.settings."max-jobs" > 0) (
       builtins.attrValues configs
     );
-    assert thinkpad.nix.settings."max-jobs" <= desktop.nix.settings."max-jobs";
     assert desktop.nix.settings."max-jobs" == 2;
     assert desktop.nix.settings.cores == 2;
-    assert builtins.length thinkpadFallbackSwap == 1;
-    assert (builtins.head thinkpadFallbackSwap).randomEncryption.enable;
-    assert (builtins.head thinkpadFallbackSwap).priority < thinkpad.zramSwap.priority;
     assert builtins.length victusFallbackSwap == 1;
     assert (builtins.head victusFallbackSwap).randomEncryption.enable;
     assert (builtins.head victusFallbackSwap).priority < victus.zramSwap.priority;
-    assert !thinkpad.systemd.sleep.settings.Sleep.AllowHibernation;
-    assert !thinkpad.systemd.sleep.settings.Sleep.AllowHybridSleep;
-    assert !thinkpad.systemd.sleep.settings.Sleep.AllowSuspendThenHibernate;
     assert !victus.systemd.sleep.settings.Sleep.AllowHibernation;
     assert !victus.systemd.sleep.settings.Sleep.AllowHybridSleep;
     assert !victus.systemd.sleep.settings.Sleep.AllowSuspendThenHibernate;
@@ -87,9 +121,6 @@
     assert victus.hardware.nvidia-container-toolkit.enable;
     assert desktop.hardware.nvidia-container-toolkit.enable;
     assert !desktop.services.k3s.enable;
-    assert desktop.fleet.lab.ci.agents == { };
-    assert !desktop.fleet.lab.publication.woodpecker.enable;
-    assert desktop.fleet.lab.publication.privateUis == { };
     assert (desktop.networking.firewall.interfaces.docker0.allowedTCPPorts or [ ]) == [ ];
     assert (desktop.networking.firewall.interfaces.docker0.allowedTCPPortRanges or [ ]) == [ ];
     pkgsFor.runCommand "resource-policy-check" { } ''
@@ -147,9 +178,6 @@
       declaredInputPeers =
         host:
         lib.sort builtins.lessThan (map (peer: peer.host) workstations.${host}.features.inputSharing.peers);
-      expectedRemoteWorkspaceHosts = builtins.filter (
-        name: workstations.${name}.features.remoteWorkspace.enable
-      ) workstationNames;
       validPort = endpoint: endpoint.port > 0 && endpoint.port <= 65535;
     in
     assert lib.all (host: builtins.elem host fleetNames) endpointHosts;
@@ -157,7 +185,6 @@
     assert builtins.length endpointBindings == builtins.length (lib.unique endpointBindings);
     assert builtins.length tailnetGrantBindings == builtins.length (lib.unique tailnetGrantBindings);
     assert lib.all (host: declaredInputPeers host == expectedInputPeers host) inputSharingHostNames;
-    assert builtins.attrNames fleetEndpoints.remoteWorkspace.hosts == expectedRemoteWorkspaceHosts;
     assert fleetEndpoints.public == [ ];
     assert
       lib.sort builtins.lessThan tailnetGrantBindings == [
@@ -170,7 +197,7 @@
     '';
   identity-policy =
     let
-      homeConfig = self.homeConfigurations."${username}@thinkpad".config;
+      homeConfig = self.homeConfigurations."${username}@${builtins.head workstationNames}".config;
       gitSettings = homeConfig.programs.git.settings;
       sshSettings = homeConfig.programs.ssh.settings;
       identityPolicy = import ../inventory/identities.nix;
@@ -196,8 +223,9 @@
     '';
   tailscale-policy =
     let
-      systemConfig = self.nixosConfigurations.thinkpad.config;
-      homeConfig = self.homeConfigurations."${username}@thinkpad".config;
+      host = builtins.head workstationNames;
+      systemConfig = self.nixosConfigurations.${host}.config;
+      homeConfig = self.homeConfigurations."${username}@${host}".config;
       tailscaleConfig = systemConfig.services.tailscale;
       tailscaleFirewall = systemConfig.networking.firewall.interfaces.tailscale0;
       fleetSshSettings = homeConfig.programs.ssh.settings;
@@ -212,7 +240,7 @@
     assert tailscalePolicyConfig.node.allowIncoming;
     assert
       tailscaleConfig.extraSetFlags == [
-        "--hostname=thinkpad"
+        "--hostname=${host}"
         "--shields-up=false"
         "--ssh"
       ];
@@ -227,10 +255,12 @@
     assert sshRule.dst == [ "autogroup:self" ];
     assert sshRule.users == [ username ];
     assert sshRule.checkPeriod == "12h";
-    assert fleetSshSettings.thinkpad.data.User == username;
-    assert fleetSshSettings.desktop.data.User == username;
-    assert fleetSshSettings.victus.data.User == username;
-    assert fleetSshSettings.thinkpad.data.ProxyCommand == expectedProxyCommand;
+    assert lib.all (
+      name:
+      fleetSshSettings.${name}.data.User == username
+      && fleetSshSettings.${name}.data.ProxyCommand == expectedProxyCommand
+    ) workstationNames;
+    assert !(fleetSshSettings ? thinkpad) && !(fleetSshSettings ? debian-server);
     assert fleetSshSettings.desktop.data.ProxyCommand == expectedProxyCommand;
     assert fleetSshSettings.victus.data.ProxyCommand == expectedProxyCommand;
     pkgsFor.runCommand "tailscale-policy-check" { } ''
@@ -239,7 +269,7 @@
     '';
   syncthing-policy =
     let
-      systemConfig = self.nixosConfigurations.thinkpad.config;
+      systemConfig = self.nixosConfigurations.${builtins.head workstationNames}.config;
       syncthingConfig = systemConfig.services.syncthing;
       tailscaleFirewall = systemConfig.networking.firewall.interfaces.tailscale0;
       syncthingPolicy = import ../inventory/syncthing.nix;
@@ -263,27 +293,26 @@
     pkgsFor.runCommand "syncthing-policy-check" { } ''
       touch "$out"
     '';
-  remote-workspace-policy =
+  workstation-policy =
     let
-      remotePolicy = import ../inventory/remote-workspace.nix;
       systemConfigs = map (name: self.nixosConfigurations.${name}.config) workstationNames;
       homeConfigs = map (name: self.homeConfigurations."${username}@${name}".config) workstationNames;
     in
-    assert lib.all (host: !host.features.remoteWorkspace.enable) (builtins.attrValues workstations);
-    assert remotePolicy.hosts == { };
     assert self.nixosConfigurations.desktop.config.users.users.${username}.linger == false;
     assert lib.all (
       c:
       (c.users.users.${username}.linger != true)
+      && !c.services.k3s.enable
+      && !(builtins.hasAttr "woodpecker-agent-desktop" c.systemd.services)
+      && !(builtins.hasAttr "woodpecker-agent-victus" c.systemd.services)
       && !(builtins.hasAttr "remote-workspace-serve" c.systemd.services)
-      && !(builtins.elem remotePolicy.backend.port c.networking.firewall.allowedTCPPorts)
-      && !(builtins.elem remotePolicy.backend.port c.networking.firewall.interfaces.tailscale0.allowedTCPPorts)
+      && !(builtins.elem 8082 c.networking.firewall.allowedTCPPorts)
+      && !(builtins.elem 8082 c.networking.firewall.interfaces.tailscale0.allowedTCPPorts)
       && !(builtins.elem 8448 c.networking.firewall.interfaces.tailscale0.allowedTCPPorts)
     ) systemConfigs;
     assert lib.all (c: !(builtins.hasAttr "remote-workspace" c.systemd.user.services)) homeConfigs;
-    assert remotePolicy.backend.hostname == "127.0.0.1";
     assert aiToolsPackages ? codex;
-    pkgsFor.runCommand "remote-workspace-policy-check" { } ''
+    pkgsFor.runCommand "workstation-policy-check" { } ''
       touch "$out"
     '';
   nix-config =
@@ -306,8 +335,7 @@
           ${../scripts/tests/check-nix-config.sh} \
           ${../scripts/tests/check-input-share.sh} \
           ${../scripts/input-share-reconcile.sh} \
-          ${../scripts/syncthing-fleet-reconcile.sh} \
-          ${../scripts/lab.sh}
+          ${../scripts/syncthing-fleet-reconcile.sh}
         bash ${../scripts/tests/check-nix-config.sh} ${../scripts/nix-config.sh}
         bash ${../scripts/tests/check-input-share.sh} ${../scripts/input-share-reconcile.sh}
         nix-config --help >/dev/null

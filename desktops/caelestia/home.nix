@@ -29,6 +29,7 @@ in
     ../../modules/home/caelestia-scheme.nix
     ../../modules/home/theme-mode.nix
     ../../modules/home/monitors.nix
+    ../../modules/home/monitor-profiles.nix
     ../../modules/home/theme-sync.nix
     ../../modules/home/wallpapers.nix
   ];

@@ -74,18 +74,8 @@ OS: NixOS
 Host: victus
 Platform: x86_64-linux
 Kind: workstation
-Capabilities: development, lab-platform, kubernetes, ci, gpu-compute
+Capabilities: development, virtualization, gpu-compute
 Graphics: nvidia-prime
-```
-
-or:
-
-```text
-OS: NixOS
-Host: ideapad
-Kind: server
-Resource class: legacy-low
-Capabilities: deployment-lab, ssh, tailscale, selected lab components
 ```
 
 Do not duplicate changing hardware facts in multiple AI files.

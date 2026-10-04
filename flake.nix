@@ -107,10 +107,8 @@
           inputSharingHostNames
           ;
         inherit (fleet)
-          serverNames
           sshHostNames
           syncthingHostNames
-          labHostNames
           buildMatrix
           ;
       };
@@ -137,6 +135,7 @@
         kiro = kiroPackages.ide;
         herdr = herdrPackage;
         dbgate = dbgatePackage;
+        sonobus = pkgsFor.callPackage ./packages/sonobus.nix { };
         orca-ide = pkgsFor.callPackage ./packages/orca-ide.nix { };
         dbeaver = dbeaverPackage;
       };

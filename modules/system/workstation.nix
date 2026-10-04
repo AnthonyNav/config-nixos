@@ -10,6 +10,7 @@
     ./ai-helper.nix
     ./input-sharing.nix
     ./gpu-compute.nix
+    ./virtualization.nix
   ];
   networking.networkmanager.enable = true;
   users.users.${username}.extraGroups = lib.mkMerge [
@@ -48,7 +49,6 @@
     "/share/xdg-desktop-portal"
   ];
 
-  environment.systemPackages = [ pkgs.google-chrome ];
   environment.sessionVariables = {
     NIXOS_OZONE_WL = "1";
     WLR_NO_HARDWARE_CURSORS = "1";

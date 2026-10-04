@@ -10,11 +10,7 @@ let
     homeModule = ../desktops/caelestia/home.nix;
   };
   styleFor =
-    host:
-    if host.desktopStyle == null then
-      null
-    else
-      desktopStyles.${host.desktopStyle} or (throw "Unknown desktop style '${host.desktopStyle}'.");
+    host: desktopStyles.${host.desktopStyle} or (throw "Unknown desktop style '${host.desktopStyle}'.");
   pkgsFor =
     system:
     import inputs.nixpkgs {
@@ -35,6 +31,7 @@ let
         desktopStyle
         connectivity
         capabilities
+        homeProfiles
         ;
     };
   };
@@ -59,9 +56,11 @@ let
     let
       style = styleFor host;
     in
-    lib.optional (host.kind == "workstation") ../home.nix
-    ++ lib.optional (style != null) style.homeModule
-    ++ [ inputs.catppuccin.homeModules.catppuccin ]
+    [
+      ../home.nix
+      style.homeModule
+      inputs.catppuccin.homeModules.catppuccin
+    ]
     ++ host.homeModules;
   mkHost =
     name: host:
@@ -74,8 +73,8 @@ let
       modules = [
         host.systemModule
       ]
-      ++ lib.optional (style != null) style.systemModule
-      ++ lib.optionals (host.homeModules != null) [
+      ++ [
+        style.systemModule
         inputs.home-manager.nixosModules.home-manager
         {
           home-manager.useGlobalPkgs = true;
@@ -84,18 +83,7 @@ let
           home-manager.users.${username}.imports = homeModulesFor host;
           home-manager.extraSpecialArgs = homeArgsFor name host;
         }
-      ]
-      ++ lib.optional (host.homeModules == null) (
-        { pkgs, ... }: {
-          environment.systemPackages = builtins.attrValues (
-            import ../modules/home/nix-config-packages.nix {
-              inherit lib pkgs username;
-              fleetNames = fleet.hostNames;
-              inherit (fleet) homeHostNames;
-            }
-          );
-        }
-      );
+      ];
     };
   mkHome =
     name: host:

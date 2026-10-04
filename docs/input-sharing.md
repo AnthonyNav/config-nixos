@@ -1,13 +1,8 @@
 # Input sharing across the workstation fleet
 
 The workstations use Lan Mouse as a software KVM while keeping every machine
-fully independent. Any workstation can control either of the other two:
-
-```text
-[ Desktop ]  <------>  [ Victus ]  <------>  [ ThinkPad ]
-     ^                                          ^
-     +------------------------------------------+
-```
+fully independent. Desktop and Victus can control each other; additional
+workstations opt in explicitly through the inventory.
 
 Every host still accepts its own keyboard, touchpad and USB mouse at all times.
 Applications, CPU/GPU/RAM, storage and sessions remain local; Lan Mouse only
@@ -15,7 +10,7 @@ injects additional input events.
 
 ## Network and security model
 
-- Lan Mouse runs on all three Hyprland sessions.
+- Lan Mouse runs on both Hyprland sessions.
 - UDP 4242 is opened only on `tailscale0`; it is not opened on the normal LAN.
 - Each reconciler obtains peer IPv4 addresses from `tailscale status --json`,
   so KVM traffic is explicitly addressed over Tailscale rather than relying on
@@ -38,7 +33,7 @@ with the active policy, and apply the reviewed result from the Tailscale Access
 controls page. This repository validates and renders the policy but deliberately
 does not publish it with unattended credentials.
 
-Then update all three machines from a clean `main` using the repository's normal
+Then update both machines from a clean `main` using the repository's normal
 workflow:
 
 ```bash
@@ -52,7 +47,7 @@ input-share-status
 lan-mouse cli list
 ```
 
-The first run defaults to `all`, so every host configures both declared peers.
+The first run defaults to `all`, so every host configures the declared peer.
 The allowed peers and their screen edges live in `inventory/hosts.nix`;
 `input-share` derives their current Tailscale IPv4 addresses and persists the
 selected topology into Lan Mouse's local runtime configuration.
@@ -62,7 +57,7 @@ selected topology into Lan Mouse's local runtime configuration.
 Every receiver must explicitly trust each machine that will control it once per
 Lan Mouse identity:
 
-1. Ensure all three machines are connected to the same tailnet (`tailscale
+1. Ensure both machines are connected to the same tailnet (`tailscale
    status`).
 2. On the sender, open `lan-mouse` and note its DTLS fingerprint.
 3. On the receiver, open `lan-mouse` and select the sender profile with
@@ -81,9 +76,8 @@ and rebuilding NixOS does not make another machine trusted automatically.
 ```bash
 input-share status          # selected profile and active outgoing clients
 input-share pair desktop    # control only Desktop from the current host
-input-share pair thinkpad   # control only ThinkPad from the current host
 input-share pair victus     # control only Victus from the current host
-input-share all             # activate both declared remote peers
+input-share all             # activate all declared remote peers
 input-share off             # disable outgoing control; keep incoming available
 input-share reconcile       # re-resolve addresses and apply persisted selection
 input-share-services        # systemd status for daemon + reconciler
