@@ -9,7 +9,8 @@ not just declarations: module priority and list ordering can change behavior.
 
 Verify all affected host/Home builds, SSH/firewall boundaries, resource policy,
 GPU-specific behavior and main-only activation guards. Secrets must remain
-runtime-owned. A new server must not inherit desktop profiles or input peers.
+runtime-owned. New daily devices must reuse shared profiles without importing
+another host's disks, PCI addresses, NVIDIA assumptions or fixed connectors.
 Distinguish evaluation/build evidence from untested graphics or service health.
 Report concrete blockers with file references; do not invent runtime success
 or treat stylistic preferences as merge blockers.

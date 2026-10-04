@@ -40,10 +40,10 @@ and preserves the current directory and shell environment. Finish other Android
 builds using that Gradle version first: the stop command is not project-scoped.
 It does not delete APKs or build caches; the next build starts a daemon again.
 
-This repository composes a shared `base`, a selected desktop style, and
-host-selected roles under `profiles/home/roles`. Desktop and Victus share the
-creative/ML development role. Creative NVIDIA software is a separate opt-in
-capability and must not be added to the ThinkPad profile.
+This repository composes one daily base, a selected desktop style and explicit
+functional profiles under `profiles/home/`. Desktop and Victus select the same
+profiles in the inventory. Creative software requires NVIDIA; daily-only devices
+do not inherit SDKs or GPU packages. See [workstation-architecture.md](workstation-architecture.md).
 
 ## 3. Use Reproducible Project Environments
 
@@ -89,8 +89,8 @@ nixos-option services.pipewire.enable
 ```
 
 Prefer small feature modules over conditionals scattered through a shared base
-profile. In this repository, NVIDIA, PRIME, and fixed monitor behavior belong
-to host overlays, not `home.nix`.
+profile. NVIDIA and PRIME hardware belong to host modules; physical display
+identities belong to the shared desk policy, not hostname-specific Home files.
 
 ## 5. Validate Before Switching
 
@@ -134,7 +134,8 @@ receives it with `nix-update`. If activation goes wrong, inspect candidates with
 ## 6. Update Deliberately
 
 An input update changes versions for every host that consumes the shared lock.
-Keep it separate from functional refactors in its own PR. Do not run this as
+Normally keep it in a dedicated PR. An explicitly approved combined PR may
+include it in a separate dependency commit with all affected builds. Do not run this as
 part of a normal workstation update:
 
 ```sh

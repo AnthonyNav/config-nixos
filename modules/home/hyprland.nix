@@ -7,11 +7,7 @@
     systemd.enable = true;
 
     settings = {
-      # mkDefault: hosts con layout de monitores fijo (ver
-      # modules/home/monitors-desktop.nix) sobreescriben esto por completo con
-      # una lista de reglas explícitas — este comodín solo aplica donde nadie
-      # más define `monitor` (victus, thinkpad, o cualquier salida nueva no
-      # contemplada en el override).
+      # Safe startup/unknown-output default; Kanshi owns connected topologies.
       monitor = lib.mkDefault ", preferred, auto, 1";
 
       "exec-once" = [

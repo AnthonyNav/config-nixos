@@ -1,12 +1,12 @@
 # Victus creative + ML workstation
 
-Victus is the high-performance interactive workstation in this fleet. It combines the shared mobile-development role with data-science, GPU-compute, creative-production, virtualization, and explicit power-profile controls.
+Victus is the high-performance interactive workstation in this fleet. It shares the daily environment and functional profiles with Desktop; only its AMD/NVIDIA PRIME hardware and power quirks differ.
 
 ## Role
 
-The host imports `profiles/home/roles/creative-ml-development.nix`, which composes:
+The inventory selects development, data-science and creative in `profiles/home/default.nix`:
 
-- `mobile-development`: Flutter/Android, web/backend, AI tools, API/database tooling.
+- `development`: Flutter/Android, web/backend, AI tools, API/database tooling.
 - `development/data-science.nix`: Micromamba, DuckDB, and JupyterLab.
 - `creative-production.nix`: Resolve, Kdenlive, Blender, Krita, GIMP, Inkscape, Glaxnimate, FFmpeg/NVENC, and multi-GPU `nvtop`.
 - `performance-workstation.nix`: `work-balanced`, `work-performance`, and `work-save`.
@@ -36,7 +36,7 @@ For native CUDA Nix projects, prefer an architecture-specific package set such a
 
 The shared workstation policy keeps ZRAM at 50% with zstd. Victus adds an 8 GiB encrypted, low-priority disk swap file at `/var/lib/nixos-victus-memory-swapfile` as an emergency buffer for Android Studio, VMs, ML notebooks, Resolve, and Blender. It is not additional RAM and persistent swap activity should be treated as a signal to reduce the working set.
 
-Docker no longer starts at boot. The socket starts the daemon on first Docker API use. Victus no longer runs a Woodpecker CI agent and no longer exposes the Zellij Web remote workspace. Virtualization Lab, Tailscale/SSH, Syncthing, Lan Mouse, and Pritunl remain available.
+Docker starts on demand through its socket. Local virt-manager/libvirt, Tailscale/SSH, Syncthing, Lan Mouse and Pritunl remain available. No server laboratory or web publication is configured.
 
 Useful checks:
 

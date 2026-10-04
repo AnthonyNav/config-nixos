@@ -1,7 +1,6 @@
 # Fleet AI environment
 
-The shared development AI profile enables `fleet.ai.enable` for Desktop,
-Victus and ThinkPad. It installs context and skills; it does not authenticate
+The shared daily AI profile enables `fleet.ai.enable` for Desktop and Victus. It installs context and skills; it does not authenticate
 assistants, enable paid services, change models or deploy anything. OpenCode
 remains installed with user-owned configuration. Kiro Gateway is not restored.
 
@@ -78,12 +77,12 @@ but that fallback is advisory, not automatic enforcement.
 The initial catalog contains the public OpenAI documentation service; all
 managed enablement lists default to empty. A known service is not a connection.
 
-For example, to enable it only for Codex on ThinkPad, change the policy to:
+For example, to enable it only for Codex on Desktop, change the policy to:
 
 ```nix
 {
   defaults = { codex = [ ]; claude = [ ]; kiro = [ ]; };
-  hosts.thinkpad.codex = [ "openai-docs" ];
+  hosts.desktop.codex = [ "openai-docs" ];
 }
 ```
 
@@ -98,7 +97,7 @@ not contain credential values. Existing user-managed MCPs are outside this polic
 
 ## Validation and rollout
 
-`checks.x86_64-linux.ai-environment` validates all three generated host contexts,
+`checks.x86_64-linux.ai-environment` validates both generated host contexts,
 skill frontmatter, MCP adapter JSON/TOML and rejection cases. Isolated-home tests
 exercise preservation of personal settings, idempotence, dry-run, disabling,
 collisions, malformed input and symlink refusal. Hook tests use the pinned RTK
@@ -116,10 +115,9 @@ external authentication succeeds.
 
 ## Optional Orca application
 
-[Orca](orca.md) is packaged separately and enabled on Victus, Desktop and ThinkPad
+[Orca](orca.md) is packaged separately and enabled in the daily profile for Desktop and Victus
 through `fleet.ai.orca.enable`. It uses the existing agent CLIs and leaves this
-module's context, settings reconciliation and MCP policy unchanged. The opt-in
-remains per host. Remote Orca services and mobile pairing are deferred.
+module's context, settings reconciliation and MCP policy unchanged. The option can be overridden in an explicit Home exception. Remote services are out of scope.
 
 ## Upstream references
 

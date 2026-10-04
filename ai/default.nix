@@ -85,7 +85,7 @@ let
     kind = hostFeatures.kind;
     role = hostFeatures.role;
     capabilities = hostFeatures.capabilities // {
-      virtualization = hostFeatures.virtualizationLab.enable or false;
+      virtualization = hostFeatures.virtualization.enable or false;
       gpuCompute = hostFeatures.gpuCompute.enable or false;
     };
     graphics = hostFeatures.graphics or "none";

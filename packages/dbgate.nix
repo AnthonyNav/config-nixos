@@ -6,10 +6,10 @@
 
 let
   pname = "dbgate";
-  version = "7.3.0";
+  version = "7.3.1";
   src = fetchurl {
     url = "https://github.com/dbgate/dbgate/releases/download/v${version}/dbgate-${version}-linux_x86_64.AppImage";
-    hash = "sha256-loaSjMjsx8+0mBb50vYvIMwOdtGY818IKdWfBSkkxRo=";
+    hash = "sha256-ecLWmiXUDz3cJ8dvUAjzKAaFGYuwQIObVIc1opOqr/M=";
   };
   appimageContents = appimageTools.extract { inherit pname src version; };
 in

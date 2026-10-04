@@ -78,7 +78,7 @@ EOF
 
 chmod +x "$test_root/bin/lan-mouse" "$test_root/bin/tailscale"
 
-export INPUT_SHARE_HOST="thinkpad"
+export INPUT_SHARE_HOST="portable-test"
 export INPUT_SHARE_PEERS_JSON='[
   {"host":"desktop","position":"left"},
   {"host":"victus","position":"bottom"}

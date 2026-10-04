@@ -8,7 +8,8 @@ is not complete merely because a shell evaluates.
 ## Fleet compatibility switches
 
 After validating all consumers on a host, set these Home Manager options in
-`hosts/<host>/home.nix`, one language at a time:
+an explicit module referenced by `homeModules` in the inventory, one language
+at a time:
 
 ```nix
 fleet.development = {
@@ -22,7 +23,9 @@ fleet.development = {
 };
 ```
 
-All switches default to `true` for compatibility. The Go switch also controls
+Global SDK switches remain true in the development profile. The Jupyter library
+option defaults to false and is explicitly enabled only by the data-science
+profile to preserve current projects. The Go switch also controls
 `gotestsum` and `mockgen`. These switches only remove packages contributed by
 `development/web-backend.nix`; an IDE, Flutter, another profile or manual
 installation may still expose an interpreter/compiler. `uv` remains available
@@ -108,15 +111,14 @@ stay in the fleet. SDK licenses and credentials remain local.
 ## Current completion boundary
 
 The fleet now allows retiring the web/backend SDKs separately and opting out
-of global Jupyter library injection. Defaults preserve all three workstations.
+of global Jupyter library injection. The selected development/data-science profiles preserve both current workstations.
 Six local project checkouts now have independent environments; see the
 [validation record](project-migration-status.md) for exact coverage and remaining
 gates. Their changes belong to their own repositories. No global SDK fallback
 has been removed; remaining consumers must pass before changing host switches.
 
 Reusable templates remain a separate future repository, as specified in the
-[plan](project-darwin-plan.md). macOS, distributed builders and IdeaPad onboarding
-remain deferred. Desktop service rollout and AI runtime checks require a separate
+[plan](project-darwin-plan.md). macOS and distributed builders remain outside the current workstation scope. Desktop service rollout and AI runtime checks require a separate
 main-only deployment; these build-time controls do not perform it.
 
 ## References

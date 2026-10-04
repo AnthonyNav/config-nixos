@@ -1,45 +1,51 @@
 # Workstation resource policy
 
-The policy reduces build contention and preserves interactive headroom. Desktop and Victus are creative/ML workstations with no persistent K3s, CI or remote web terminal instances. ThinkPad and Victus use disk-backed emergency swap in addition to ZRAM. These settings do not promise a fixed amount of free RAM or faster source builds.
+Desktop and Victus share a conservative interactive policy. Removing installed
+apps is not a RAM optimization while those apps are closed; Nix also deduplicates
+identical store paths. Changes are based on declared behavior and measurements.
 
-| Setting | Desktop | Victus | ThinkPad |
-|---|---|---|---|
-| Concurrent Nix builds | 2 | 2 | 1 |
-| Suggested cores per build | 2 | 2 | 2 |
-| Nix daemon CPU / I/O weight | 50 / 50 | 50 / 50 | 25 / 25 |
-| ZRAM | zstd, 50% logical RAM size | same | same |
-| Disk swap added | none | 8 GiB, ephemeral encryption | 8 GiB, ephemeral encryption |
-| Docker at boot | socket activation | socket activation | socket activation |
-| Remote Workspace | disabled | disabled | disabled |
+| Setting | Desktop | Victus |
+| --- | --- | --- |
+| Nix concurrent jobs / suggested cores | 2 / 2 | 2 / 2 |
+| Nix daemon CPU / I/O weight | 50 / 50, batch scheduler | same |
+| ZRAM | zstd, 50% logical RAM size | same |
+| Emergency disk swap | none added | 8 GiB, ephemeral encryption |
+| Docker | socket activation, not boot-started | same |
+| Journal retention | 1 GiB persistent, 128 MiB runtime, 14 days | same |
+| Power profile | explicit balanced/performance/save helpers | same |
 
-Nix uses the batch CPU scheduler. Weekly garbage collection keeps the 30-day retention window with lower CPU and I/O priority. Weights are relative to sibling cgroups during contention, not reservations or hard caps; I/O weighting also depends on kernel and device support. The interactive Nix evaluator runs in the calling session and is not covered by the daemon's weights. `cores` is a request to build scripts, not a CPU limit. Project builds outside Nix need their own concurrency settings.
+Weights are relative, not CPU/memory reservations. Build scripts may ignore the
+suggested core count; the interactive evaluator is outside daemon weighting.
+Weekly GC keeps 30-day generations with lower CPU/I/O priority; fstrim and signed
+binary caches stay enabled. No automatic Docker prune/cache dropping is added.
 
-## Baseline and rationale
+## Measurement and changes
 
-Read-only observations on 2026-09-05 found:
+Read-only Desktop observations during this PR: approximately 15 GiB usable RAM,
+6.4 GiB available and 1.2 GiB ZRAM swap used before compilation; persistent
+journals occupied 3.9 GiB. These are point samples, not an idle benchmark.
+The new journal bound limits future disk retention; it does not reclaim app RAM.
+Older journal entries can be removed by journald after deployment, so export
+needed diagnostic logs before the authorized rollout. No vacuum ran here.
 
-- ThinkPad E14 Gen 7, Core Ultra 5 226V: about 15 GiB usable RAM, 8 CPUs. During an update the Nix evaluator had about 3.5 GiB RSS and the daemon cgroup about 6.4 GiB, including Rust compilation. Available memory was 5.8 GiB and memory PSI was near zero at that instant: this is a baseline, not proof of OOM.
-- Desktop: about 15 GiB usable RAM, 12 CPUs, with K3s and CI workloads at the time of the sample.
-- Victus: about 22 GiB usable RAM, 12 CPUs. It is now treated as an interactive creative/ML workstation rather than a CI host.
-- ThinkPad's ZRAM stored about 252 MiB in 90 MiB of allocated RAM. Its existing 50% logical size was not exhausted, so increasing ZRAM or changing swappiness is not justified by that sample.
-- A Docker daemon can consume resources even with no user containers. All three workstations therefore use socket activation; calling the Docker API starts the daemon and it remains running afterward.
+Monitor automation blocks on events instead of polling. Neovim does not add
+unused Ruby/Python providers. The daily-only profile does not inject Jupyter
+libraries or reference Android Studio; the data profile retains the existing
+compatibility workaround until its projects are migrated.
 
-Installed IDEs and SDKs primarily cost disk space while closed. Removing them does not address compiler or ML working-set memory usage. Bluetooth, audio, VPN, Lan Mouse and explicitly enabled virtualization remain available.
+Docker starts on the first API request and stays running afterward. Local
+libvirt/virt-manager remains optional; onBoot=ignore does not create/start guests.
+Existing libvirt autostart selections can still start their own guests: inspect
+local state before attributing resource use to the declarative capability.
 
-## ThinkPad and Victus fallback swap
+ZRAM size/compression, swappiness, OOM thresholds and Victus PRIME fine-grained
+power management are unchanged. No measured evidence currently justifies tuning
+them or adding another OOM daemon. NixOS already declares systemd-oomd; changing
+which user slices it may kill needs separate workload validation.
 
-Both interactive workstations use ZRAM as the fast first tier and an encrypted disk-backed swap file only as an emergency buffer:
+## Verification after authorized rollout
 
-- ThinkPad: `/var/lib/nixos-memory-swapfile`
-- Victus: `/var/lib/nixos-victus-memory-swapfile`
-
-Each file is 8 GiB with priority below ZRAM and uses an ephemeral random encryption key. Hibernation, hybrid sleep and suspend-then-hibernate are disabled because the swap encryption key is not persistent. Ordinary suspend remains available.
-
-Before the first deployment that creates either file, check available disk space with `df -h /`. Do not reuse these paths for user data. NixOS creates/resizes and formats the backing files.
-
-## Verification
-
-After rollout, collect the following before and during a representative workload, preferably on AC power:
+Collect before/during/after the same workload, on AC power where possible:
 
 ```sh
 free -h
@@ -47,74 +53,35 @@ swapon --show
 zramctl
 cat /proc/pressure/memory
 vmstat 1 10
-ps -eo comm,rss --sort=-rss | head -20
-nix config show | rg '^(max-jobs|cores) ='
-systemctl show nix-daemon.service -p MemoryCurrent -p CPUWeight -p IOWeight -p CPUSchedulingPolicy
+systemctl show nix-daemon.service -p MemoryCurrent -p CPUWeight -p IOWeight
+systemctl is-active docker.service
 systemctl is-enabled docker.service docker.socket
-```
-
-On ThinkPad and Victus expect ZRAM at the higher priority and an encrypted `/dev/mapper/` swap device at the lower priority. Persistent swap-in/out and rising memory PSI under a steady workload mean the working set still exceeds comfortable capacity. Disk swap is a stability buffer, not additional physical RAM.
-
-On Victus and Desktop, also verify the GPU path used by creative and ML workloads:
-
-```sh
+journalctl --disk-usage
 nvidia-smi
-nvtop
 powerprofilesctl get
-systemctl status nvidia-container-toolkit-cdi-generator.service
 ```
 
-Victus uses its AMD iGPU for the normal desktop, with PRIME offload for the RTX 4050. Desktop renders directly on its RTX 3060 Ti. Both expose their NVIDIA GPU to explicitly requested container workloads through CDI.
+Check Docker before invoking its API: even `docker ps` starts the daemon.
+Victus uses an AMD desktop renderer and NVIDIA PRIME offload; Desktop uses
+NVIDIA directly. GUI/GPU and battery improvements are not proven by a build.
 
-## Docker policy
+Victus's encrypted swap file is lower priority than ZRAM. Hibernation,
+hybrid sleep and suspend-then-hibernate stay disabled; ordinary suspend stays
+available. Disk swap is an emergency buffer, not extra physical RAM.
+Limit Gradle workers/JVM heaps, render workers, VM RAM and ML batches at project
+level. Use `flutter-stop` only after relevant Android builds finish.
 
-Desktop, ThinkPad and Victus keep Docker installed but use socket activation so the daemon starts only when an application calls the Docker API. Check the daemon's boot state before running `docker ps`, which itself starts the daemon.
+## Recovery
 
-A container restart policy takes effect only after the daemon has started. If a future workload must start at boot, that requirement should be declared explicitly for the affected host instead of restoring boot-time Docker fleet-wide.
-
-## Performance profiles
-
-Victus and Desktop expose three explicit helpers through Home Manager:
-
-```sh
-work-balanced
-work-performance
-work-save
-```
-
-Use `balanced` for normal work, `performance` for sustained builds/render/training on AC power, and `power-saver` when battery life matters. The configuration does not force performance mode globally because doing so would trade battery life and thermals for little benefit during light work.
-
-## If memory remains tight
-
-1. Keep consuming the signed binary caches configured by the repository so large Nix builds are not unnecessarily repeated from source.
-2. Limit project-specific Gradle workers, JVM heaps, ML data-loader workers, VM memory and build concurrency at the project level. Global limits cannot know each workload's needs.
-3. Keep heavy interactive workloads within the selected machine's RAM and GPU capacity. Remote compilation remains a separate follow-up; Tailscale SSH is available on every workstation while awake. No workstation runs the persistent Zellij Web Remote Workspace.
-4. Tune ZRAM size/compression or swappiness only after measuring compression, PSI and swap I/O. Larger ZRAM still consumes physical RAM and helps little with incompressible data.
-5. Consider `earlyoom` only if measured workloads still cause sustained thrashing or an unresponsive desktop after the fallback swap is active. Do not introduce aggressive OOM policy preemptively.
-6. For sustained workloads larger than physical memory, hardware RAM capacity is preferable to relying on swap.
-
-No hard application memory limits, cache-dropping cron jobs, automatic Docker pruning, aggressive OOM killers or kernel security tradeoffs are introduced by this policy.
-
-## Planned follow-up: remote Nix builders
-
-Remote compilation remains a useful future improvement. The ThinkPad rollout of PR #43 already demonstrated that store paths built elsewhere can be transferred instead of recompiling everything locally.
-
-A production remote-builder design should define builder selection and concurrency, SSH identity and trust, offline fallback, cache/GC retention, and observability. Victus can be considered as a builder when idle, but its primary role is now interactive creative/ML work and remote builds must not steal resources from active user workloads.
-
-## Rollback
-
-Revert the policy in a PR and deploy the resulting `main` during a quiet period. Removing active swap requires enough RAM or alternate swap to receive its pages; use a planned reboot if necessary. NixOS does not delete the backing files automatically when their declarations are removed. Reclaim them manually only after verifying that both swap and their encryption mappings are inactive.
+Revert through a PR and deploy reviewed main, or use a retained generation under
+the documented recovery flow. A package rollback cannot restore application
+state migrations or journal entries already expired. Removing a swap declaration
+does not erase its backing file; never reclaim it until the swap/mapping is
+inactive and there is enough memory for a safe transition.
 
 ## References
 
-- [Nix: cores and jobs](https://nix.dev/manual/nix/2.32/advanced-topics/cores-vs-jobs)
-- [Linux: zram](https://docs.kernel.org/admin-guide/blockdev/zram.html)
-- [Linux: swappiness](https://docs.kernel.org/admin-guide/sysctl/vm.html#swappiness)
+- [Linux zram](https://docs.kernel.org/admin-guide/blockdev/zram.html)
+- [Linux swappiness](https://docs.kernel.org/admin-guide/sysctl/vm.html#swappiness)
+- [Nix build jobs/cores](https://nix.dev/manual/nix/2.32/advanced-topics/cores-vs-jobs)
 - [systemd resource control](https://www.freedesktop.org/software/systemd/man/latest/systemd.resource-control.html)
-- The pinned Nixpkgs modules `nixos/modules/config/swap.nix` and `nixos/modules/virtualisation/docker.nix` define encrypted file swap and Docker socket activation used here.
-
-## Desktop integration workload follow-up (2026-09-07)
-
-A live Desktop sample during Nix compilation showed 452 MiB available RAM, full 7.7 GiB swap, load 66 and I/O PSI some avg60 about 96%. After the compilation was cancelled, available memory recovered to 4.6 GiB, swap usage fell to 523 MiB and memory PSI avg60 returned to zero. These are point observations, not an SLO.
-
-That infrastructure role previously used one Nix job with one suggested core and constrained CI concurrency. With K3s and both CI agents retired, Desktop now uses the shared two-job/two-core workstation defaults. Keep project build parallelism bounded for its 16 GiB RAM. Neither Desktop nor Victus should be treated as implicit CI capacity. See [desktop-workstation.md](desktop-workstation.md) for the main-only transition and retained server data.

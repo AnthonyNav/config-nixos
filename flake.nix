@@ -13,7 +13,7 @@
 
     llm-agents.url = "github:numtide/llm-agents.nix";
 
-    herdr.url = "github:herdrdev/herdr/v0.9.1";
+    herdr.url = "github:herdrdev/herdr/v0.9.3";
 
     home-manager = {
       url = "github:nix-community/home-manager";
@@ -107,10 +107,8 @@
           inputSharingHostNames
           ;
         inherit (fleet)
-          serverNames
           sshHostNames
           syncthingHostNames
-          labHostNames
           buildMatrix
           ;
       };
@@ -137,6 +135,7 @@
         kiro = kiroPackages.ide;
         herdr = herdrPackage;
         dbgate = dbgatePackage;
+        sonobus = pkgsFor.callPackage ./packages/sonobus.nix { };
         orca-ide = pkgsFor.callPackage ./packages/orca-ide.nix { };
         dbeaver = dbeaverPackage;
       };

@@ -5,7 +5,7 @@
     enable = true;
     package = pkgs.rofi;
 
-    extraConfig = {
+    settings = {
       modi = "drun,run";
       show-icons = true;
       icon-theme = "Papirus";

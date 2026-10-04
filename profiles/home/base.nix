@@ -6,37 +6,23 @@
 }:
 
 {
+  imports = [
+    ../../modules/home/browsers.nix
+    ../../modules/home/media.nix
+    ../../modules/home/shell-tools.nix
+    ../../modules/home/neovim.nix
+    ../../modules/home/orca.nix
+  ];
+  fleet.ai.orca.enable = true;
   home.username = username;
   home.homeDirectory = "/home/${username}";
 
   home.packages = with pkgs; [
-    libnotify
-    firefox
-    google-chrome
     nerd-fonts.jetbrains-mono
     noto-fonts
     noto-fonts-color-emoji
     noto-fonts-cjk-sans
-    thunar
-    tumbler
-    bottom
-    imv
-    mpv
-    sonobus
   ];
-
-  programs.btop = {
-    enable = true;
-    settings = {
-      theme_background = false;
-      truecolor = true;
-    };
-  };
-
-  programs.bat = {
-    enable = true;
-    config.style = "numbers,changes,header";
-  };
 
   # One-time cleanup for the legacy Claude Code setting previously written by
   # this repository. Preserve every other user-managed Claude setting/state.

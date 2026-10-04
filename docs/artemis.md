@@ -112,7 +112,7 @@ provider authentication, model availability or native client runtime discovery.
 
 Before wider use, run three bounded scenarios on a named test device, repeat them,
 and record outcomes, false positives, duration and provider usage. Keep normal
-unit/integration tests as the regression gate. IdeaPad and other repositories
+unit/integration tests as the regression gate. Other repositories
 remain outside this change.
 
 Upstream: [Artemis](https://github.com/google/artemis),

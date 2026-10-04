@@ -84,12 +84,6 @@ in
         User = "git";
       };
 
-      "debian-server" = {
-        HostName = "192.168.1.250";
-        IdentityFile = "${homeDir}/.ssh/debian13-server-192.168.1.250";
-        IdentitiesOnly = true;
-        User = "anthony";
-      };
     };
   };
 

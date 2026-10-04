@@ -16,7 +16,7 @@ Machines predating that command need one final `git pull --ff-only` plus
    `nix-update`.
 
 Use concise commit messages in the existing style, for example
-`feat(home): add a shared command` or `fix(thinkpad): restore Wi-Fi roaming`.
+`feat(home): add a shared command` or `fix(victus): restore suspend`.
 Keep flake input updates in their own PR; they affect every host.
 
 ## Validation

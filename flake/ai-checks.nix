@@ -7,9 +7,15 @@
   aiToolsPackages,
 }:
 let
+  representative = builtins.head fleet.workstationNames;
   baseArgs = {
     inherit lib pkgs;
-    hostFeatures = fleet.hosts.thinkpad.features // fleet.hosts.thinkpad // { hostName = "thinkpad"; };
+    hostFeatures =
+      fleet.hosts.${representative}.features
+      // fleet.hosts.${representative}
+      // {
+        hostName = representative;
+      };
     homeDirectory = "/home/${username}";
     rtk = aiToolsPackages.rtk;
   };
@@ -108,7 +114,7 @@ in
         mkdir -p "$XDG_CONFIG_HOME" "$XDG_CACHE_HOME" "$XDG_DATA_HOME"
         python ${../scripts/tests/check-ai-environment.py} \
           ${../scripts/ai-environment.py} ${../scripts/ai-rtk-hook.py} \
-          ${bundles.thinkpad} ${aiToolsPackages.rtk}/bin/rtk
+          ${bundles.${representative}} ${aiToolsPackages.rtk}/bin/rtk
         python ${../scripts/tests/check-ai-bundles.py} ${fixtures}
         python ${../scripts/tests/check-artemis.py} ${../scripts/artemis.py}
         touch "$out"

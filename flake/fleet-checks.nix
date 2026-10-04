@@ -7,26 +7,20 @@
   username,
 }:
 let
-  # Synthetic build fixture only: never exported as a deployable fleet host.
-  server = {
-    system = "x86_64-linux";
-    kind = "server";
-    role = "headless-test";
-    desktopStyle = null;
-    homeModules = null;
-    capabilities = {
-      kubernetes = false;
-      ci = false;
+  # A future non-NVIDIA daily device: no server fixture, no production output.
+  fixture = fleet.hosts.desktop // {
+    role = "daily-workstation";
+    homeProfiles = [ ];
+    features = {
+      graphics = "integrated";
+      creativeNvidia = false;
+      virtualization.enable = false;
+      gpuCompute.enable = false;
+      inputSharing.enable = false;
     };
-    connectivity = {
-      tailscale = true;
-      ssh = true;
-      syncthing = false;
-    };
-    features = { };
     systemModule = { ... }: {
       imports = [ ../modules/system ];
-      networking.hostName = "server-test";
+      networking.hostName = "portable-test";
       boot.loader.grub.enable = false;
       fileSystems."/" = {
         device = "none";
@@ -37,104 +31,77 @@ let
   };
   testFleet = import ../inventory/fleet.nix {
     hosts = fleet.hosts // {
-      server-test = server;
+      portable-test = fixture;
     };
   };
-  testOutputs = import ./hosts.nix {
+  outputs = import ./hosts.nix {
     inherit inputs username;
     fleet = testFleet;
   };
-  headless = testOutputs.nixosConfigurations.server-test;
-  c = headless.config;
-  testEndpoints = import ../inventory/endpoints.nix { fleet = testFleet; };
-  home = testOutputs.homeConfigurations."${username}@thinkpad".config;
+  system = outputs.nixosConfigurations.portable-test.config;
+  home = outputs.homeConfigurations."${username}@portable-test".config;
+  homes = map (name: self.homeConfigurations."${username}@${name}".config) fleet.hostNames;
+  endpoints = import ../inventory/endpoints.nix { fleet = testFleet; };
   endpointHosts =
     name:
-    (lib.findFirst (e: e.name == name) (throw "Missing endpoint ${name}") testEndpoints.tailnet).hosts;
-  k8s = self.nixosConfigurations.victus.extendModules {
-    modules = [
-      {
-        fleet.lab.kubernetes = {
-          enable = true;
-          autoStart = false;
-          clusterInit = true;
-        };
-      }
-    ];
+    (lib.findFirst (e: e.name == name) (throw "Missing endpoint ${name}") endpoints.tailnet).hosts;
+  invalidFleet = import ../inventory/fleet.nix {
+    hosts = {
+      invalid = fixture // {
+        kind = "server";
+      };
+    };
   };
-  runner = self.nixosConfigurations.victus.extendModules {
-    modules = [
-      {
-        fleet.lab.ci.agents.lab-agent = {
-          description = "CI test instance";
-          environmentFile = "/run/secrets/lab-agent";
-          server = "lab-server:9000";
-          hostname = "victus-lab-test";
-          labels = "repo=example/lab";
-          containerName = "victus-lab-test";
-          configVolume = "victus-lab-test-config";
-          autoStart = false;
-        };
-      }
-    ];
+  invalidProfiles = outputs.nixosConfigurations.portable-test.extendModules {
+    modules = [ { home-manager.users.${username}.fleet.home.profiles = [ "unknown" ]; } ];
   };
-  invalidK8s = headless.extendModules { modules = [ { fleet.lab.kubernetes.enable = true; } ]; };
-  invalidAgent = self.nixosConfigurations.victus.extendModules {
-    modules = [
-      {
-        fleet.lab.kubernetes = {
-          enable = true;
-          role = "agent";
-        };
-      }
-    ];
+  badCreative = import ./hosts.nix {
+    inherit inputs username;
+    fleet = import ../inventory/fleet.nix {
+      hosts.portable-test = fixture // {
+        homeProfiles = [ "creative" ];
+      };
+    };
   };
-  rejected = node: lib.any (a: !a.assertion) node.config.assertions;
 in
 {
   fleet-policy =
-    assert lib.all (name: builtins.elem name fleet.workstationNames) [
-      "desktop"
-      "thinkpad"
-      "victus"
-    ];
-    assert builtins.elem "server-test" testFleet.serverNames;
-    assert !(builtins.elem "server-test" testFleet.homeHostNames);
-    assert !(builtins.hasAttr "${username}@server-test" testOutputs.homeConfigurations);
-    assert builtins.elem "server-test" (endpointHosts "ssh");
-    assert !(builtins.elem "server-test" (endpointHosts "syncthing"));
-    assert !(builtins.elem "server-test" (endpointHosts "lan-mouse"));
-    assert home.programs.ssh.settings.server-test.data.User == username;
-    assert !(builtins.elem "server-test" testFleet.inputSharingHostNames);
-    assert !c.services.xserver.enable && !c.programs.hyprland.enable;
-    assert !c.services.displayManager.sddm.enable && !c.services.pipewire.enable;
-    assert !c.hardware.bluetooth.enable && !c.virtualisation.docker.enable;
-    assert !c.services.k3s.enable && !c.services.syncthing.enable;
-    assert !(builtins.elem "docker" c.users.users.${username}.extraGroups);
-    assert c.services.tailscale.enable && c.services.openssh.enable;
+    assert fleet.workstationNames == fleet.hostNames && fleet.homeHostNames == fleet.hostNames;
+    assert !(builtins.hasAttr "thinkpad" fleet.hosts);
+    assert !(builtins.tryEval invalidFleet.hostNames).success;
+    assert !(builtins.tryEval invalidProfiles.config.system.build.toplevel.drvPath).success;
     assert
-      c.services.tailscale.extraSetFlags == [
-        "--hostname=server-test"
-        "--shields-up=false"
-        "--ssh"
-      ];
-    assert c.services.openssh.settings.PasswordAuthentication == false;
-    assert c.services.openssh.settings.KbdInteractiveAuthentication == false;
-    assert c.services.openssh.settings.PermitRootLogin == "no";
-    assert !c.services.openssh.openFirewall;
-    assert !(builtins.elem 22 c.networking.firewall.allowedTCPPorts);
-    assert builtins.elem 22 c.networking.firewall.interfaces.tailscale0.allowedTCPPorts;
-    assert !c.systemd.sleep.settings.Sleep.AllowSuspend;
-    assert c.services.logind.settings.Login.HandleLidSwitch == "ignore";
-    assert c.nix.settings.max-jobs == 1 && c.nix.settings.cores == 1;
-    assert fleet.hosts.desktop.capabilities == fleet.hosts.victus.capabilities;
-    assert !self.nixosConfigurations.victus.config.services.k3s.enable;
-    assert k8s.config.services.k3s.enable && k8s.config.systemd.services.k3s.wantedBy == [ ];
-    assert runner.config.systemd.services.lab-agent.wantedBy == [ ];
-    assert runner.config.networking.firewall.interfaces.docker0.allowedTCPPorts == [ ];
-    assert runner.config.networking.firewall.interfaces.docker0.allowedTCPPortRanges == [ ];
-    assert rejected invalidK8s && rejected invalidAgent;
+      !(builtins.tryEval
+        badCreative.homeConfigurations."${username}@portable-test".activationPackage.drvPath
+      ).success;
+    assert builtins.elem "portable-test" (endpointHosts "ssh");
+    assert builtins.elem "portable-test" (endpointHosts "syncthing");
+    assert !(builtins.elem "portable-test" (endpointHosts "lan-mouse"));
+    assert home.programs.ssh.settings.desktop.data.User == username;
+    assert system.programs.hyprland.enable && system.services.pipewire.enable;
+    assert !system.hardware.nvidia-container-toolkit.enable;
+    assert !system.virtualisation.libvirtd.enable;
+    assert home.fleet.home.profiles == [ ];
+    assert home.programs.firefox.enable && home.programs.neovim.enable && home.fleet.ai.orca.enable;
+    assert !(home.programs.zsh.shellAliases ? flutter-stop);
+    assert lib.all (
+      p:
+      !(builtins.elem (lib.getName p) [
+        "android-studio"
+        "flutter"
+        "blender"
+        "davinci-resolve"
+        "jupyterlab"
+      ])
+    ) home.home.packages;
+    assert lib.all (
+      c:
+      c.fleet.home.profiles == [
+        "development"
+        "data-science"
+        "creative"
+      ]
+    ) homes;
+    assert lib.all (c: builtins.hasAttr "monitor-layout" c.systemd.user.services) homes;
     pkgsFor.runCommand "fleet-policy-check" { } ''touch "$out"'';
-  # Build, do not activate, a complete headless system using the same constructor.
-  headless-system = c.system.build.toplevel;
 }

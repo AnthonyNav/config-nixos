@@ -53,7 +53,7 @@ nix flake check --no-build --no-write-lock-file
 nix-check all
 ```
 
-The wrapper is shared by Victus, Desktop and ThinkPad. `nix-check all` builds
+The wrapper is shared by Desktop and Victus. `nix-check all` builds
 the executable flake checks and all six NixOS/Home Manager outputs without
 activation. Keep `flake.lock` unchanged.
 

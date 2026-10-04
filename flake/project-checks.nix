@@ -20,7 +20,7 @@ let
         }
       ];
     }).config;
-  legacy = evaluate { };
+  legacy = evaluate { legacyJupyterLibraries = true; };
   isolated = evaluate {
     globalToolchains = {
       node = false;

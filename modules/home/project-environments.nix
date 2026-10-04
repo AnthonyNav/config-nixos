@@ -8,7 +8,7 @@
 {
   options.fleet.development.legacyJupyterLibraries = lib.mkOption {
     type = lib.types.bool;
-    default = true;
+    default = false;
     description = "Keep global native libraries until existing data projects pass inside their own devShells.";
   };
 

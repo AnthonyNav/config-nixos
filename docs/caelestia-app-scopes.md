@@ -24,7 +24,7 @@ node scripts/test-caelestia-app-scopes.mjs /nix/store/<built-package>/share/cael
 ```
 
 Also run `nix fmt`, `nix flake check --no-build --no-write-lock-file`, and the
-NixOS and Home Manager builds for Victus, ThinkPad, and Desktop (`nix-check all`).
+NixOS and Home Manager builds for Desktop and Victus (`nix-check all`).
 
 ## After merge and deployment
 
