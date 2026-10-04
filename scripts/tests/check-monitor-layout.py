@@ -36,6 +36,29 @@ def known(role, name):
 
 
 class LayoutTests(unittest.TestCase):
+    def test_confirmed_physical_studio_order_and_rotation(self):
+        # Real EDIDs, independent of the policy: deriving these with known()
+        # would let swapped left/right identities pass the regression test.
+        center = dict(monitor("HDMI-A-1", 2560, 1440),
+                      make="LG Electronics", model="LG IPS QHD", serial="506TFNE0N927",
+                      availableModes=["2560x1440@99.95Hz"])
+        left = dict(monitor("DP-2"), make="HGC", model="CR270C", serial="0000000000001",
+                    availableModes=["1920x1080@165.00Hz"])
+        right = dict(monitor("DP-3"), make="XXX", model="CR270C-P", serial="",
+                     availableModes=["1920x1080@165.00Hz"])
+        for screens, profile, positions in (
+            ([right, center, left], "studio",
+             [("HDMI-A-1", 0, 0), ("DP-2", -1080, 1), ("DP-3", 2560, 3)]),
+            ([right, left], "studio-pair", [("DP-2", -1080, 1), ("DP-3", 0, 3)]),
+        ):
+            with self.subTest(profile=profile):
+                name, rules = module.plan(screens, displays)
+                self.assertEqual(name, profile)
+                self.assertEqual([(r["name"], r["x"], r["transform"]) for r in rules], positions)
+                self.assertTrue(all(r["y"] == 0 and r["scale"] == 1 for r in rules))
+                self.assertTrue(all(r["mode"] == "1920x1080@165" for r in rules
+                                    if r["name"] != "HDMI-A-1"))
+
     def test_laptop_two_externals(self):
         screens = [monitor("DP-2"), monitor("eDP-2", scale=1.25), monitor("HDMI-A-1")]
         name, rules = module.plan(screens, displays)
