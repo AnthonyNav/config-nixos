@@ -68,7 +68,7 @@ let
         fleet.lab.ci.agents.lab-agent = {
           description = "CI test instance";
           environmentFile = "/run/secrets/lab-agent";
-          server = "desktop:9000";
+          server = "lab-server:9000";
           hostname = "victus-lab-test";
           labels = "repo=example/lab";
           containerName = "victus-lab-test";

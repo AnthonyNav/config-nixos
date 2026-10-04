@@ -47,7 +47,7 @@
       kubernetes = true;
       ci = true;
     };
-    role = "primary";
+    role = "creative-ml-workstation";
     systemModule = ../hosts/desktop;
     homeModules = [ ../hosts/desktop/home.nix ];
     desktopStyle = "caelestia";
@@ -58,10 +58,11 @@
     };
     features = {
       virtualizationLab.enable = true;
+      gpuCompute.enable = true;
       graphics = "nvidia";
       creativeNvidia = true;
       monitorProfile = "desktop-3";
-      remoteWorkspace.enable = true;
+      remoteWorkspace.enable = false;
       inputSharing = {
         enable = true;
         peers = [

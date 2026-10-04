@@ -1,13 +1,8 @@
 { ... }:
 
 {
-  # This host runs K3s and CI workloads, so it must remain reachable while idle.
-  estoma.idle.suspendTimeoutSeconds = null;
-
   imports = [
-    ../../profiles/home/development.nix
-    ../../profiles/home/database-tools.nix
-    ../../modules/home/creative-suite.nix
+    ../../profiles/home/roles/creative-ml-development.nix
     ../../modules/home/monitors-desktop.nix
   ];
 

@@ -2,14 +2,15 @@
 
 ## Architecture
 
-`flake.nix` is the entry point for a single user, `anthony`, across the inventory in
-`inventory/hosts.nix` (currently three workstations). `flake/hosts.nix` composes a shared base, development and database-tools Home
-Manager profiles, a selected desktop style, and a host overlay.
+`flake.nix` is the entry point for a single user, `anthony`, across the inventory
+in `inventory/hosts.nix` (currently three workstations). `flake/hosts.nix`
+composes a shared Home Manager base, a selected desktop style, and a host overlay
+that chooses its development role and hardware-specific user configuration.
 
 | Host | Graphics | Home features |
 |---|---|---|
 | `victus` | AMD iGPU + NVIDIA PRIME | Creative suite, AMD monitoring |
-| `desktop` | NVIDIA only | Creative suite, fixed three-monitor profile |
+| `desktop` | NVIDIA only | Creative + ML profile, fixed three-monitor profile |
 | `thinkpad` | Integrated graphics | Development-only profile, network diagnostics |
 
 The installer ISO is not a workstation and does not import Home Manager.
@@ -32,9 +33,11 @@ Home Manager identity and state version.
 `workstation.nix` adds desktop services and Docker; `server.nix` disables
 sleep and defaults to one Nix job/core. Real server resource tuning still needs
 hardware measurements. K3s, CI agents and publication are opt-in modules under
-`modules/system/lab-platform/`; current Desktop instances live in
-`hosts/desktop/lab.nix`. Victus declares the same Kubernetes/CI capabilities
-but has no enabled K3s/CI instances.
+`modules/system/lab-platform/`. Desktop and Victus declare the same
+Kubernetes/CI capabilities, with no enabled instances. Both use the shared
+creative/ML workstation profile and Docker socket activation. See
+[desktop-workstation.md](desktop-workstation.md) for the Desktop transition
+and preservation of its former infrastructure data.
 
 `nix-config build all all` builds each system and only its declared Home output.
 `build home <host>` reports an error for a host without Home Manager.
@@ -152,26 +155,14 @@ Caelestia, Hyprland, lock/idle, Zsh, and development-profile changes are shared
 by all three workstations. Build the NixOS and Home Manager outputs for
 `thinkpad`, `victus`, and `desktop` before activation.
 
-### Desktop Woodpecker agents
+### Desktop infrastructure retirement
 
-Desktop runs separate Docker agents for backend/Testcontainers work and the
-Estoma frontend. `woodpecker-agent-frontend` advertises only
-`repo=AnthonyNav/estoma-app`, has one workflow slot, and keeps its agent config
-in the `woodpecker-agent-frontend-config` Docker volume. Do not replace the
-repository label with a wildcard or add frontend work to the existing
-`woodpecker-agent-desktop` service.
-
-Both desktop agents connect to the same local Woodpecker gRPC forward. The
-frontend agent requires its own `/etc/woodpecker/agent-frontend.env`, owned by
-root with mode 0600, containing `WOODPECKER_AGENT_SECRET` for a dedicated agent.
-An administrator creates that agent in Woodpecker Settings → Agents → Add agent
-and provisions the token securely on the host, never through chat or Git.
-Do not assume the backend agent token can be reused. The host configuration
-does not provision this identity or registry credentials. Repository-scoped
-GHCR credentials belong in Woodpecker's secret storage and must never be added
-to this repository or the host env file. After the reviewed change reaches
-`main`, deploy through `nix-update`; then verify the new unit and container
-before retrying queued frontend workflows.
+Desktop's K3s instance, both Woodpecker agents, UI forwarding, Serve/Funnel
+publication and persistent Zellij web terminal have been removed from the
+declared workstation configuration. Existing runtime data and credentials are
+retained. Follow [desktop-workstation.md](desktop-workstation.md) after the
+reviewed change is published on `main`; development builds do not stop active
+services or remove existing Tailscale publications.
 
 ## Development command resolution
 
@@ -212,10 +203,10 @@ Its Linux CLI is `orca-ide`; the application launcher is `orca-ide-gui`.
 Update the package version/hash through review and revalidate
 upstream's externally-managed-install guard. Mutable application state is local.
 
-DbGate Community is pinned in `packages/dbgate.nix` for `victus` and exposed
+DbGate Community is pinned in `packages/dbgate.nix` for `victus` and `desktop` and exposed
 as `.#dbgate`. Database connections and credentials stay in local application
-state, never in this repository. DBeaver is pinned in `packages/dbeaver.nix`
-for `desktop` and exposed as `.#dbeaver`.
+state, never in this repository. DBeaver remains pinned in `packages/dbeaver.nix`
+and exposed as `.#dbeaver` for optional use through `nix run`.
 
 ## AI tool packages
 

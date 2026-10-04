@@ -99,8 +99,9 @@ SSH, Orca Server, mobile pairing, computer use and scheduled automations are
 outside this desktop application rollout. In particular, upstream's SSH mode
 installs a remote relay and may build node-pty: validate NixOS dependencies and
 the existing Tailscale ProxyCommand before adopting it. Check disconnect/session lease behavior rather
-than assuming indefinite persistence. Desktop's existing Zellij Remote Workspace
-remains independent; no ports, firewall rules or Tailscale policy change here.
+than assuming indefinite persistence. The optional Zellij Remote Workspace
+is independent of Orca and currently disabled on all fleet workstations;
+see [remote-workspace.md](remote-workspace.md).
 
 ## Disable
 

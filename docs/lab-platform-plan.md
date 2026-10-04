@@ -9,11 +9,13 @@ The address suggested during planning is not a verified hardware identity.
 
 ## Implemented module interface
 
-Current instances are declared in `hosts/desktop/lab.nix`. Modules live under
-`modules/system/lab-platform/` and are disabled unless configured. Both Desktop
+Modules live under `modules/system/lab-platform/` and are disabled unless
+configured. No current workstation enables a K3s, CI or publication instance.
+Desktop's former instances have been retired; see
+[desktop-workstation.md](desktop-workstation.md). Both Desktop
 and Victus declare `capabilities.kubernetes` and `capabilities.ci`; ThinkPad
 does not. Capability is permission to configure a workload, not an instruction
-to start it. Victus retains its existing Docker-on-demand and GPU/power policy.
+to start it. Both use Docker on demand and retain their hardware-specific GPU policy.
 
 An independent Victus experiment could add this to its host module:
 
@@ -27,14 +29,14 @@ fleet.lab.kubernetes = {
 
 An agent instead needs `role = "agent"`, a `serverAddr`, and an absolute
 runtime `tokenFile` outside the Nix store. Do not put the token into Nix.
-Kubernetes memory limits are optional per-instance `memoryHigh`/`memoryMax`;
-Desktop retains its existing values. A CI instance is keyed by systemd name:
+Kubernetes memory limits are optional per-instance `memoryHigh`/`memoryMax`.
+A CI instance is keyed by systemd name:
 
 ```nix
 fleet.lab.ci.agents.woodpecker-agent-lab = {
   description = "Victus lab CI agent";
   environmentFile = "/run/secrets/woodpecker-agent";
-  server = "desktop:9000";
+  server = "lab-server:9000";
   hostname = "victus-lab";
   labels = "repo=owner/project";
   containerName = "woodpecker-agent-lab";
@@ -53,16 +55,17 @@ local K3s server and Tailscale. Forwarding binds localhost; publication uses
 Tailscale Serve. Woodpecker Funnel requires the additional explicit
 `woodpecker.public.enable` opt-in. Update `inventory/endpoints.nix` and review
 the rendered tailnet policy whenever adding a published instance on another
-host. This PR keeps Desktop's existing ports and visibility.
+host. The current endpoint registry contains only workstation connectivity;
+examples such as `lab-server:9000` are not deployed hosts.
 
 Validation covers all three real system/Home outputs and an undeployed server
 fixture with no Home Manager, desktop, audio, Bluetooth, Docker or Kubernetes.
 That fixture verifies SSH hardening, Tailscale settings, endpoint membership,
 exclusion from input sharing and server sleep defaults. It cannot prove actual
 hardware support, authentication, runtime workloads or reboot reachability.
-After merge, verify Desktop's existing K3s/CI/Serve/Funnel services, both GPU
-paths, and workstation sessions during normal rollout. No activation occurs
-during development.
+After the Desktop retirement rollout, verify the absence of K3s/CI/Serve/Funnel
+services, both GPU paths, and workstation sessions. No activation occurs during
+development.
 
 ## Desktop and Victus parity
 
@@ -86,8 +89,8 @@ or CI/CD.
 
 ### Migration direction
 
-Reusable infrastructure currently embedded in `hosts/desktop/default.nix`
-should be extracted before being enabled on Victus. Candidates include:
+Reusable infrastructure is already extracted under
+`modules/system/lab-platform/`. It includes:
 
 - K3s configuration;
 - Woodpecker-compatible runner/agent definitions;

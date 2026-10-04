@@ -1,15 +1,8 @@
-{ config, ... }:
+{ config, username, ... }:
 
 {
-  # Leave headroom for the integration cluster on this 16 GiB host.
-  nix.settings = {
-    max-jobs = 1;
-    cores = 1;
-  };
-
   imports = [
     ./hardware-configuration.nix
-    ./lab.nix
     ../../modules/system
   ];
 
@@ -19,14 +12,19 @@
   boot.loader.systemd-boot.configurationLimit = 5;
   boot.loader.efi.canTouchEfiVariables = true;
 
-  # Desktop is a single-node K3s host. Do not allow any session or power event
-  # to suspend infrastructure workloads while the machine is unattended.
+  # Interactive workstation: ordinary suspend is available again.
   systemd.sleep.settings.Sleep = {
-    AllowSuspend = false;
+    AllowSuspend = true;
     AllowHibernation = false;
     AllowHybridSleep = false;
     AllowSuspendThenHibernate = false;
   };
+
+  # Keep Docker available for development without starting it at boot.
+  virtualisation.docker.enableOnBoot = false;
+
+  # Explicitly retire the linger marker used by the persistent web terminal.
+  users.users.${username}.linger = false;
 
   services.xserver.enable = true;
   services.xserver.videoDrivers = [ "nvidia" ];
