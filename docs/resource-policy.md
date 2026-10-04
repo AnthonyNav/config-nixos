@@ -71,6 +71,39 @@ available. Disk swap is an emergency buffer, not extra physical RAM.
 Limit Gradle workers/JVM heaps, render workers, VM RAM and ML batches at project
 level. Use `flutter-stop` only after relevant Android builds finish.
 
+## NVIDIA suspend/resume
+
+Desktop and Victus enable `hardware.nvidia.powerManagement.enable` so NVIDIA
+preserves video memory across ordinary suspend. This is suspend/resume
+integration, not PRIME fine-grained power management or a driver update.
+The `nvidia-suspend` flake check covers preservation and hook ordering on
+NVIDIA workstations that allow suspend, including the kernel-notifier path
+when supported by the selected driver and open kernel modules.
+
+The Desktop correction follows a recorded suspend at 01:35 and NVIDIA Xid 13
+errors with a Hyprland SIGABRT on resume at 10:24 on 2026-10-04. The evaluated
+configuration and builds verify integration; they do not prove runtime recovery.
+Victus already had this setting enabled and its hardware configuration is unchanged.
+
+After an authorized rollout from clean, reviewed `main`, reboot before testing
+or leaving the machine idle. A live switch does not reload the NVIDIA module
+and its new memory-preservation parameter. Save work before suspend testing.
+
+```sh
+rg '^PreserveVideoMemoryAllocations:' /proc/driver/nvidia/params
+systemctl show nvidia-suspend.service nvidia-resume.service -p LoadState -p Before -p After -p RequiredBy
+journalctl -b -u nvidia-suspend.service -u nvidia-resume.service -u systemd-suspend.service
+journalctl -b -k -g 'NVRM|Xid|PM: suspend'
+```
+
+The proprietary-driver path should report `PreserveVideoMemoryAllocations: 1`
+and loaded suspend/resume units. These are event-triggered oneshot services;
+`inactive` between sleep cycles is normal. Do not start them manually.
+Verify locking, display restoration and GPU applications after a real
+suspend/resume cycle; hibernation and its variants remain disabled.
+
+Reference: [Hyprland NVIDIA suspend/wakeup guidance](https://wiki.hypr.land/Nvidia/#suspendwakeup-issues).
+
 ## Recovery
 
 Revert through a PR and deploy reviewed main, or use a retained generation under

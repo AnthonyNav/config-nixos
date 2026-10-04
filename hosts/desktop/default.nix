@@ -42,7 +42,9 @@
   # cómo los lanzadores de DaVinci/Blender se adaptan a esto en runtime.
   hardware.nvidia = {
     modesetting.enable = true;
-    powerManagement.enable = false;
+    # Preserve VRAM and run the NVIDIA suspend/resume hooks; Hypridle can
+    # suspend this direct-rendering workstation after 30 minutes of inactivity.
+    powerManagement.enable = true;
     open = false;
     nvidiaSettings = true;
     package = config.boot.kernelPackages.nvidiaPackages.stable;
