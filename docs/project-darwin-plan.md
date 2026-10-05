@@ -110,6 +110,10 @@ reason appears.
 
 ## macOS goal
 
+The detailed target architecture is in [macOS workstation plan](macos-workstation-plan.md).
+The operational bootstrap/synchronization procedure is in
+[macOS onboarding runbook](macos-onboarding.md).
+
 A future Apple Silicon Mac should reuse the shared user/development/AI
 experience while keeping OS-specific behavior separate.
 
