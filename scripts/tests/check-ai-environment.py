@@ -81,6 +81,26 @@ class Integration(unittest.TestCase):
         self.assertEqual(context.read_text(), "Keep this\n")
         self.assertFalse((self.home / ".local/state/nixos-ai/ownership.json").exists())
 
+    def test_write_failure_rolls_back_prior_targets(self):
+        settings = self.seed(".claude/settings.json", '{"permissions":{"deny":["Bash(rm *)"]}}')
+        context = self.seed(".codex/AGENTS.md", "Keep this\n")
+        before = settings.read_text(), context.read_text()
+        original = manager.atomic_write
+        calls = 0
+
+        def fail_once(path, content):
+            nonlocal calls
+            calls += 1
+            if calls == 4:
+                raise OSError("fixture disk failure")
+            original(path, content)
+
+        with patch.object(manager, "atomic_write", side_effect=fail_once):
+            with self.assertRaises(OSError):
+                manager.reconcile(self.home, self.manifest, False)
+        self.assertEqual((settings.read_text(), context.read_text()), before)
+        self.assertFalse((self.home / ".local/state/nixos-ai/ownership.json").exists())
+
     def test_modified_owned_context_is_not_overwritten(self):
         manager.reconcile(self.home, self.manifest, False)
         context = self.home / ".codex/AGENTS.md"

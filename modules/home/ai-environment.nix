@@ -13,7 +13,7 @@ let
   artemisSelected = harness: builtins.elem harness cfg.artemis.harnesses;
   policy = basePolicy // {
     hosts = basePolicy.hosts // {
-      ${hostFeatures.hostName} = lib.genAttrs [ "codex" "claude" "kiro" ] (
+      ${hostFeatures.hostName} = lib.genAttrs [ "codex" "claude" "kiro" "opencode" ] (
         h:
         (basePolicy.hosts.${hostFeatures.hostName}.${h} or basePolicy.defaults.${h})
         ++ lib.optional (cfg.artemis.enable && artemisSelected h) "artemis"
@@ -36,18 +36,20 @@ let
         command = "${artemis}/bin/fleet-artemis";
         args = [ "mcp" ];
         authentication = "none";
+        context = "any";
         requiredSecrets = [ ];
         harnesses = [
           "codex"
           "claude"
           "kiro"
+          "opencode"
         ];
         defaultEnabled = false;
         trust = "Local Android automation with external model calls; test devices/data only. Provider credentials stay in runtime state.";
       };
   };
   python = "${pkgs.python3}/bin/python3";
-  manager = ../../scripts/ai-environment.py;
+  manager = "${../../scripts}/ai-environment.py";
   command =
     action:
     lib.escapeShellArgs [
@@ -63,6 +65,24 @@ let
     name = "ai-doctor";
     text = ''exec ${command "doctor"} "$@"'';
   };
+  workspaceTools = import ../../packages/workspace-tools.nix {
+    inherit pkgs lib;
+    inherit (config.home) homeDirectory;
+  };
+  opencode = pkgs.symlinkJoin {
+    name = "fleet-opencode-${aiToolsPackages.opencode.version}";
+    inherit (aiToolsPackages.opencode) version meta;
+    paths = [ aiToolsPackages.opencode ];
+    nativeBuildInputs = [ pkgs.makeWrapper ];
+    postBuild = ''
+      ln -sf ${pkgs.writeShellScript "fleet-opencode" ''
+        export FLEET_WRAPPER_BIN=${workspaceTools.wrappers}/bin
+        exec ${python} -B ${../../scripts}/ai-opencode.py \
+          --bundle ${environment.bundle} --policy ${workspaceTools.configuration} \
+          --binary ${aiToolsPackages.opencode}/bin/opencode "$@"
+      ''} "$out/bin/opencode"
+    '';
+  };
   skillLinks = lib.listToAttrs (
     lib.concatMap (
       name:
@@ -75,6 +95,7 @@ let
           ".codex/skills"
           ".claude/skills"
           ".kiro/skills"
+          ".agents/skills"
         ]
     ) environment.skillNames
   );
@@ -90,6 +111,7 @@ in
             "codex"
             "claude"
             "kiro"
+            "opencode"
           ]
         );
         default = [ ];
@@ -110,7 +132,10 @@ in
         message = "Artemis MCP harnesses require both fleet.ai.enable and fleet.ai.artemis.enable.";
       }
     ];
-    home.packages = lib.optional cfg.enable doctor ++ lib.optional cfg.artemis.enable artemis;
+    home.packages =
+      lib.optional cfg.enable doctor
+      ++ [ (if cfg.enable then opencode else aiToolsPackages.opencode) ]
+      ++ lib.optional cfg.artemis.enable artemis;
     home.file = lib.mkIf cfg.enable (
       skillLinks
       // {

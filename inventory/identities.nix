@@ -1,5 +1,5 @@
 {
-  default = "work";
+  default = "neutral";
 
   identities = {
     personal = {
@@ -8,6 +8,7 @@
         email = "anthonydevxp@gmail.com";
       };
       roots = [
+        "Workspace/personal/"
         "projects/"
         "nixos-config/"
       ];
@@ -23,7 +24,7 @@
         name = "Antonio Zempoaltecatl";
         email = "antonio.zempoaltecatl@cargomovil.com";
       };
-      roots = [ ];
+      roots = [ "Workspace/work/" ];
       sshKey = ".ssh/id_work";
       github = {
         alias = "github.com-work";

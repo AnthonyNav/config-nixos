@@ -11,6 +11,7 @@ Configuración modular de NixOS + Flakes + Home Manager orientada al uso diario,
 - [Atajos de teclado](#atajos-de-teclado)
 - [Escritorio (Caelestia Shell)](#escritorio-caelestia-shell)
 - [Herramientas de IA](#herramientas-de-ia)
+- [Workspaces e identidades](#workspaces-e-identidades)
 - [Base de datos y terminal](#base-de-datos-y-terminal)
 - [Edición 3D / Video](#edición-3d--video)
 - [Para qué está preparado este entorno](#para-qué-está-preparado-este-entorno)
@@ -342,11 +343,45 @@ agregar algo ahí habría que parchar el QML del shell directamente.
 ## Herramientas de IA
 
 Claude Code, Codex, OpenCode y RTK se instalan desde el input `llm-agents`.
-Kiro CLI e IDE conservan sus paquetes propios. La configuración, los proveedores
-y las credenciales de OpenCode pertenecen al usuario; este repositorio instala
-solo su binario, sin wrappers, agentes, skills, plugins ni gateway personalizados.
+Kiro CLI e IDE conservan sus paquetes propios. Los modelos, proveedores,
+permisos y credenciales de OpenCode pertenecen al usuario; su lanzador agrega
+contexto y MCPs seleccionados mediante una configuración limitada al proceso,
+sin reescribir sus archivos JSON/JSONC. Seis skills `fleet-*` comparten una fuente
+canónica y se publican también en `~/.agents/skills` para OpenCode y Orca.
+
+Orca 1.4.220 está disponible en ambos equipos con los lanzadores de identidad.
+Sus sesiones y skills propios siguen siendo mutables; `orca-skills-sync --dry-run`
+permite revisar una actualización explícita. Los MCPs y Artemis permanecen
+desactivados por defecto. Consulta [docs/ai-environment.md](docs/ai-environment.md)
+y [docs/orca.md](docs/orca.md) para permisos Manual y pruebas con Android.
 
 Consulta [docs/maintainer.md](docs/maintainer.md) para actualizar las versiones.
+
+---
+
+## Workspaces e identidades
+
+`~/Workspace/work/` y `~/Workspace/personal/` tienen `repos/`, `worktrees/` y
+`shared/`. Fuera de las raíces declaradas el contexto es **neutral**; `~/projects`
+y `~/nixos-config` conservan compatibilidad personal. Los worktrees externos
+heredan el contexto de su repositorio principal. Git, GitHub CLI y AWS resuelven
+la identidad en cada invocación, incluso fuera de Zsh:
+
+```sh
+workspace-context status
+workspace-context doctor
+workspace-context exec work -- direnv exec . pnpm install
+gh-login personal
+gh-whoami personal
+```
+
+Syncthing administra dos raíces y solo replica `shared/`, con exclusiones para
+repositorios, worktrees, cachés, credenciales y bases de datos. La migración
+conserva los archivos anteriores y requiere revisar/copiar los datos elegidos
+manualmente. No hay logins ni movimientos automáticos. Consulta
+[docs/workspace-workflow.md](docs/workspace-workflow.md) para cuentas,
+migración, límites y rollback. Los procesos del mismo usuario no están aislados
+por estas herramientas.
 
 ---
 
@@ -486,11 +521,12 @@ retirada de la flota y sus datos se conservan. Consulta
 |---|---|
 | **Mobile / Flutter** | Flutter, Dart (vía Flutter), Android Studio, Android Tools, FVM (versiones de Flutter), Kotlin |
 | **Web / Node** | Node.js 22, npm, pnpm (vía corepack), Go, Python 3 |
-| **Backend** | Go, .NET 8 SDK, gRPC (grpcurl), httpie, Bruno, Postman, Insomnia |
+| **Backend / API** | Go, .NET 8 SDK, gRPC (grpcurl), httpie, Bruno 4.2.1, Postman, Posting, Hurl |
 | **C / C++** | GCC, Make, CMake, GDB |
 | **Data / Python** | Python 3, pip, Micromamba |
-| **DevOps** | Docker + Compose, GitHub CLI (`gh`) |
-| **IA / Agentes** | Claude Code, Codex (OpenAI CLI), Kiro IDE (`victus` y `desktop`), Kiro CLI, OpenCode, Herdr |
+| **DevOps** | Docker + Compose, `gh`, OpenTofu, Terragrunt, kubectl, Helm, k9s, Kustomize, kubectx/kubens, Stern |
+| **Seguridad / Diagnóstico** | Trivy, Syft, Grype, Cosign, Dive, Gitleaks, sops/age, nmap, mtr, iperf3, dig/host, tcpdump |
+| **IA / Agentes** | Orca, Claude Code, Codex (OpenAI CLI), Kiro IDE (`victus` y `desktop`), Kiro CLI, OpenCode, Herdr |
 | **3D / Video** | DaVinci Resolve, Blender, Kdenlive, Krita, GIMP, Inkscape, ffmpeg (ver [Edición 3D / Video](#edición-3d--video)) |
 
 ### Herramientas de terminal
@@ -504,7 +540,15 @@ retirada de la flota y sus datos se conservan. Consulta
 | `fastfetch` (`ff`) | Info del sistema |
 | `ripgrep` | Búsqueda en código (más rápida que grep) |
 | `jq` | Procesar JSON |
+| `fd`, `yq`, `just`, `watchexec`, `hyperfine`, `nvd` | Buscar, transformar YAML, tareas, cambios, benchmarks y diferencias de generaciones |
 | `7z`, `zip`, `zstd`, `rar` | Compresión/descompresión de múltiples formatos |
+
+El perfil `platform` instala clientes sin iniciar infraestructura ni otorgar
+privilegios de captura. Bruno es el cliente API gráfico principal; Postman
+conserva compatibilidad con esquemas GTK y lanzamiento XWayland. Posting 2.11.0
+desactiva el historial por defecto (un YAML personal puede habilitarlo).
+[examples/api/health.hurl](examples/api/health.hurl) ejemplifica pruebas
+reproducibles con `hurl --test --variable base_url=http://127.0.0.1:PORT`.
 
 ### Comandos y aliases útiles
 

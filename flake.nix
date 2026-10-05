@@ -61,6 +61,7 @@
       kiroPackages = import ./packages/kiro.nix { pkgs = pkgsFor; };
       dbgatePackage = pkgsFor.callPackage ./packages/dbgate.nix { };
       dbeaverPackage = import ./packages/dbeaver.nix { pkgs = pkgsFor; };
+      apiTools = import ./packages/api-tools.nix { pkgs = pkgsFor; };
       aiToolVersions = {
         claudeCode = aiToolsPackages.claude-code.version;
         codex = aiToolsPackages.codex.version;
@@ -129,6 +130,7 @@
       packages.${system} = {
         nix-config = nixConfigPackages.nixConfig;
         inherit (pkgsFor) gitleaks;
+        inherit (apiTools) bruno posting postman;
         artemis = import ./packages/artemis.nix { pkgs = pkgsFor; };
         tailscale-policy = tailscalePolicyPrinter;
         kiro-cli = kiroPackages.cli;
@@ -196,6 +198,15 @@
         })
         // (import ./flake/project-checks.nix {
           inherit lib;
+          pkgs = pkgsFor;
+        })
+        // (import ./flake/workspace-checks.nix {
+          inherit
+            lib
+            self
+            username
+            workstationNames
+            ;
           pkgs = pkgsFor;
         })
         // (import ./flake/desktop-checks.nix {

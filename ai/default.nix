@@ -13,6 +13,7 @@ let
     "codex"
     "claude"
     "kiro"
+    "opencode"
   ];
   ids = map (entry: entry.id) registry;
   catalog = builtins.listToAttrs (
@@ -34,6 +35,7 @@ let
       builtins.attrNames entry == builtins.sort builtins.lessThan (
         [
           "authentication"
+          "context"
           "defaultEnabled"
           "harnesses"
           "id"
@@ -67,6 +69,41 @@ let
         false
     )
     && entry.defaultEnabled == false
+    && builtins.elem entry.context [
+      "any"
+      "work"
+      "personal"
+    ]
+    && builtins.elem entry.authentication [
+      "none"
+      "oauth"
+      "runtime-env"
+      "runtime-file"
+    ]
+    && builtins.isList entry.requiredSecrets
+    && lib.all (
+      name: builtins.isString name && builtins.match "[A-Z][A-Z0-9_]*" name != null
+    ) entry.requiredSecrets
+    && builtins.length entry.requiredSecrets == builtins.length (lib.unique entry.requiredSecrets)
+    && (
+      if
+        builtins.elem entry.authentication [
+          "none"
+          "oauth"
+        ]
+      then
+        entry.requiredSecrets == [ ]
+      else
+        entry.requiredSecrets != [ ] && entry.context != "any"
+    )
+    && (
+      entry.transport != "http"
+      || !builtins.elem entry.authentication [
+        "runtime-env"
+        "runtime-file"
+      ]
+      || entry.requiredSecrets == [ "API_ACCESS_TOKEN" ]
+    )
     && lib.all (h: builtins.elem h harnesses) entry.harnesses;
   validSelection =
     harness: names:
@@ -75,8 +112,14 @@ let
       name:
       builtins.hasAttr name catalog
       && builtins.elem harness catalog.${name}.harnesses
-      && catalog.${name}.authentication == "none"
-      && catalog.${name}.requiredSecrets == [ ]
+      # Native HTTP OAuth can only be shared intentionally across contexts.
+      # Restricted OAuth needs a transport-specific runtime adapter; cataloging
+      # it does not silently make an unsupported connection eligible.
+      && !(
+        catalog.${name}.transport == "http"
+        && catalog.${name}.authentication == "oauth"
+        && catalog.${name}.context != "any"
+      )
     ) names;
   facts = {
     os = "NixOS";
@@ -116,6 +159,7 @@ let
       ".codex/skills"
       ".claude/skills"
       ".kiro/skills"
+      ".agents/skills"
     ]
   ) skillNames;
   hookCommand = lib.escapeShellArgs [
@@ -123,36 +167,79 @@ let
     "${../scripts/ai-rtk-hook.py}"
     "${rtk}/bin/rtk"
   ];
+  workspaceTools = import ../packages/workspace-tools.nix { inherit pkgs lib homeDirectory; };
+  contextFile = pkgs.writeText "fleet-context.md" context;
+  connection =
+    id:
+    let
+      entry = catalog.${id};
+      guarded =
+        entry.transport == "stdio"
+        || entry.context != "any"
+        || builtins.elem entry.authentication [
+          "runtime-env"
+          "runtime-file"
+        ];
+      metadata = pkgs.writeText "mcp-${id}.json" (builtins.toJSON entry);
+      guard = pkgs.writeShellScript "mcp-${id}-context" ''
+        exec ${pkgs.python3}/bin/python3 -B ${../scripts}/mcp-context.py \
+          --policy ${workspaceTools.configuration} --entry ${metadata}${
+            lib.optionalString (entry.transport == "http") " --proxy ${lib.getExe pkgs.mcp-proxy}"
+          }
+      '';
+    in
+    if guarded then
+      {
+        command = toString guard;
+        args = [ ];
+      }
+    else
+      { inherit (entry) url; };
   connections =
     harness:
     lib.listToAttrs (
       map (id: {
         name = "fleet-${id}";
         value =
-          if catalog.${id}.transport == "stdio" then
-            (lib.optionalAttrs (harness == "claude") { type = "stdio"; })
-            // {
-              inherit (catalog.${id}) command args;
-            }
+          let
+            value = connection id;
+          in
+          if harness == "opencode" then
+            if value ? command then
+              {
+                type = "local";
+                command = [ value.command ] ++ value.args;
+                enabled = true;
+              }
+            else
+              {
+                type = "remote";
+                inherit (value) url;
+                enabled = true;
+              }
           else
-            (lib.optionalAttrs (harness == "claude") { type = "http"; })
-            // {
-              url = catalog.${id}.url;
-            };
+            value
+            // lib.optionalAttrs (harness == "claude") { type = if value ? command then "stdio" else "http"; };
       }) selected.${harness}
     );
-  codexConfig = lib.concatMapStringsSep "\n" (id: ''
-    [mcp_servers."fleet-${id}"]
-    ${
-      if catalog.${id}.transport == "stdio" then
-        ''
-          command = ${builtins.toJSON catalog.${id}.command}
-          args = ${builtins.toJSON catalog.${id}.args}
-        ''
-      else
-        "url = ${builtins.toJSON catalog.${id}.url}"
-    }
-  '') selected.codex;
+  codexConfig = lib.concatMapStringsSep "\n" (
+    id:
+    let
+      value = connection id;
+    in
+    ''
+      [mcp_servers."fleet-${id}"]
+      ${
+        if value ? command then
+          ''
+            command = ${builtins.toJSON value.command}
+            args = ${builtins.toJSON value.args}
+          ''
+        else
+          "url = ${builtins.toJSON value.url}"
+      }
+    ''
+  ) selected.codex;
   mcpEntries =
     harness: root:
     lib.mapAttrsToList (name: value: {
@@ -226,6 +313,10 @@ let
     allowedTools = [ ];
     mcpServers = connections "kiro";
   };
+  opencodeOverlay = {
+    instructions = lib.optional enabled (toString contextFile);
+    mcp = connections "opencode";
+  };
   jsonFile = name: value: {
     inherit name;
     path = pkgs.writeText name (builtins.toJSON value);
@@ -243,11 +334,12 @@ assert lib.all (h: validSelection h selected.${h}) harnesses;
     files
     kiroAgent
     selected
+    opencodeOverlay
     ;
   bundle = pkgs.linkFarm "nixos-ai-${facts.host}" [
     {
       name = "context.md";
-      path = pkgs.writeText "fleet-context.md" context;
+      path = contextFile;
     }
     {
       name = "skills";
@@ -259,5 +351,10 @@ assert lib.all (h: validSelection h selected.${h}) harnesses;
     (jsonFile "manifest.json" manifest)
     (jsonFile "files.json" files)
     (jsonFile "kiro-agent.json" kiroAgent)
+    (jsonFile "opencode-overlay.json" opencodeOverlay)
+    {
+      name = "workspace-policy.json";
+      path = workspaceTools.configuration;
+    }
   ];
 }

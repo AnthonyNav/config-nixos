@@ -27,7 +27,13 @@ let
       hosts = if folder.hosts == null then syncthingHostNames else folder.hosts;
     in
     {
-      inherit (folder) id label type;
+      inherit (folder)
+        id
+        label
+        type
+        migrationFrom
+        ;
+      inherit (policy) ignorePatterns;
       inherit hosts;
       path = "${homeDir}/${folder.relativePath}";
     }
@@ -45,6 +51,7 @@ let
       jq
       libxml2
       openssl
+      python3
       tailscale
     ];
     text = ''
@@ -55,6 +62,7 @@ let
       export SYNCTHING_API_URL=http://127.0.0.1:8384
       export SYNCTHING_MANAGED_DEVICE_PREFIX=${lib.escapeShellArg policy.managedDevicePrefix}
       export SYNCTHING_MANAGED_FOLDER_PREFIX=${lib.escapeShellArg policy.managedFolderPrefix}
+      export SYNCTHING_FLEET_IGNORE_HELPER=${lib.escapeShellArg (toString ../../scripts/syncthing-ignores.py)}
       ${builtins.readFile ../../scripts/syncthing-fleet-reconcile.sh}
     '';
   };

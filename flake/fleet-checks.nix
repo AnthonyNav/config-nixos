@@ -100,6 +100,7 @@ in
         "development"
         "data-science"
         "creative"
+        "platform"
       ]
     ) homes;
     assert lib.all (c: builtins.hasAttr "monitor-layout" c.systemd.user.services) homes;

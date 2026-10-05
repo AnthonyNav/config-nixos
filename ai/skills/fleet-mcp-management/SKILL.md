@@ -8,9 +8,12 @@ configuration repository. Register metadata separately from explicit host/harnes
 enablement. Verify the upstream transport, owner and authentication contract.
 Use unique IDs; fleet-managed connections use the fleet- prefix.
 
-This implementation only enables credential-free HTTPS services. Authenticated
-entries may be cataloged, but require a separately reviewed runtime credential
-mechanism before enablement. Never copy tokens, OAuth state or local settings
-into Nix. Do not connect to a service just to validate generated syntax.
+Declare context and authentication independently from enablement. Restricted
+stdio and Streamable HTTP connections pass a startup context guard before reading
+runtime credentials. Follow docs/workspace-workflow.md for the prefixed env/file
+contract and native OAuth limits; cataloging an unsupported transport does not
+enable it. OpenCode uses a process-local overlay, preserving user JSON/JSONC.
+Never copy tokens, OAuth state or local settings into Nix. Do not connect to a
+service just to validate generated syntax.
 Use ai-doctor to inspect local integration state. It does not verify external
 authentication or grant authority to call every registered service.

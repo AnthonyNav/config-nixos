@@ -37,13 +37,13 @@
   makeWrapper,
 }:
 let
-  version = "1.4.216";
+  version = "1.4.220";
   unwrapped = stdenvNoCC.mkDerivation {
     pname = "orca-ide-unwrapped";
     inherit version;
     src = fetchurl {
       url = "https://github.com/stablyai/orca/releases/download/v${version}/orca-ide_${version}_amd64.deb";
-      hash = "sha256-juelk/4kddWRf8WWHiAZOlc3JUhnUOgHcn0Zx03amIM=";
+      hash = "sha256-XDPn4dPKfyM6moLateVkAmUfkuo8xJPx1otMBilfsKw=";
     };
     nativeBuildInputs = [
       dpkg
@@ -102,6 +102,19 @@ let
       cp -r opt/Orca "$out/app"
       cp -r usr/share "$out/share"
       runHook postInstall
+    '';
+    # These are deployment payloads for remote glibc/musl/ARM hosts. Patching
+    # them to this workstation's /nix/store would break remote SSH worktrees.
+    # Restore them AFTER autoPatchelf and the generic local fixups finish.
+    preFixup = ''
+      if [ -d "$out/app/resources/orcad-template" ]; then
+        remoteTemplate="$(mktemp -d)"
+        mv "$out/app/resources/orcad-template" "$remoteTemplate/"
+        restoreRemoteTemplate() {
+          mv "$remoteTemplate/orcad-template" "$out/app/resources/"
+        }
+        postFixupHooks+=(restoreRemoteTemplate)
+      fi
     '';
   };
   launcher = writeShellScript "orca-ide-launch" ''

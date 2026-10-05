@@ -202,15 +202,12 @@
       sshSettings = homeConfig.programs.ssh.settings;
       identityPolicy = import ../inventory/identities.nix;
     in
-    assert identityPolicy.default == "work";
+    assert identityPolicy.default == "neutral";
     assert gitSettings.user.useConfigOnly;
-    assert gitSettings.user.email == identityPolicy.identities.work.git.email;
-    assert
-      gitSettings.url."git@github.com:".insteadOf == [
-        "https://github.com/"
-        "ssh://git@github.com/"
-      ];
-    assert sshSettings."github.com".data.IdentityFile == "/home/${username}/.ssh/id_work";
+    assert !(gitSettings.user ? email) && !(gitSettings.user ? name);
+    assert !(builtins.hasAttr "git@github.com:" (gitSettings.url or { }));
+    assert sshSettings."github.com".data.IdentityFile == "none";
+    assert sshSettings."github.com".data.IdentityAgent == "none";
     assert sshSettings."github.com-personal".data.IdentityFile == "/home/${username}/.ssh/id_personal";
     assert sshSettings."github.com-work".data.IdentityFile == "/home/${username}/.ssh/id_work";
     assert sshSettings."github.com-kigo".data.IdentityFile == "/home/${username}/.ssh/id_work";
@@ -288,8 +285,15 @@
     assert builtins.elem fleetEndpoints.ports.syncthing tailscaleFirewall.allowedTCPPorts;
     assert !(builtins.elem fleetEndpoints.ports.syncthing (tailscaleFirewall.allowedUDPPorts or [ ]));
     assert !(builtins.elem 21027 (tailscaleFirewall.allowedUDPPorts or [ ]));
-    assert syncthingPolicy.folders.shared.id == "fleet-shared";
-    assert syncthingPolicy.folders.shared.relativePath == "Sync/Fleet";
+    assert
+      builtins.attrNames syncthingPolicy.folders == [
+        "personal"
+        "work"
+      ];
+    assert syncthingPolicy.folders.work.id == "fleet-work";
+    assert syncthingPolicy.folders.personal.id == "fleet-personal";
+    assert syncthingPolicy.folders.work.relativePath == "Workspace/work";
+    assert syncthingPolicy.folders.personal.relativePath == "Workspace/personal";
     pkgsFor.runCommand "syncthing-policy-check" { } ''
       touch "$out"
     '';

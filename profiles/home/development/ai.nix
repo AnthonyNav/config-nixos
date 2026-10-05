@@ -18,7 +18,6 @@
     herdrPackage
     aiToolsPackages.claude-code
     aiToolsPackages.codex
-    aiToolsPackages.opencode
     aiToolsPackages.rtk
   ];
 }

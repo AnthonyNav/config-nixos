@@ -3,7 +3,7 @@
 ## Architecture
 
 The inventory currently contains Desktop and Victus. Both consume one daily
-Home environment and select development, data-science and creative profiles.
+Home environment and select development, data-science, creative and platform profiles.
 Hardware modules stay under `hosts/<name>/`; explicit per-program Home modules
 and static `dotfiles/` are shared. See [workstation-architecture.md](workstation-architecture.md)
 for extension rules, [monitors.md](monitors.md) for topology selection and
@@ -213,13 +213,29 @@ nix-update
 The first command only builds; it does not activate. Later deployments use the
 daemon settings from `modules/system/common.nix` and need no bootstrap step.
 
-OpenCode is installed without repository-managed wrappers, providers, agents,
-commands, skills, or plugins. Its configuration and credentials remain user-owned.
-The shared [AI environment](ai-environment.md) adds fleet context and five
-skills for Codex, Claude Code and Kiro. Mutable settings stay user-owned; an
+OpenCode's providers, models, permissions, plugins and credentials remain
+user-owned. Its launcher adds fleet context and selected MCPs through a
+process-local overlay, preserving JSON/JSONC files. The shared
+[AI environment](ai-environment.md) publishes six canonical skills for Codex,
+Claude Code, Kiro and universal discovery used by OpenCode/Orca. Mutable settings stay user-owned; an
 activation reconciler updates only recorded fleet entries and preserves local
 permissions, credentials and unrelated hooks. MCP enablement defaults to empty.
 Run `ai-doctor` after an authorized deployment to check the local integration.
+
+Workspace identities are resolved at invocation, with neutral default, separate
+GitHub CLI directories and existing read-only AWS profiles. Canonical roots,
+external Git worktrees, shared-only Syncthing migration, secret contracts and
+rollback are documented in [workspace-workflow.md](workspace-workflow.md).
+Keep real credentials outside Git/store. Never use shell display variables as
+authentication selectors or restore the global work identity/HTTPS rewrite.
+
+Orca, Bruno and Posting have targeted pins in `packages/`; Postman has a scoped
+GTK-schema wrapper. Validate `workspace-context`, `workflow-packages`,
+`platform-policy`, `ai-environment` and `syncthing-reconcile` checks plus the
+complete flake checks and all four workstation outputs. Built CLI/schema tests
+do not replace the per-host GUI, real-account and Android acceptance in
+[orca.md](orca.md). Do not activate a feature branch or migrate local data
+automatically. The platform profile installs clients only, without workloads.
 
 ## Tailnet Policy
 

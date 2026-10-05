@@ -25,6 +25,7 @@ let
       codex = [ "openai-docs" ];
       claude = [ "openai-docs" ];
       kiro = [ "openai-docs" ];
+      opencode = [ "openai-docs" ];
     };
     hosts = { };
   };
@@ -37,11 +38,13 @@ let
     command = "${pkgs.writeShellScript "artemis-fixture" "exit 1"}";
     args = [ "mcp" ];
     authentication = "none";
+    context = "any";
     requiredSecrets = [ ];
     harnesses = [
       "codex"
       "claude"
       "kiro"
+      "opencode"
     ];
     defaultEnabled = false;
     trust = "Test fixture only";
@@ -49,7 +52,7 @@ let
   localArgs = {
     registry = registry ++ [ localEntry ];
     policy = {
-      defaults = lib.genAttrs [ "codex" "claude" "kiro" ] (_: [
+      defaults = lib.genAttrs [ "codex" "claude" "kiro" "opencode" ] (_: [
         "openai-docs"
         "artemis"
       ]);
@@ -57,6 +60,22 @@ let
     };
   };
   localEnabled = import ../ai (baseArgs // localArgs);
+  guardedEntry = localEntry // {
+    id = "work-fixture";
+    context = "work";
+    authentication = "runtime-env";
+    requiredSecrets = [ "TEST_TOKEN" ];
+  };
+  guardedEnabled = import ../ai (
+    baseArgs
+    // {
+      registry = registry ++ [ guardedEntry ];
+      policy = {
+        defaults = lib.genAttrs [ "codex" "claude" "kiro" "opencode" ] (_: [ "work-fixture" ]);
+        hosts = { };
+      };
+    }
+  );
   rejects = args: !(builtins.tryEval (import ../ai (baseArgs // args)).selected).success;
   bundles = lib.genAttrs fleet.workstationNames (
     name: self.homeConfigurations."${username}@${name}".config.fleet.ai.bundle
@@ -67,6 +86,7 @@ let
       inherit (fleet) inventory;
       enabled = toString enabled.bundle;
       localEnabled = toString localEnabled.bundle;
+      guardedEnabled = toString guardedEnabled.bundle;
     }
   );
   python = pkgs.python3.withPackages (ps: [ ps.pyyaml ]);
@@ -113,9 +133,10 @@ in
         export XDG_DATA_HOME="$TMPDIR/data"
         mkdir -p "$XDG_CONFIG_HOME" "$XDG_CACHE_HOME" "$XDG_DATA_HOME"
         python ${../scripts/tests/check-ai-environment.py} \
-          ${../scripts/ai-environment.py} ${../scripts/ai-rtk-hook.py} \
+          ${../scripts}/ai-environment.py ${../scripts/ai-rtk-hook.py} \
           ${bundles.${representative}} ${aiToolsPackages.rtk}/bin/rtk
         python ${../scripts/tests/check-ai-bundles.py} ${fixtures}
+        python ${../scripts/tests/check-ai-runtime.py} ${../scripts}
         python ${../scripts/tests/check-artemis.py} ${../scripts/artemis.py}
         touch "$out"
       '';

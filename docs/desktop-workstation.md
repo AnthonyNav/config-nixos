@@ -1,6 +1,6 @@
 # Desktop creative + ML workstation
 
-Desktop consumes the same daily and development/data-science/creative profiles
+Desktop consumes the same daily and development/data-science/creative/platform profiles
 as Victus, through the inventory. Its i5-12400F has no iGPU; the RTX 3060 Ti
 remains the direct desktop renderer. Generated disks, boot and GPU settings stay
 under `hosts/desktop/`; no hardware configuration is generalized across machines.
@@ -13,6 +13,10 @@ See [architecture](workstation-architecture.md), [monitors](monitors.md) and
 [resource policy](resource-policy.md). Profiles are based on connected monitor
 identities, not the name Desktop. The workstation retains ordinary suspend and
 Caelestia locking/DPMS; hibernation stays disabled.
+
+The [workspace workflow](workspace-workflow.md) covers invocation-scoped work,
+personal and neutral identities, shared-only Syncthing roots and Orca acceptance.
+Platform tools install clients without starting infrastructure services.
 
 ## Preservation and rollout
 

@@ -93,6 +93,10 @@ while IFS= read -r folder; do
   done < <(jq -r '.hosts[]' <<<"$folder")
 done < <(jq -c '.[]' <<<"$folders_json")
 
+if [[ -n "${SYNCTHING_FLEET_IGNORE_HELPER:-}" ]]; then
+  python3 "$SYNCTHING_FLEET_IGNORE_HELPER" --check
+fi
+
 if [[ "$mode" == "check" ]]; then
   printf 'Syncthing fleet topology for %s\n' "$host_name"
   printf '  local: %s\n' "$local_id"
@@ -108,6 +112,9 @@ existing_folders="$(api "$api_url/rest/config/folders" | jq -ce 'if type == "arr
 managed_device_ids="$(jq -c --arg prefix "$managed_device_prefix" '[.[] | select((.name // "") | startswith($prefix)) | .deviceID]' <<<"$existing_devices")"
 device_default="$(api "$api_url/rest/config/defaults/device" | jq -ce 'if type == "object" then . else error("Expected device defaults object") end')" || { echo "Could not read device defaults; leaving configuration unchanged." >&2; exit 75; }
 folder_default="$(api "$api_url/rest/config/defaults/folder" | jq -ce 'if type == "object" then . else error("Expected folder defaults object") end')" || { echo "Could not read folder defaults; leaving configuration unchanged." >&2; exit 75; }
+if [[ -n "${SYNCTHING_FLEET_IGNORE_HELPER:-}" ]]; then
+  python3 "$SYNCTHING_FLEET_IGNORE_HELPER"
+fi
 while IFS=$'\t' read -r peer ip device_id; do
   payload="$(jq -cn --arg name "${managed_device_prefix}${peer}" --arg address "tcp://${ip}:22000" '{name: $name, addresses: [$address], introducer: false, autoAcceptFolders: false}')"
   existing="$(jq -c --arg id "$device_id" 'map(select(.deviceID == $id))[0] // null' <<<"$existing_devices")"
@@ -134,7 +141,11 @@ while IFS= read -r folder; do
     | sort_by(.deviceId)' <<<"$folder")"
   payload="$(jq -cn --arg label "$label" --arg path "$path" --arg type "$folder_type" --argjson devices "$devices" '{label: $label, path: $path, type: $type, devices: $devices}')"
   if [[ "$existing" == "null" ]]; then
-    payload="$(jq -c --arg id "$folder_id" --argjson fields "$payload" '. + $fields + {id: $id}' <<<"$folder_default")"
+    source_id="$(jq -r '.migrationFrom // empty' <<<"$folder")"
+    # Transfer versioning/pause preferences, never grant a legacy manual peer
+    # access to a new work or personal root.
+    preferences="$(jq -c --arg id "$source_id" 'map(select(.id == $id))[0] // {} | with_entries(select(.key == "versioning" or .key == "paused" or .key == "fsWatcherEnabled" or .key == "rescanIntervalS"))' <<<"$existing_folders")"
+    payload="$(jq -c --arg id "$folder_id" --argjson fields "$payload" --argjson preferences "$preferences" '. + $preferences + $fields + {id: $id}' <<<"$folder_default")"
     api -X POST -H 'Content-Type: application/json' --data-binary "$payload" "$api_url/rest/config/folders" >/dev/null
   elif ! jq -e --argjson fields "$payload" '. as $existing | $fields | to_entries | all(.[]; $existing[.key] == .value)' <<<"$existing" >/dev/null; then
     encoded_id="$(jq -rn --arg id "$folder_id" '$id | @uri')"
@@ -143,7 +154,15 @@ while IFS= read -r folder; do
 done < <(jq -c '.[]' <<<"$folders_json")
 
 desired_folder_ids="$(jq -c '[.[].id]' <<<"$folders_json")"
-while IFS= read -r stale_id; do [[ -n "$stale_id" ]] && api -X DELETE "$api_url/rest/config/folders/$stale_id" >/dev/null; done < <(api "$api_url/rest/config/folders" | jq -r --arg prefix "$managed_folder_prefix" --argjson desired "$desired_folder_ids" '[ .[] | select(.id | startswith($prefix)) | .id ] - $desired | .[] | @uri')
+while IFS= read -r stale_id; do
+  [[ -n "$stale_id" ]] || continue
+  # Keep a private local configuration snapshot for a reviewed rollback.
+  retired="$(api "$api_url/rest/config/folders/$stale_id")"
+  backup="$(mktemp "$config_dir/fleet-retired-${stale_id}.XXXXXX.json")"
+  chmod 600 "$backup"
+  printf '%s\n' "$retired" >"$backup"
+  api -X DELETE "$api_url/rest/config/folders/$stale_id" >/dev/null
+done < <(api "$api_url/rest/config/folders" | jq -r --arg prefix "$managed_folder_prefix" --argjson desired "$desired_folder_ids" '[ .[] | select(.id | startswith($prefix)) | .id ] - $desired | .[] | @uri')
 
 desired_device_ids="$(jq -c '[.[].id]' <<<"$resolved_devices")"
 while IFS= read -r stale_id; do [[ -n "$stale_id" ]] && api -X DELETE "$api_url/rest/config/devices/$stale_id" >/dev/null; done < <(api "$api_url/rest/config/devices" | jq -r --arg prefix "$managed_device_prefix" --argjson desired "$desired_device_ids" '[ .[] | select((.name // "") | startswith($prefix)) | .deviceID ] - $desired | .[] | @uri')

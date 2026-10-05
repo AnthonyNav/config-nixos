@@ -4,103 +4,125 @@
   pkgs,
   ...
 }:
-
 let
   policy = import ../../inventory/identities.nix;
   inherit (policy) identities;
-  defaultIdentity = identities.${policy.default};
-  personalIdentity = identities.personal;
   homeDir = config.home.homeDirectory;
-
-  rootPath = root: "${homeDir}/${root}";
-  sshKeyPath = identity: "${homeDir}/${identity.sshKey}";
-
-  personalIncludes = map (root: {
-    condition = "gitdir:${rootPath root}";
-    contents.user = personalIdentity.git;
-  }) personalIdentity.roots;
-
-  allRoots = personalIdentity.roots;
+  roots = lib.concatMap (identity: identity.roots) (builtins.attrValues identities);
+  key = identity: "${homeDir}/${identity.sshKey}";
+  githubHost = identity: {
+    HostName = "github.com";
+    IdentityFile = key identity;
+    IdentitiesOnly = true;
+    User = "git";
+  };
+  tools = import ../../packages/workspace-tools.nix {
+    inherit pkgs lib;
+    homeDirectory = homeDir;
+  };
+  gitInvocation =
+    context: action:
+    lib.escapeShellArgs [
+      "${pkgs.python3}/bin/python3"
+      "-B"
+      (toString ../../scripts/workspace-context.py)
+      "--config"
+      (toString tools.configuration)
+      action
+      context
+    ];
 in
 {
   imports = [
     ../../modules/home/identity-tools.nix
     ../../modules/home/work-context.nix
   ];
-
   assertions = [
     {
-      assertion = policy.default == "work";
-      message = "The default development identity must remain work.";
+      assertion = policy.default == "neutral";
+      message = "Unmanaged directories must use neutral context.";
     }
     {
       assertion = identities.personal.sshKey != identities.work.sshKey;
-      message = "Personal and work GitHub identities must use different SSH keys.";
+      message = "Work and personal SSH keys must differ.";
     }
     {
-      assertion = builtins.length allRoots == builtins.length (lib.unique allRoots);
-      message = "Personal Git identity roots must be unique.";
+      assertion = builtins.length roots == builtins.length (lib.unique roots);
+      message = "Workspace identity roots must be unique.";
     }
   ];
-
   home.activation.ensureGitIdentityRoots = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-    $DRY_RUN_CMD ${pkgs.coreutils}/bin/mkdir -p \
-      ${lib.concatMapStringsSep " \\\n      " (root: lib.escapeShellArg (rootPath root)) allRoots}
+    run ${pkgs.coreutils}/bin/mkdir -p ${
+      lib.escapeShellArgs (
+        map (root: "${homeDir}/${root}") roots
+        ++
+          lib.concatMap
+            (
+              context:
+              map (child: "${homeDir}/Workspace/${context}/${child}") [
+                "repos"
+                "worktrees"
+                "shared"
+              ]
+            )
+            [
+              "work"
+              "personal"
+            ]
+      )
+    }
+    run ${pkgs.coreutils}/bin/install -d -m 0700 \
+      ${lib.escapeShellArg "${homeDir}/.config/gh/work"} ${lib.escapeShellArg "${homeDir}/.config/gh/personal"}
   '';
-
   programs.ssh = {
     enable = true;
     enableDefaultConfig = false;
     settings = {
       "*".AddKeysToAgent = "yes";
-
-      # GitHub is work by default. Personal shells override the key through
-      # GIT_SSH_COMMAND so dependency managers inherit the same context.
       "github.com" = {
         HostName = "github.com";
-        IdentityFile = sshKeyPath defaultIdentity;
-        IdentitiesOnly = true;
         User = "git";
-      };
-
-      "github.com-work" = {
-        HostName = "github.com";
-        IdentityFile = sshKeyPath identities.work;
+        IdentityFile = "none";
+        IdentityAgent = "none";
         IdentitiesOnly = true;
-        User = "git";
       };
-
-      "github.com-kigo" = {
-        HostName = "github.com";
-        IdentityFile = sshKeyPath identities.work;
-        IdentitiesOnly = true;
-        User = "git";
-      };
-
-      "github.com-personal" = {
-        HostName = "github.com";
-        IdentityFile = sshKeyPath personalIdentity;
-        IdentitiesOnly = true;
-        User = "git";
-      };
-
+      "github.com-work" = githubHost identities.work;
+      "github.com-kigo" = githubHost identities.work;
+      "github.com-personal" = githubHost identities.personal;
     };
   };
-
   programs.git = {
     enable = true;
-    settings = {
-      user = defaultIdentity.git // {
-        useConfigOnly = true;
-      };
-
-      # Package managers frequently invoke plain HTTPS GitHub URLs. Normalize
-      # them to github.com, whose default SSH identity is the work key.
-      url."git@github.com:".insteadOf = [
-        "https://github.com/"
-        "ssh://git@github.com/"
-      ];
-    };
-    includes = personalIncludes;
+    settings.user.useConfigOnly = true;
+    # Conditional configuration also covers clients that use their own Git.
+    # The invocation wrapper covers external linked worktrees and git -C.
+    includes = lib.concatLists (
+      lib.mapAttrsToList (
+        context: identity:
+        map (root: {
+          condition = "gitdir:${homeDir}/${root}";
+          contents = {
+            user = identity.git;
+            core.sshCommand = gitInvocation context "git-ssh";
+            credential."https://github.com".helper = [
+              ""
+              (
+                "!"
+                + lib.escapeShellArgs [
+                  "${pkgs.python3}/bin/python3"
+                  "-B"
+                  (toString ../../scripts/workspace-context.py)
+                  "--config"
+                  (toString tools.configuration)
+                  "gh-${context}"
+                  "auth"
+                  "git-credential"
+                ]
+              )
+            ];
+          };
+        }) identity.roots
+      ) identities
+    );
   };
 }
