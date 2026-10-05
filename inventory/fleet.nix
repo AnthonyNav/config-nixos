@@ -9,6 +9,7 @@ let
   sshHostNames = namesWhere (host: host.connectivity.ssh or false);
   syncthingHostNames = namesWhere (host: host.connectivity.syncthing or false);
   inputSharingHostNames = namesWhere (host: host.features.inputSharing.enable or false);
+  orcaRemoteHostNames = namesWhere (host: (host.features.orcaRemote.mode or "off") == "desktop-app");
   inventory = builtins.mapAttrs (
     _: host:
     (builtins.removeAttrs host [
@@ -37,6 +38,7 @@ assert builtins.all (name: hosts.${name}.desktopStyle != null) hostNames;
     sshHostNames
     syncthingHostNames
     inputSharingHostNames
+    orcaRemoteHostNames
     ;
   buildMatrix = map (host: {
     inherit host;

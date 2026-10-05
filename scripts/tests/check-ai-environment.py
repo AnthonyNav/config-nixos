@@ -176,11 +176,19 @@ class Integration(unittest.TestCase):
     def test_hook_upgrade_removes_old_group(self):
         manager.reconcile(self.home, self.manifest, False)
         replacement = copy.deepcopy(self.manifest)
-        group = replacement["json"][".claude/settings.json"][0]["value"][0]
+        entry = next(entry for entry in replacement["json"][".claude/settings.json"] if entry["path"] == ["hooks", "PreToolUse"])
+        group = entry["value"][0]
         group["hooks"][0]["command"] = "/new/store/hook"
         manager.reconcile(self.home, replacement, False)
         settings = json.loads((self.home / ".claude/settings.json").read_text())
         self.assertEqual(settings["hooks"]["PreToolUse"], [group])
+
+    def test_disable_preserves_preexisting_empty_hook_arrays(self):
+        settings = self.seed(".claude/settings.json", '{"hooks":{"SessionStart":[]},"permissions":{"defaultMode":"default"}}')
+        before = json.loads(settings.read_text())
+        manager.reconcile(self.home, self.manifest, False)
+        manager.reconcile(self.home, {"json": {}, "text": {}}, False)
+        self.assertEqual(json.loads(settings.read_text()), before)
 
     def test_malformed_markers_and_backup_symlinks_fail_before_writes(self):
         self.seed(".codex/AGENTS.md", manager.START + "\npartial edit")

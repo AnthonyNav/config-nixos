@@ -7,6 +7,7 @@ import importlib.util
 import os
 from pathlib import Path
 import shutil
+import subprocess
 import tempfile
 import tomllib
 
@@ -41,7 +42,11 @@ def merge_json(raw, previous, desired):
             values = parent.get(key, [])
             if not isinstance(values, list):
                 raise ValueError("Expected a hook array")
-            parent[key] = [v for v in values if v not in entry["value"]]
+            remaining = [v for v in values if v not in entry["value"]]
+            if not remaining and entry.get("created", False):
+                parent.pop(key, None)
+            else:
+                parent[key] = remaining
         elif key in parent:
             if parent[key] != entry["value"]:
                 raise ValueError("A fleet-owned MCP entry was modified locally; reconcile it first")
@@ -94,6 +99,34 @@ def atomic_write(path, content):
             os.unlink(name)
 
 
+def record_append_ownership(home, previous, manifest):
+    """Record presence only, so disabling restores user-owned empty hook arrays."""
+    recorded = copy.deepcopy(manifest)
+    for relative, entries in recorded.get("json", {}).items():
+        original = json.loads(read(home / relative) or "{}")
+        old = previous.get("json", {}).get(relative, [])
+        for entry in entries:
+            if entry["kind"] != "append":
+                continue
+            prior = next((value for value in old if value["kind"] == "append" and value["path"] == entry["path"]), None)
+            if prior is not None:
+                entry["created"] = prior.get("created", False)  # Legacy state is conservative.
+                continue
+            parent = original
+            for key in entry["path"][:-1]:
+                parent = parent.get(key, {}) if isinstance(parent, dict) else {}
+            entry["created"] = entry["path"][-1] not in parent
+    return recorded
+
+
+def declared_manifest(recorded):
+    result = copy.deepcopy(recorded)
+    for entries in result.get("json", {}).values():
+        for entry in entries:
+            entry.pop("created", None)
+    return result
+
+
 def plan(home, previous, desired):
     result = []
     for kind in ("json", "text"):
@@ -129,6 +162,7 @@ def reconcile(home, manifest, check):
             raise ValueError("Symlinked ownership directory")
     previous = json.loads(read(state) or "{}")
     changes = plan(home, previous, manifest)  # Validate ALL targets before writing.
+    recorded = record_append_ownership(home, previous, manifest)
     for path, _, _ in changes:
         if path.with_name(path.name + ".fleet-ai-backup").is_symlink():
             raise ValueError("Symlinked backup")
@@ -145,7 +179,7 @@ def reconcile(home, manifest, check):
                 atomic_write(backup, raw)
             atomic_write(path, updated)
             written.append((path, raw, updated, existed))
-        atomic_write(state, json.dumps(manifest, indent=2) + "\n")
+        atomic_write(state, json.dumps(recorded, indent=2) + "\n")
     except (ValueError, OSError):
         for path, raw, updated, existed in reversed(written):
             # Preserve concurrent user edits rather than overwriting them.
@@ -155,6 +189,44 @@ def reconcile(home, manifest, check):
                 else:
                     path.unlink()
         raise
+
+
+def information(home, bundle):
+    """Credential-free diagnostics; eligibility never implies a running service."""
+    spec = importlib.util.spec_from_file_location("workspace_identity", Path(__file__).with_name("workspace-context.py"))
+    identity = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(identity)
+    spec = importlib.util.spec_from_file_location("portable_workspace", Path(__file__).with_name("workspace.py"))
+    portable = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(portable)
+    config = json.loads((bundle / "workspace-policy.json").read_text())
+    info = identity.resolve(config)
+    binaries = {name: shutil.which(name) for name in ("codex", "claude", "kiro-cli", "opencode", "orca-ide", "agy", "bwrap", "socat", "nsjail")}
+    warnings = []
+    for agent, required in (("codex", ("bwrap",)), ("claude", ("bwrap", "socat")), ("agy", ("nsjail",))):
+        if binaries[agent]:
+            for binary in required:
+                if not binaries[binary]:
+                    warnings.append(f"{agent}: missing Linux sandbox dependency {binary}")
+    return {
+        "schema_version": 1,
+        "host": json.loads((bundle / "host.json").read_text()),
+        "context": info["context"],
+        "directory": info["directory"],
+        "git_common_dir": info["git_common_dir"],
+        "workspace": portable.snapshot(config, info["workspace"]),
+        "skills": sorted(path.parent.name for path in (bundle / "skills").glob("*/SKILL.md")),
+        "binaries": binaries,
+        "sandbox": {
+            "codex": {"backend": "bubblewrap", "dependencies_available": bool(binaries["bwrap"]), "runtime_verified": False},
+            "claude": {"backend": "native Bash sandbox", "dependencies_available": bool(binaries["bwrap"] and binaries["socat"]), "runtime_verified": False},
+            "antigravity": {"applicable": bool(binaries["agy"]), "dependencies_available": bool(binaries["nsjail"]) if binaries["agy"] else None, "runtime_verified": False},
+            "opencode": {"backend": "permission policy", "os_isolation_claimed": False},
+            "kiro": {"backend": "local permission/trust policy", "os_isolation_claimed": False},
+        },
+        "orca_runtime_status": "not probed; availability/policy do not imply a running runtime",
+        "warnings": warnings,
+    }
 
 
 def doctor(home, bundle):
@@ -184,13 +256,18 @@ def doctor(home, bundle):
         print(f'Orca skill {name}: {"not installed" if not path.exists() else "read-only link; needs owner review" if path.is_symlink() else "mutable local stub"}')
     for binary in ("orca-ide", "postman", "posting", "hurl", "tofu", "terragrunt", "kubectl", "helm", "k9s", "kustomize", "kubectx", "kubens", "stern", "trivy", "syft", "grype", "cosign", "dive", "gitleaks", "sops", "age", "nmap", "mtr", "iperf3", "dig", "host", "tcpdump", "fd", "yq", "just", "watchexec", "hyperfine", "nvd"):
         print(f'{binary}: {shutil.which(binary) or "not selected/present"}')
-    print("Managed Syncthing roots: fleet-work -> ~/Workspace/work; fleet-personal -> ~/Workspace/personal (shared/ only)")
+    runtime = information(home, bundle)
+    print("Workspace handoff: " + json.dumps(runtime["workspace"]))
+    print("Orca Remote policy: " + json.dumps(facts.get("orcaRemote", {})) + " (runtime not probed)")
+    failures.extend(runtime["warnings"])
+    print("Sandbox dependencies: " + json.dumps(runtime["sandbox"]) + " (verify the agents' effective native modes separately)")
+    print("Managed Syncthing roots: fleet-work/personal -> ~/Workspace/{work,personal}; project HANDOFF/docs/assets plus legacy shared/")
     print("Postman: fleet wrapper provides GTK schemas; GUI health requires a deployed session")
     print(f'MCP catalog: {len(registry)}; enabled: ' + json.dumps(json.loads((bundle / "enabled.json").read_text())))
     try:
         previous = json.loads(read(home / ".local/state/nixos-ai/ownership.json") or "{}")
         pending = plan(home, previous, manifest)
-        if pending or previous != manifest:
+        if pending or declared_manifest(previous) != manifest:
             failures.append("integration missing or drifted; activate reviewed main to reconcile")
     except (ValueError, OSError) as exc:
         failures.append(str(exc))
@@ -218,17 +295,36 @@ def doctor(home, bundle):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("action", choices=("check", "apply", "doctor"))
+    parser.add_argument("action", choices=("check", "apply", "doctor", "info"))
     parser.add_argument("--home", type=Path, default=Path.home())
     parser.add_argument("--bundle", type=Path, required=True)
+    parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
     try:
+        if args.action == "info":
+            data = information(args.home, args.bundle)
+            if args.json:
+                print(json.dumps(data, indent=2))
+            else:
+                facts = data["host"]
+                print(f'{facts["host"]}: {facts["role"]} ({facts["platform"]})')
+                print(f'Context: {data["context"]}; workspace: ' + (data["workspace"]["root"] if data["workspace"] else "none"))
+                if data["workspace"]:
+                    workspace = data["workspace"]
+                    print(f'HANDOFF: {workspace["handoff"]}; age={workspace["handoff_age_seconds"]}s; conflicts={len(workspace["handoff_conflicts"])}')
+                    for repo in workspace["repositories"]:
+                        print(f'{repo["name"]}: branch={repo["branch"] or "detached"}; dirty={repo["dirty"]}; worktrees={repo["worktree_count"]}')
+                print("Orca: " + data["orca_runtime_status"])
+                print("Sandbox: " + json.dumps(data["sandbox"]))
+                for warning in data["warnings"]:
+                    print("ATTENTION: " + warning)
+            return 0
         if args.action == "doctor":
             return doctor(args.home, args.bundle)
         manifest = json.loads((args.bundle / "manifest.json").read_text())
         reconcile(args.home, manifest, args.action == "check")
         return 0
-    except (ValueError, OSError) as exc:
+    except (ValueError, OSError, subprocess.TimeoutExpired) as exc:
         # Error type/path only; never include a raw settings file or parser document.
         print(f"ai-environment: {type(exc).__name__}: integration validation failed; recovery was attempted for any written fleet entries.", file=__import__("sys").stderr)
         return 1

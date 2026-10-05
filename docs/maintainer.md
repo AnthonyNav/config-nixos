@@ -216,7 +216,7 @@ daemon settings from `modules/system/common.nix` and need no bootstrap step.
 OpenCode's providers, models, permissions, plugins and credentials remain
 user-owned. Its launcher adds fleet context and selected MCPs through a
 process-local overlay, preserving JSON/JSONC files. The shared
-[AI environment](ai-environment.md) publishes six canonical skills for Codex,
+[AI environment](ai-environment.md) publishes eight canonical skills for Codex,
 Claude Code, Kiro and universal discovery used by OpenCode/Orca. Mutable settings stay user-owned; an
 activation reconciler updates only recorded fleet entries and preserves local
 permissions, credentials and unrelated hooks. MCP enablement defaults to empty.
@@ -224,7 +224,7 @@ Run `ai-doctor` after an authorized deployment to check the local integration.
 
 Workspace identities are resolved at invocation, with neutral default, separate
 GitHub CLI directories and existing read-only AWS profiles. Canonical roots,
-external Git worktrees, shared-only Syncthing migration, secret contracts and
+external Git worktrees, portable handoffs, document-only Syncthing migration, secret contracts and
 rollback are documented in [workspace-workflow.md](workspace-workflow.md).
 Keep real credentials outside Git/store. Never use shell display variables as
 authentication selectors or restore the global work identity/HTTPS rewrite.

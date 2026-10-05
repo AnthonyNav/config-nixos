@@ -6,6 +6,14 @@ import os
 from pathlib import Path
 import tempfile
 
+SCOPE = "\n".join([
+    "!/shared", "!/shared/**",  # PR #77 compatibility; never move user data.
+    "!/*/HANDOFF.md", "!/*/HANDOFF.sync-conflict*.md",
+    "!/*/docs", "!/*/docs/**",
+    "!/*/assets", "!/*/assets/**",
+    "*", "",
+])
+
 
 def read(path):
     if path.is_symlink() or (path.exists() and not path.is_file()):
@@ -56,7 +64,7 @@ def plan(folders):
         if not isinstance(previous, dict):
             raise ValueError("Invalid ignore ownership")
         user = remove_owned(raw, previous)
-        desired = {"deny": "\n".join(patterns) + "\n", "scope": "!/shared\n!/shared/**\n*\n"}
+        desired = {"deny": "\n".join(patterns) + "\n", "scope": SCOPE}
         content = block("deny", desired["deny"]) + user + ("\n" if user and not user.endswith("\n") else "") + block("scope", desired["scope"])
         if not previous and target.exists():
             backup = root / ".stignore.fleet-backup"

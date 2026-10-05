@@ -65,6 +65,10 @@ let
     name = "ai-doctor";
     text = ''exec ${command "doctor"} "$@"'';
   };
+  fleetInfo = pkgs.writeShellApplication {
+    name = "fleet-info";
+    text = ''exec ${command "info"} "$@"'';
+  };
   workspaceTools = import ../../packages/workspace-tools.nix {
     inherit pkgs lib;
     inherit (config.home) homeDirectory;
@@ -133,7 +137,10 @@ in
       }
     ];
     home.packages =
-      lib.optional cfg.enable doctor
+      lib.optionals cfg.enable [
+        doctor
+        fleetInfo
+      ]
       ++ [ (if cfg.enable then opencode else aiToolsPackages.opencode) ]
       ++ lib.optional cfg.artemis.enable artemis;
     home.file = lib.mkIf cfg.enable (

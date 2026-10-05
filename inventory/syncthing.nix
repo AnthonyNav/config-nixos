@@ -3,11 +3,12 @@
   managedFolderPrefix = "fleet-";
   reconcileInterval = "10m";
 
-  # Denials precede user exclusions and the shared-only allowlist. These files
+  # Denials precede user exclusions and the document allowlist. These files
   # are installed locally on BOTH hosts before registering a folder in the API.
   ignorePatterns = [
-    "/repos"
-    "/worktrees"
+    "repos"
+    "worktrees"
+    ".fleet-*"
     ".git"
     ".stignore*"
     "node_modules"
@@ -50,15 +51,16 @@
   folders = {
     work = {
       id = "fleet-work";
-      label = "Work Shared";
+      label = "Work Workspace Documents";
       relativePath = "Workspace/work";
       migrationFrom = "fleet-shared";
       type = "sendreceive";
+      # null = eligible fleet; [] = opt out; ["desktop"] = local-only work data.
       hosts = null;
     };
     personal = {
       id = "fleet-personal";
-      label = "Personal Shared";
+      label = "Personal Workspace Documents";
       relativePath = "Workspace/personal";
       migrationFrom = "fleet-shared";
       type = "sendreceive";

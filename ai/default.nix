@@ -133,6 +133,11 @@ let
     };
     graphics = hostFeatures.graphics or "none";
     inherit (hostFeatures) connectivity;
+    orcaRemote = {
+      mode = hostFeatures.orcaRemote.mode or "off";
+      preferredRuntime = hostFeatures.orcaRemote.preferredRuntime or false;
+      headlessImplemented = false;
+    };
   };
   context =
     builtins.readFile ./context/global.md
@@ -148,6 +153,7 @@ let
       "Graphics: ${facts.graphics}"
       "Capabilities (eligibility): ${builtins.toJSON facts.capabilities}"
       "Connectivity policy: ${builtins.toJSON facts.connectivity}"
+      "Orca Remote policy (not runtime health): ${builtins.toJSON facts.orcaRemote}"
     ]
     + "\n";
   skillNames = builtins.attrNames (
@@ -166,6 +172,13 @@ let
     "${pkgs.python3}/bin/python3"
     "${../scripts/ai-rtk-hook.py}"
     "${rtk}/bin/rtk"
+  ];
+  workspaceHook = lib.escapeShellArgs [
+    "${pkgs.python3}/bin/python3"
+    "-B"
+    "${../scripts}/ai-workspace-hook.py"
+    "--policy"
+    (toString workspaceTools.configuration)
   ];
   workspaceTools = import ../packages/workspace-tools.nix { inherit pkgs lib homeDirectory; };
   contextFile = pkgs.writeText "fleet-context.md" context;
@@ -264,6 +277,25 @@ let
           {
             path = [
               "hooks"
+              "SessionStart"
+            ];
+            kind = "append";
+            value = [
+              {
+                matcher = "startup|resume|clear|compact";
+                hooks = [
+                  {
+                    type = "command";
+                    command = workspaceHook;
+                    timeout = 10;
+                  }
+                ];
+              }
+            ];
+          }
+          {
+            path = [
+              "hooks"
               "PreToolUse"
             ];
             kind = "append";
@@ -302,7 +334,7 @@ let
   kiroAgent = {
     name = "nixos-fleet";
     description = "NixOS fleet context and shared maintenance skills";
-    prompt = "Use the supplied fleet context and relevant skills. Respect the current project's instructions.";
+    prompt = "At session start run fleet-info --json, read the resolved workspace HANDOFF.md, then the repository instructions. Use relevant fleet skills and respect the current task's authorization.";
     resources = [
       "file://${homeDirectory}/.kiro/steering/nixos-fleet.md"
       "file://.kiro/steering/**/*.md"

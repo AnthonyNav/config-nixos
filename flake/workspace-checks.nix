@@ -21,6 +21,32 @@ let
   );
 in
 {
+  portable-workspace =
+    pkgs.runCommand "portable-workspace-check"
+      {
+        nativeBuildInputs = [
+          pkgs.python3
+          pkgs.git
+        ];
+      }
+      ''
+        export PYTHONDONTWRITEBYTECODE=1
+        python ${../scripts/tests/check-portable-workspace.py} ${../scripts}
+        touch "$out"
+      '';
+  workspace-sync =
+    pkgs.runCommand "workspace-sync-check"
+      {
+        nativeBuildInputs = [
+          pkgs.python3
+          pkgs.syncthing
+        ];
+      }
+      ''
+        export PYTHONDONTWRITEBYTECODE=1
+        python ${../scripts/tests/check-workspace-sync.py} ${../scripts/syncthing-ignores.py} ${pkgs.writeText "workspace-sync-policy.json" (builtins.toJSON (import ../inventory/syncthing.nix))} ${pkgs.syncthing}/bin/syncthing
+        touch "$out"
+      '';
   workspace-context =
     pkgs.runCommand "workspace-context-check"
       {

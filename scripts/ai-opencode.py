@@ -107,7 +107,8 @@ def overlay(bundle, config, env, arguments=()):
     workspace = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(workspace)
     directory = project_directory(arguments)
-    context = workspace.resolve(config, git_prefix=["-C", str(directory)], directory=directory)["context"]
+    info = workspace.resolve(config, git_prefix=["-C", str(directory)], directory=directory)
+    context = info["context"]
     desired = json.loads((bundle / "opencode-overlay.json").read_text())
     registry = {"fleet-" + entry["id"]: entry for entry in json.loads((bundle / "registry.json").read_text())}
     # Each process gets its own selection. Other concurrent contexts stay intact.
@@ -132,6 +133,10 @@ def overlay(bundle, config, env, arguments=()):
             raise ValueError("Invalid OpenCode instructions")
         instructions.extend(item for item in values if item not in instructions)
     instructions.extend(item for item in desired["instructions"] if item not in instructions)
+    if info["workspace"]:
+        handoff = info["workspace"]["handoff"]
+        if handoff not in instructions:
+            instructions.append(handoff)
     current["instructions"] = instructions
     current["mcp"] = current.get("mcp", {}) | desired["mcp"]
     env = env.copy()

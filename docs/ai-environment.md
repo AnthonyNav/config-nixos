@@ -11,11 +11,11 @@ for identity, synchronization and migration.
 
 - `ai/context/{global,nixos}.md`: short shared instructions.
 - `ai/default.nix`: evaluated host facts and four harness adapters.
-- `ai/skills/*/SKILL.md`: six canonical fleet procedures.
+- `ai/skills/*/SKILL.md`: eight canonical fleet procedures.
 - `ai/mcp/registry.nix`: catalog with ownership/trust/context/auth metadata.
 - `ai/mcp/policy.nix`: explicit per-harness defaults and per-host selections.
 - `modules/home/ai-environment.nix`: Home Manager integration.
-- `ai-doctor`: local diagnostics without network/login checks.
+- `ai-doctor` and `fleet-info [--json]`: local diagnostics without network/login checks.
 
 | Assistant | Context | Skills | RTK |
 |---|---|---|---|
@@ -27,14 +27,14 @@ for identity, synchronization and migration.
 Universal discovery is `~/.agents/skills`, also visible to Orca-discovered Agent
 Skills. Home Manager owns the named fleet links, not the whole directory.
 Orca's mutable upstream stubs are managed explicitly with `orca-skills-sync`;
-they are never installed/updated by activation. `fleet-orca-workspaces` is the
-sixth canonical skill.
+they are never installed/updated by activation. fleet-workspace and
+fleet-agent-orchestration add portable recovery and scoped coordination.
 
 Kiro custom agents may omit global steering. `kiro-cli chat --agent nixos-fleet`
 explicitly references fleet context/skills without changing the default agent
 or trusting tools automatically.
 
-Activation reconciles a bounded Codex AGENTS section, one Claude hook group,
+Activation reconciles a bounded Codex AGENTS section, Claude RTK/SessionStart hook groups,
 and only recorded `fleet-*` MCP entries in Codex config.toml, Claude's
 `~/.claude.json` and Kiro settings/mcp.json. Other entries, hooks, permissions,
 models and credentials are preserved. Preflight validates all targets, rejects
@@ -66,6 +66,38 @@ are retained. Global, project and explicitly selected configuration paths are
 checked for conflicting reserved fleet IDs. Invalid/colliding configuration
 fails before OpenCode starts. No persistent OpenCode ownership manifest or
 configuration replacement is created.
+
+The resolved workspace HANDOFF.md path joins OpenCode's instructions for this
+process only. Claude SessionStart uses the hook cwd, resolves linked worktrees
+and injects at most 8 KiB from that workspace's regular handoff file. Oversized
+or unavailable context asks the agent to inspect it explicitly. Hook failures
+do not execute fallback commands. Codex AGENTS and Kiro steering/custom-agent
+prompt instruct fresh sessions to run fleet-info and read the resolved handoff
+and repo instructions. These latter adapters are advisory; builds cannot prove
+model compliance. Handoffs are subordinate to session permissions, never scripts.
+
+Global coordination starts with one agent; authorized independent workers have
+separate worktrees/scopes and a lead owning integration/final validation. Two or
+three workers is a ceiling, reduced under resource pressure. Workers do not
+receive publication or recursive delegation authority.
+
+## Linux sandbox dependencies
+
+modules/system/ai-helper.nix declares bubblewrap and socat for both workstations.
+Codex uses system bwrap when available; Claude's native Bash sandbox uses
+bubblewrap/socat on Linux. Dependencies do not enable or prove effective isolation.
+User permissions/settings stay intact. Verify Codex restrictions and Claude
+/sandbox in real fresh deployed sessions.
+
+Antigravity is not installed. When a separately reviewed managed CLI is added,
+fleet.agentRuntime.antigravityCli = true declares its nsjail companion. ai-doctor
+warns if agy is present but nsjail is missing. OpenCode/Kiro local permissions
+are not reported as OS containment. fleet-info distinguishes dependencies from
+runtime_verified, which stays false unless independently tested.
+
+[Codex sandbox requirements](https://learn.chatgpt.com/docs/sandboxing) and
+[Claude Linux dependencies](https://code.claude.com/docs/en/sandboxing) describe
+the native backends; recheck them against the pinned versions on upgrades.
 
 Project positional arguments and `run --dir` select the same canonical context
 as Git. Wrong-context fleet MCPs receive `enabled = false` and restricted
@@ -137,7 +169,7 @@ registry; agents use their harness adapter.
 
 ## Validation and acceptance
 
-`checks.x86_64-linux.ai-environment` checks both host contexts, six skill
+`checks.x86_64-linux.ai-environment` checks both host contexts, eight skill
 frontmatters/links, JSON/TOML adapters and rejection cases. Temporary-home tests
 exercise preservation, idempotence, disabling, dry-run, collisions, symlinks and
 write-failure compensation. Process tests cover simultaneous work/personal
