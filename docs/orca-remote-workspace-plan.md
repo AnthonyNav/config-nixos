@@ -697,6 +697,111 @@ A UPS may improve availability later but is not an architectural dependency.
 
 # 10. Security and recovery constraints
 
+## Agent sandbox baseline
+
+Treat sandbox dependencies as part of the reproducible AI runtime, but install
+only dependencies that a managed agent actually uses.
+
+### Codex
+
+Install system `bubblewrap` and ensure `bwrap` is available on `PATH` for
+all workstations that run Codex.
+
+Codex's Linux filesystem sandbox prefers the first suitable system `bwrap`
+found on `PATH`; current Codex can fall back to its bundled Bubblewrap when a
+system copy is unavailable. The fleet should not rely on that fallback as its
+normal state.
+
+Target:
+
+```text
+NixOS
+└── bubblewrap
+    └── bwrap
+        └── Codex Linux sandbox
+```
+
+Acceptance:
+
+```sh
+command -v bwrap
+bwrap --version
+codex --version
+```
+
+`ai-doctor` should warn if Codex is installed but a system `bwrap` is not
+discoverable.
+
+Do not disable Codex sandboxing merely to silence compatibility problems. If a
+command legitimately needs host/network access, preserve the agent's normal
+approval/escape mechanism.
+
+### Antigravity
+
+If Antigravity CLI (`agy`) is installed by the fleet, also install `nsjail`
+on Linux.
+
+Antigravity documents `nsjail` as its Linux terminal-sandbox backend. Keep the
+normal/default sandbox/permission mode rather than enabling unrestricted/Turbo
+execution globally.
+
+Acceptance:
+
+```sh
+command -v nsjail
+nsjail --help
+agy --version
+```
+
+`ai-doctor` should warn when `agy` is present but its documented Linux
+sandbox backend is unavailable.
+
+### Claude Code
+
+Do not add Bubblewrap, Firejail or another external sandbox wrapper solely for
+Claude Code unless its pinned version explicitly requires one.
+
+Claude Code has a native Bash sandbox/permission configuration. Prefer that
+supported mechanism and keep approval gates intact. The fleet may validate that
+sandbox configuration is available/enabled according to the adopted policy,
+while preserving user-owned credentials and unrelated settings.
+
+### OpenCode
+
+OpenCode's documented safety boundary is its granular permission engine
+(`allow` / `ask` / `deny`) for edits, shell commands, external directories,
+subagents and skills.
+
+Do not claim OS-level sandbox isolation where OpenCode only provides permission
+policy. Do not introduce Firejail/Bubblewrap around OpenCode globally without a
+separate compatibility/security review.
+
+### Kiro
+
+Local Kiro CLI uses its own permission/trust model. Kiro cloud sessions run in a
+provider-managed cloud sandbox.
+
+Do not install an additional local sandbox package solely for Kiro unless its
+pinned local CLI documents a concrete runtime dependency.
+
+### No generic sandbox stacking
+
+Do not install or wrap all agents with Firejail, containers, Bubblewrap or
+similar tools merely because they exist.
+
+Nested sandboxes can break:
+
+- Git/SSH agents;
+- Docker sockets;
+- Android/emulator access;
+- browser automation;
+- MCP stdio servers;
+- Orca PTYs;
+- project dev environments.
+
+Every additional containment layer requires a documented threat model,
+compatibility test and explicit ownership.
+
 The audit identified these mandatory boundaries:
 
 - Remote Orca stays behind Tailscale/LAN.
@@ -739,7 +844,11 @@ Report:
 - Orca CLI availability;
 - local/remote Orca runtime availability where safely detectable;
 - installed agent tools;
-- relevant fleet skills.
+- relevant fleet skills;
+- Codex system Bubblewrap availability;
+- Antigravity `nsjail` availability when `agy` is installed;
+- supported/native sandbox or permission configuration status where it can be
+  checked without reading secrets.
 
 Never print:
 
@@ -797,6 +906,18 @@ From a fresh Codex/Claude/OpenCode/Kiro session:
 - agent replacement after an intentional session termination resumes correctly
   from HANDOFF + Git/worktree state.
 
+## Sandbox/tool isolation
+
+- Codex sees system `bwrap` and can execute a sandboxed harmless command;
+- removing system `bwrap` in an isolated test proves Codex's bundled fallback
+  remains a fallback rather than the fleet's expected steady state;
+- when Antigravity CLI is installed, `nsjail` is available and its terminal
+  sandbox can run a harmless workspace command;
+- Claude Code uses its supported sandbox/permission mechanism without an
+  fleet-invented wrapper;
+- OpenCode/Kiro permission behavior is not mislabeled as OS isolation;
+- no generic Firejail/container wrapper is applied to every agent.
+
 ## Isolation
 
 - Desktop offline does not prevent local Victus development;
@@ -839,6 +960,12 @@ The follow-up implementation is complete when:
   without the user re-explaining the environment;
 - agents follow a shared orchestration policy: no unnecessary workers, one lead
   owns integration/final validation, and parallel workers have isolated scopes;
+- Codex has system `bubblewrap` available instead of normally depending on its
+  bundled fallback;
+- Antigravity has `nsjail` available whenever `agy` is part of the managed
+  fleet toolchain;
+- other agents use their supported native sandbox/permission mechanisms unless
+  a separate reviewed requirement justifies another OS containment layer;
 - Desktop can act as an optional primary Orca runtime over Tailscale;
 - Victus remains fully autonomous;
 - Android can continue/supervise Desktop-hosted Orca work;
