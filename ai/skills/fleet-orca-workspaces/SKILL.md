@@ -3,6 +3,11 @@ name: fleet-orca-workspaces
 description: Coordinate Orca workspaces, agent worktrees and project environments across the NixOS workstations with explicit work/personal identities.
 ---
 
+Resolve the logical workspace with fleet-info or workspace-context status and
+read its HANDOFF.md before resuming tasks. workspace open imports its repositories
+using Orca's supported CLI; the shared folder/handoff supplies the multi-repo group.
+For remote runtime preparation and acceptance, read docs/orca.md in the fleet repo.
+
 Inspect existing Orca tabs, workspaces, repositories and Git worktrees before
 creating anything. On Linux use the pinned `orca-ide` CLI. First load the
 version-matched guide with `orca-ide skills get orca-cli`; consult orchestration

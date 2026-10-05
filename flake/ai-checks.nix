@@ -90,8 +90,69 @@ let
     }
   );
   python = pkgs.python3.withPackages (ps: [ ps.pyyaml ]);
+  systems = map (name: self.nixosConfigurations.${name}.config) fleet.workstationNames;
+  remoteFixture = self.nixosConfigurations.${representative}.extendModules {
+    specialArgs.hostFeatures = baseArgs.hostFeatures // {
+      orcaRemote.mode = "desktop-app";
+    };
+  };
+  headlessFixture = self.nixosConfigurations.${representative}.extendModules {
+    specialArgs.hostFeatures = baseArgs.hostFeatures // {
+      orcaRemote.mode = "headless";
+    };
+  };
+  antigravityFixture = self.nixosConfigurations.${representative}.extendModules {
+    modules = [ { fleet.agentRuntime.antigravityCli = true; } ];
+  };
+  offFixture = self.nixosConfigurations.${representative}.extendModules {
+    specialArgs.hostFeatures = baseArgs.hostFeatures // {
+      orcaRemote.mode = "off";
+    };
+  };
+  endpoints = import ../inventory/endpoints.nix { };
+  remoteFleet = import ../inventory/fleet.nix {
+    hosts = fleet.hosts // {
+      ${representative} = fleet.hosts.${representative} // {
+        features = fleet.hosts.${representative}.features // {
+          orcaRemote.mode = "desktop-app";
+        };
+      };
+    };
+  };
+  remoteEndpoints = import ../inventory/endpoints.nix { fleet = remoteFleet; };
 in
 {
+  agent-runtime-policy =
+    assert lib.all (
+      system:
+      builtins.elem pkgs.bubblewrap system.environment.systemPackages
+      && builtins.elem pkgs.socat system.environment.systemPackages
+    ) systems;
+    assert lib.all (
+      name:
+      let
+        system = self.nixosConfigurations.${name}.config;
+        enabled = (fleet.hosts.${name}.features.orcaRemote.mode or "off") == "desktop-app";
+      in
+      (builtins.elem endpoints.ports.orca system.networking.firewall.interfaces.tailscale0.allowedTCPPorts)
+      == enabled
+    ) fleet.workstationNames;
+    assert
+      !(builtins.elem endpoints.ports.orca offFixture.config.networking.firewall.interfaces.tailscale0.allowedTCPPorts);
+    assert builtins.elem pkgs.nsjail antigravityFixture.config.environment.systemPackages;
+    assert builtins.elem endpoints.ports.orca
+      remoteFixture.config.networking.firewall.interfaces.tailscale0.allowedTCPPorts;
+    assert
+      !(builtins.elem endpoints.ports.orca remoteFixture.config.networking.firewall.allowedTCPPorts);
+    assert !(builtins.tryEval headlessFixture.config.system.build.toplevel.drvPath).success;
+    assert
+      (builtins.any (endpoint: endpoint.name == "orca") endpoints.tailnet)
+      == (fleet.orcaRemoteHostNames != [ ]);
+    assert
+      (lib.findFirst (endpoint: endpoint.name == "orca") null remoteEndpoints.tailnet).hosts
+      == lib.sort builtins.lessThan (lib.unique (fleet.orcaRemoteHostNames ++ [ representative ]));
+    assert remoteEndpoints.public == [ ];
+    pkgs.runCommand "agent-runtime-policy-check" { } ''touch "$out"'';
   ai-environment =
     assert rejects { registry = registry ++ registry; };
     assert rejects (

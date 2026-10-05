@@ -12,6 +12,7 @@
     ./syncthing-fleet.nix
     ./resource-policy.nix
     ./backup.nix
+    ./orca-remote.nix
   ];
 
   time.timeZone = "America/Mexico_City";

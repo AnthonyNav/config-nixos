@@ -14,7 +14,8 @@ let
   sshEnabled = connectivity.ssh or false;
   syncthingEnabled = connectivity.syncthing or false;
   inputSharingEnabled = inputSharing.enable or false;
-  requiresIncoming = sshEnabled || syncthingEnabled || inputSharingEnabled;
+  orcaRemoteEnabled = (hostFeatures.orcaRemote.mode or "off") == "desktop-app";
+  requiresIncoming = sshEnabled || syncthingEnabled || inputSharingEnabled || orcaRemoteEnabled;
   hostName = hostFeatures.hostName or "";
 in
 {
@@ -37,7 +38,7 @@ in
     }
     {
       assertion = !requiresIncoming || policy.node.allowIncoming;
-      message = "SSH, Syncthing and input sharing require incoming Tailscale connections.";
+      message = "SSH, Syncthing, input sharing and Orca Remote require incoming Tailscale connections.";
     }
   ];
 

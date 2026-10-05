@@ -24,6 +24,10 @@ in
   desktop = workstation // {
     systemModule = ../hosts/desktop;
     features = {
+      orcaRemote = {
+        mode = "off";
+        preferredRuntime = true;
+      };
       virtualization.enable = true;
       gpuCompute.enable = true;
       graphics = "nvidia";
@@ -42,6 +46,10 @@ in
   victus = workstation // {
     systemModule = ../hosts/victus;
     features = {
+      orcaRemote = {
+        mode = "off";
+        preferredRuntime = false;
+      };
       virtualization.enable = true;
       gpuCompute.enable = true;
       graphics = "nvidia-prime";

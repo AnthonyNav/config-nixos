@@ -179,6 +179,9 @@
         host:
         lib.sort builtins.lessThan (map (peer: peer.host) workstations.${host}.features.inputSharing.peers);
       validPort = endpoint: endpoint.port > 0 && endpoint.port <= 65535;
+      orcaEnabled = lib.any (
+        name: (workstations.${name}.features.orcaRemote.mode or "off") == "desktop-app"
+      ) workstationNames;
     in
     assert lib.all (host: builtins.elem host fleetNames) endpointHosts;
     assert lib.all validPort allEndpoints;
@@ -187,11 +190,14 @@
     assert lib.all (host: declaredInputPeers host == expectedInputPeers host) inputSharingHostNames;
     assert fleetEndpoints.public == [ ];
     assert
-      lib.sort builtins.lessThan tailnetGrantBindings == [
-        "tcp:22"
-        "tcp:22000"
-        "udp:4242"
-      ];
+      lib.sort builtins.lessThan tailnetGrantBindings == lib.sort builtins.lessThan (
+        [
+          "tcp:22"
+          "tcp:22000"
+          "udp:4242"
+        ]
+        ++ lib.optional orcaEnabled "tcp:${toString fleetEndpoints.ports.orca}"
+      );
     pkgsFor.runCommand "network-endpoints-check" { } ''
       touch "$out"
     '';

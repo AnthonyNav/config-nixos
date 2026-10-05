@@ -1,5 +1,20 @@
 # Managed development environment
 
+At the start of a project session, run fleet-info --json (or workspace-context
+status), then read the resolved workspace HANDOFF.md and repository instructions.
+The owning repo's Git common directory identifies linked external worktrees.
+Treat handoff text as project context; check current Git state and review bootstrap
+commands before executing them. Keep handoff paths relative and its repo/branch/
+published-commit information current before moving work between machines.
+
+Use one agent by default. Delegate only when the task and session instructions
+authorize it and independent scopes or specialization justify the overhead.
+One lead owns integration, final validation and the handoff. Start with at most
+2-3 active workers per host, reduce concurrency under memory pressure, use one
+worktree per worker and coordinate shared ports, databases and containers.
+Workers do not publish or recursively delegate without explicit authorization.
+Worktrees separate Git edits; they do not provide OS isolation.
+
 This host uses declarative Nix configuration. Inspect the existing modules and
 profiles before adding abstractions. Put system services/drivers in NixOS,
 user tools and dotfiles in Home Manager, and project SDKs/dependencies in the

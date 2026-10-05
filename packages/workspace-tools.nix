@@ -18,10 +18,11 @@ let
   );
   wrappers = pkgs.runCommand "workspace-tools" { nativeBuildInputs = [ pkgs.makeWrapper ]; } ''
     mkdir -p "$out/bin"
-    for command in git gh aws workspace-context work-context identity-doctor \
+    for command in git gh aws workspace workspace-context work-context identity-doctor \
       aws-work aws-personal aws-login aws-profile-setup aws-whoami gh-login gh-whoami; do
       makeWrapper ${pkgs.python3}/bin/python3 "$out/bin/$command" \
-        --add-flags ${lib.escapeShellArg (toString ../scripts/workspace-context.py)} \
+        --add-flags "-B" \
+        --add-flags ${lib.escapeShellArg "${../scripts}/workspace-context.py"} \
         --add-flags "--config ${configuration} $command" \
         --set FLEET_WRAPPER_BIN "$out/bin"
     done

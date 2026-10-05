@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Invocation-scoped identity routing. Resolution never contacts the network."""
 import argparse
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -10,6 +11,7 @@ import subprocess
 import sys
 
 CONTEXTS = ("neutral", "work", "personal")
+RESERVED_WORKSPACES = {"repos", "worktrees", "shared"}
 GH_VARIABLES = ("GH_TOKEN", "GITHUB_TOKEN", "GH_ENTERPRISE_TOKEN", "GITHUB_ENTERPRISE_TOKEN", "GH_CONFIG_DIR", "GH_HOST")
 GIT_IDENTITY_VARIABLES = ("GIT_AUTHOR_NAME", "GIT_AUTHOR_EMAIL", "GIT_COMMITTER_NAME", "GIT_COMMITTER_EMAIL", "EMAIL", "GIT_SSH", "GIT_SSH_COMMAND", "GIT_SSH_VARIANT", "GIT_CONFIG_PARAMETERS", "GIT_CONFIG_COUNT")
 AWS_VARIABLES = ("AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SECURITY_TOKEN", "AWS_SESSION_TOKEN", "AWS_PROFILE", "AWS_DEFAULT_PROFILE", "AWS_CONFIG_FILE", "AWS_SHARED_CREDENTIALS_FILE", "AWS_ROLE_ARN", "AWS_ROLE_SESSION_NAME", "AWS_WEB_IDENTITY_TOKEN_FILE", "AWS_CONTAINER_CREDENTIALS_FULL_URI", "AWS_CONTAINER_CREDENTIALS_RELATIVE_URI", "AWS_CONTAINER_AUTHORIZATION_TOKEN", "AWS_CONTAINER_AUTHORIZATION_TOKEN_FILE", "AWS_EC2_METADATA_SERVICE_ENDPOINT")
@@ -27,6 +29,24 @@ def path_context(config, path):
     if len(matches) > 1:
         raise ValueError("Overlapping work/personal roots")
     return next(iter(matches), "neutral")
+
+
+def workspace_location(config, path):
+    """Discover the owning project without reading its handoff or credentials."""
+    if not path:
+        return None
+    path = Path(path).resolve()
+    home = Path(config["homeDirectory"]).resolve()
+    for context in ("work", "personal"):
+        parent = home / "Workspace" / context
+        if not within(path, parent) or path == parent:
+            continue
+        name = path.relative_to(parent).parts[0]
+        root = parent / name
+        handoff = root / "HANDOFF.md"
+        if name not in RESERVED_WORKSPACES and not root.is_symlink() and not handoff.is_symlink() and handoff.is_file():
+            return {"name": name, "context": context, "root": str(root), "handoff": str(handoff)}
+    return None
 
 
 def git_options(args, cwd=None):
@@ -81,7 +101,12 @@ def resolve(config, git_prefix=None, directory=None, env=None):
     if direct_context != "neutral" and common_context != "neutral" and direct_context != common_context:
         raise ValueError("Worktree location conflicts with the original repository context")
     context = override or (direct_context if direct_context != "neutral" else common_context)
+    direct_workspace = workspace_location(config, location)
+    common_workspace = workspace_location(config, common)
+    if direct_workspace and common_workspace and direct_workspace["root"] != common_workspace["root"]:
+        raise ValueError("Worktree location conflicts with the original workspace")
     return {"context": context, "directory": str(directory), "git_common_dir": common,
+            "workspace": common_workspace or direct_workspace,
             "source": "explicit" if override else "path" if direct_context != "neutral" else "git-common-dir" if common_context != "neutral" else "neutral"}
 
 
@@ -271,6 +296,11 @@ def main():
             git_command(config, options.config, args)
         elif action == "git-ssh":
             git_ssh(config, args)
+        elif action == "workspace":
+            spec = importlib.util.spec_from_file_location("portable_workspace", Path(__file__).with_name("workspace.py"))
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            return module.main(config, options.config, args, sys.modules[__name__])
         else:
             info = resolve(config)
             if action.startswith("aws"):

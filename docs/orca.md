@@ -57,7 +57,7 @@ repository context. Explicit `workspace-context exec work -- COMMAND` also scope
 SDK dependency caches. See [workspace-workflow.md](workspace-workflow.md) for
 account login, neutral refusal, migration and rollback.
 
-Home Manager links only the six `fleet-*` skills, including
+Home Manager links only the eight `fleet-*` skills, including
 `fleet-orca-workspaces`, into universal and harness-specific discovery. Upstream
 Orca stubs stay mutable and are refreshed only by an explicit user action:
 
@@ -106,6 +106,49 @@ Desktop and Victus stay autonomous. Optional SSH worktrees may use the existing
 Tailscale/SSH boundary after local acceptance; no permanent Orca server or new
 public service is provisioned. Remote acceptance must verify the original host,
 project environment and account context separately.
+
+## Optional Desktop App Remote Server
+
+Both inventory features.orcaRemote.mode values default to "off". Desktop is the
+preferred optional runtime; Victus stays autonomous. Evaluated AI facts and
+fleet-info expose that policy without claiming a running server. The system
+module supports only off/desktop-app, never starts Orca, provisions tokens or
+enables linger. Headless is rejected until recovery is designed/tested.
+
+For a separately authorized deployment of reviewed main, select "desktop-app"
+on the intended host. The endpoint registry and per-interface firewall then
+admit TCP 6768 only on tailscale0. Inspect/apply the reviewed tailnet policy
+output separately. No public firewall port or public tailnet service is added.
+The other workstation keeps working when Desktop is asleep or unavailable.
+
+Before opting in, verify the actual app listener and access link's port against
+inventory/endpoints.nix. 6768 is the explicit upstream CLI example, not evidence
+about a running Desktop App listener. If the supported UI setup uses another
+port, declare that verified port in reviewed configuration. An advertised
+Tailscale address does not restrict the server's listening interface.
+
+On Desktop, use Settings → Remote Orca Servers → Advertise this app as a server
+→ New Link, select its Tailscale address and generate the access link. On Victus,
+Add Server with that private link. Pair Android through the supported mobile
+flow with the phone on the same tailnet. Pairing links/client grants stay in
+user-owned runtime state, never HANDOFF.md, Git or Nix.
+
+Remote agents use Desktop's repositories, tools and provider credentials, not
+Victus's login cache. Verify each remote worktree's context. Use one host mode at
+a time and preserve original-session questions/approvals.
+[Upstream Remote Servers](https://www.onorca.dev/docs/remote-servers).
+
+Real-device acceptance remains pending: connection, network loss/reconnect,
+Android background/resume, Claude/Codex questions and rejection, work/personal
+identity, multi-repo paths, handoff replacement and autonomous Victus use while
+Desktop is unavailable. Record versions, actual listener and reachability from
+tailnet and ordinary LAN paths. Package builds cannot establish these results.
+
+After stable Phase A use, decide whether persistence is needed. An optional user
+systemd service around orca-ide serve belongs to Phase C, after a backup destination
+and restoration test exist. Restic remains prepared/off. A server restart does
+not resurrect agent memory or recover unpublished work; Git plus HANDOFF.md remain
+the recovery contract.
 
 ## Development checks
 

@@ -7,6 +7,7 @@ let
     ssh = 22;
     syncthing = 22000;
     lanMouse = 4242;
+    orca = 6768;
   };
 in
 {
@@ -33,7 +34,20 @@ in
       port = ports.lanMouse;
       hosts = fleet.inputSharingHostNames;
     }
-  ];
+  ]
+  ++ (
+    if fleet.orcaRemoteHostNames == [ ] then
+      [ ]
+    else
+      [
+        {
+          name = "orca";
+          protocol = "tcp";
+          port = ports.orca;
+          hosts = fleet.orcaRemoteHostNames;
+        }
+      ]
+  );
 
   public = [ ];
 }

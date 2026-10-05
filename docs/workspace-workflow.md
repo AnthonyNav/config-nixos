@@ -2,7 +2,8 @@
 
 Desktop and Victus share this workflow. ThinkPad remains retired; its data is
 retained. Backup jobs and rootless Docker remain disabled. This implements
-[PR #77](https://github.com/AnthonyNav/config-nixos/pull/77); activation is a
+[PR #77](https://github.com/AnthonyNav/config-nixos/pull/77) and the portable phase
+of [PR #79](https://github.com/AnthonyNav/config-nixos/pull/79); activation is a
 separate action from reviewed, published `main`.
 
 ## Layout and ownership
@@ -10,16 +11,36 @@ separate action from reviewed, published `main`.
 ```text
 ~/Workspace/
 ├── work/
-│   ├── repos/       primary work repositories
-│   ├── worktrees/   branches and agent worktrees
-│   └── shared/      deliberately shared work documents
+│   └── <project>/
+│       ├── HANDOFF.md   portable recovery contract
+│       ├── docs/        deliberately shared documents
+│       ├── assets/      deliberately shared assets
+│       └── repos/       one or several Git repositories
 └── personal/
-    ├── repos/       primary personal repositories
-    ├── worktrees/   branches and agent worktrees
-    └── shared/      deliberately shared personal documents
+    └── <project>/       same structure
 ```
 
-Home Manager creates directories without moving files, cloning repositories or
+Home Manager retains legacy root-level repos/, worktrees/ and shared/ without
+moving data. The workspace CLI creates project folders on explicit request:
+
+```sh
+workspace new work cello
+workspace repo add cello git@github.com:ORG/backend.git --context work
+workspace repo add cello git@github.com:ORG/frontend.git --context work
+workspace open cello --context work
+workspace status cello --context work --json
+fleet-info --json
+```
+
+Names resolve within the current identity, or across both contexts from a neutral
+location. Ambiguous names require --context. Repo names come from the URL, with
+optional --repo-name. SSH/HTTPS remotes must contain no credentials. Local Git
+sources work for testing but require the same source path on another host.
+Creation is idempotent; existing handoff text/repos are preserved. Managed writes
+reject symlink traversal, reserved legacy names and unresolved handoff conflicts.
+A local per-project lock serializes CLI writes and is excluded from sync.
+
+Home Manager creates compatibility directories without cloning repositories or
 logging in. `~/projects/` and `~/nixos-config/` remain personal compatibility
 roots. Work repositories elsewhere are neutral until deliberately moved or
 invoked in an explicit work scope.
@@ -84,13 +105,16 @@ explicitly select those profiles. IAM must enforce read-only access; the local
 operation-name allowlist cannot enforce IAM permissions. Setup/login mutate
 local configuration/cache only. See [work-context.md](work-context.md).
 
-## Shared-only synchronization and migration
+## Document synchronization and migration
 
 The managed IDs are `fleet-work` at `~/Workspace/work` and `fleet-personal` at
-`~/Workspace/personal`. Only `shared/` is eligible. Local `.stignore` places
+`~/Workspace/personal`. Eligible content is each project's HANDOFF.md,
+HANDOFF.sync-conflict files, docs/ and assets/, plus legacy root shared/.
+Local `.stignore` places
 mandatory exclusions first, preserved positive user exclusions next, and the
-shared-only allowlist last. Repos, worktrees, caches, build outputs, agent state,
-keys, token/secret files and live databases remain excluded inside `shared/`.
+document allowlist last. Entire repos/ and worktrees/ directories are denied at
+every depth before reinclusions. Caches, build outputs, agent state, keys,
+token/secret files and live databases remain excluded inside allowed paths.
 Names cannot identify every secret: place only reviewed documents/assets there.
 
 The reconciler validates all ignore files and installs exclusions before REST
@@ -99,6 +123,11 @@ folder registration. `.stignore.fleet-state` records owned blocks;
 negations/`#include`, conflicting owned edits and malformed state fail before
 API writes. Review such rules manually instead of removing them to force a run.
 Positive user exclusions are retained. Local ignore/state files are not synced.
+The reconciler migrates its recorded old shared-only scope without moving data.
+In inventory/syncthing.nix, folder hosts = null selects all eligible hosts; []
+opts out; an explicit list limits replication (work hosts = [ "desktop" ] is
+local-only). Review employer requirements before sharing work documents.
+Syncthing is not a backup.
 
 The old `fleet-shared` declaration is retired with a private local configuration
 snapshot in Syncthing's config directory; its data directory remains. Only pause,
@@ -115,11 +144,39 @@ in each `shared/` directory. Manually copy selected old shared data, compare bot
 machines and retain the source. Review worktrees, remotes, Orca/editor and direnv
 paths before moving repositories. No automatic file migration/pruning occurs.
 
+## Portable handoff and WIP
+
+HANDOFF.md is plain Markdown. The generated bounded repo table records remote,
+relative path, base/active branch and the last observed remote commit; adding a
+repo appends one row and preserves other text. Keep the registry markers if using
+workspace repo add. Agents maintain objective, bootstrap/dependency order,
+decisions, pending work and publication observations throughout the task.
+Review .envrc before allowing it; no CLI command executes handoff/bootstrap text.
+
+Before switching hosts, verify each active branch and published SHA through
+authorized Git operations. A cached tracking ref does not prove current remote
+state. Record local-only changes explicitly. WIP task commits can preserve
+authorized progress; clean them before requesting PR review/audit/merge and
+coordinate shared-history rewrites. workspace status reports WIP commits since
+the clone's origin/HEAD base and history readiness. With no base the result is
+unknown. This is advisory, not branch protection or automatic history rewriting.
+
+Assign one handoff writer. HANDOFF.sync-conflict files are preserved/synchronized
+for reconciliation and stop further CLI updates. On another host, read the
+handoff, clone repos into the stated paths, fetch/switch verified branches, read
+repo instructions and enter their project environments. A new agent resumes from
+Git plus the handoff after a host restart; RAM, uncommitted files and running
+processes are not restored by that contract.
+
 ## AI, Orca and tools
 
-Six canonical `fleet-*` skills are linked into Codex, Claude, Kiro and universal
+Eight canonical `fleet-*` skills are linked into Codex, Claude, Kiro and universal
 `~/.agents/skills` discovery. Only those named links belong to Home Manager.
-`fleet-orca-workspaces` covers this workflow. Orca-owned stubs remain mutable:
+fleet-workspace and fleet-agent-orchestration cover recovery and coordination.
+Codex/Kiro receive startup instructions to resolve/read the handoff; Claude's
+SessionStart hook injects one bounded handoff; OpenCode adds its resolved path to
+the instruction overlay. Live model behavior remains a post-deployment check.
+Orca-owned stubs remain mutable:
 
 ```sh
 orca-skills-sync --dry-run
@@ -147,6 +204,16 @@ adapter; native OAuth is eligible only for `context = "any"`. Runtime Bearer HTT
 uses pinned `mcp-proxy` client mode without a listening service. See
 [ai-environment.md](ai-environment.md) for the runtime secret contract.
 
+workspace open launches the supported Orca CLI and registers individual repos.
+The shared folder/handoff supplies the multi-repo logical group; native grouping
+or task creation is not fabricated by editing Orca state. Offline/no-Orca use
+continues through local paths and Git. Remote preparation defaults off; see
+[orca.md](orca.md).
+
+fleet-info [--json] reports host policy, workspace/handoff age/conflicts, repo
+branches/commits/worktrees, declared project environments, tools and sandbox
+dependencies. It does not read handoff content, remotes or credential values,
+authenticate, start Orca or assert runtime health. JSON carries schema_version.
 `ai-doctor` reports context, common directory, profile selection, fleet/Orca skills,
 agent/platform availability and declared synchronization paths without login,
 credential reading or network calls. Availability does not prove service health.

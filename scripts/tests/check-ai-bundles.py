@@ -28,7 +28,8 @@ for host, location in fixtures["hosts"].items():
         assert metadata["name"] == path.parent.name
         assert isinstance(metadata["description"], str) and metadata["description"]
         names.append(metadata["name"])
-    assert len(names) == 6 and len(set(names)) == len(names)
+    assert len(names) == 8 and len(set(names)) == len(names)
+    assert {"fleet-workspace", "fleet-agent-orchestration"} <= set(names)
     manifest = json.loads((bundle / "manifest.json").read_text())
     assert manifest["text"][".codex/AGENTS.md"] == context
     assert all(not values for values in json.loads((bundle / "enabled.json").read_text()).values())
