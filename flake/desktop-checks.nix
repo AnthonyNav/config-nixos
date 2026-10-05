@@ -55,7 +55,7 @@ in
       }
       ''
         shellcheck ${../scripts/syncthing-fleet-reconcile.sh}
-        python ${../scripts/tests/check-syncthing.py} ${../scripts/syncthing-fleet-reconcile.sh}
+        python ${../scripts/tests/check-syncthing.py} ${../scripts}/syncthing-fleet-reconcile.sh
         touch "$out"
       '';
   desktop-appearance =

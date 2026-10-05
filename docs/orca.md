@@ -6,8 +6,8 @@ The module defaults to false; the installer does not import the daily profile.
 
 ## Package and ownership
 
-`packages/orca-ide.nix` pins the upstream Linux x86_64 `.deb` by version and
-SHA-256. Nix extracts its contents without running Debian maintainer scripts.
+`packages/orca-ide.nix` pins the upstream **1.4.220** Linux x86_64 `.deb` by
+version and SHA-256. Nix extracts it without running Debian maintainer scripts.
 `autoPatchelfHook` links the vendor Electron and native modules to Nix libraries.
 `dpkg` is a build dependency only. The package runs natively: an FHS user
 namespace makes root-owned Home Manager store links appear owned by nobody,
@@ -20,13 +20,19 @@ remain available to autoPatchelf. A version-specific, match-count-checked patch
 selects the Nix Bash executable for local hooks and terminal profiles. Remote
 hook shell paths are deliberately unchanged. Review these matches on upgrades.
 
+The new `resources/orcad-template` glibc/musl/ARM payloads are kept outside local
+fixups and restored afterward. Rewriting their interpreters/native dependencies
+to this workstation's Nix store would break remote SSH deployments. Build checks
+inspect the remote native modules for accidental local store references.
+
 The desktop entry launches `orca-ide-gui`; `orca-ide` is the bundled CLI.
 Neither command claims the GNOME screen reader's `orca` name. Both launchers
-set `ORCA_TELEMETRY_DISABLED=1` and inherit the user's agent installations.
+set `ORCA_TELEMETRY_DISABLED=1`. The Home Manager desktop/CLI launchers put the
+fleet identity wrappers on PATH, including noninteractive agent launches.
 No extra agent, SDK, account, permission policy, MCP connection, autostart or
 network service is provisioned by this module.
 
-The `.deb` retains its `resources/package-type` marker. In upstream 1.4.216,
+The `.deb` retains its `resources/package-type` marker. In the packaged updater,
 the absence of apt/dpkg in trusted system directories identifies an externally
 managed installation: Orca may check for and report new releases, but refuses
 update downloads and installation. The launcher refuses to run if those package
@@ -36,12 +42,70 @@ on every update. Reverting the package does not reverse application-state
 migrations, so retain a local backup before upgrading an established profile.
 
 Home Manager does not own Orca's mutable settings, sessions or credentials.
-Keep them outside Git, Nix expressions and `Sync/Fleet`. Preserve the existing
+Keep them outside Git, Nix expressions and synchronized `shared/` directories. Preserve the existing
 fleet-managed agent context, hooks and skills; do not import or overwrite
 personal agent settings during onboarding without inspecting the changes.
 The package already supplies the CLI; skip Orca's optional CLI registration.
 If a prior manual installation shadows it, inspect `type -a orca-ide` before
 removing or changing anything.
+
+## Workspace and skills
+
+Use canonical work/personal roots and check `workspace-context status` inside
+each primary repository/worktree. External linked worktrees inherit the primary
+repository context. Explicit `workspace-context exec work -- COMMAND` also scopes
+SDK dependency caches. See [workspace-workflow.md](workspace-workflow.md) for
+account login, neutral refusal, migration and rollback.
+
+Home Manager links only the six `fleet-*` skills, including
+`fleet-orca-workspaces`, into universal and harness-specific discovery. Upstream
+Orca stubs stay mutable and are refreshed only by an explicit user action:
+
+```sh
+orca-skills-sync --dry-run
+orca-skills-sync
+orca-ide skills get orca-cli
+# Optional Android automation, distinct from phone remote control:
+orca-skills-sync --android --dry-run
+```
+
+The helper targets approved core stubs and skips unrelated skills. Install uses
+universal discovery; update applies to existing upstream placements. Review
+symlinked/read-only placements manually. The actual 1.4.220 CLI dry-run resolves
+the installer without executing it. No activation hook installs/downloads stubs.
+The [upstream skill commands](https://www.onorca.dev/docs/cli/skills) provide
+version-matched guides rather than copying their contents into fleet skills.
+
+## Supervised permissions and Android
+
+Set **Settings → Agents → Agent Permissions → Manual** for supervised launches.
+Orca preserves customized agent arguments; review those individually for bypass
+flags. This is a user-owned UI setting, not an opaque state patch or build-time
+assertion. [Upstream permission behavior](https://www.onorca.dev/docs/agents/supported)
+documents the global switch. Mobile approval cannot change fleet context.
+
+Pair the Android companion to the intended workstation using Orca's supported
+pairing UI. The reviewed candidate as of 2026-10-04 is
+[Android 0.0.52](https://github.com/stablyai/orca/releases/tag/mobile-android-v0.0.52),
+which upstream marks **pre-release**. Record the actual desktop/mobile versions;
+do not treat mobile support as proven by the Nix package build.
+
+On each workstation, validate transcript/status, follow-up prompts, a Claude
+structured question/permission, a supported Codex approval/question, rejection,
+Chat UI/Terminal View switching and reconnection to the original session.
+Check pending input directly; push notifications alone are insufficient.
+An async Codex question can show prose without a decision card while
+[issue #20073](https://github.com/stablyai/orca/issues/20073) remains open.
+For that case send an ordinary reply with question/answer text through the
+supported composer or Terminal View. An async display acknowledgement is not
+an answer; never fabricate a blocking state or send the digit/Escape sequence
+for a different blocking prompt. True blocking approvals still need their native
+approval/Terminal View path. Record this fallback on the real phone.
+
+Desktop and Victus stay autonomous. Optional SSH worktrees may use the existing
+Tailscale/SSH boundary after local acceptance; no permanent Orca server or new
+public service is provisioned. Remote acceptance must verify the original host,
+project environment and account context separately.
 
 ## Development checks
 
@@ -51,6 +115,7 @@ From a short-lived branch based on current main:
 nix build .#orca-ide --no-link
 nix fmt
 nix flake check --no-build --no-write-lock-file
+nix build --no-link .#checks.x86_64-linux.workflow-packages
 nix-check all
 ```
 
@@ -70,8 +135,10 @@ published main through the normal `nix-update` / `nix-switch` workflow.
 2. Check `orca-ide --version`, `type -a claude codex opencode kiro-cli` and
    `ai-doctor` inside an Orca terminal. Compare with a fresh external terminal.
    Verify existing fleet context/skills and the Claude RTK hook remain intact.
-3. Add one development repository, fetch its base and create two short-lived
-   branches/worktrees from the updated base. Run at most two agents initially.
+3. Add one work and one personal repository; inspect context and selected Git
+   identity. Fetch their bases and create short-lived branches/worktrees from
+   the updated base. Validate an external linked worktree. Start with one agent,
+   then at most two for the resource acceptance workload when authorized.
    Do not launch installers or agent self-updaters from Orca.
 4. Review each worktree's `.envrc` before authorizing direnv. Confirm the shell
    loads the project's locked environment. For noninteractive commands use
@@ -88,6 +155,8 @@ published main through the normal `nix-update` / `nix-switch` workflow.
 7. Confirm update UI identifies the installation as externally managed when
    a newer release is available. Do not treat an unavailable update as a
    successful exercise of the update guard.
+8. Complete the real Android/Manual-permission matrix above and record results
+   for both hosts, including unsupported cards and the fallback used.
 
 Run and record this acceptance separately on each workstation after deployment.
 Herdr and the existing editors remain available.
@@ -101,10 +170,9 @@ safe.
 
 ## References
 
-- [Upstream release](https://github.com/stablyai/orca/releases/tag/v1.4.216)
+- [Pinned release](https://github.com/stablyai/orca/releases/tag/v1.4.220)
 - [Install and Linux CLI](https://www.onorca.dev/docs/install)
-- [Pinned external package ownership detection](https://github.com/stablyai/orca/blob/v1.4.216/src/main/linux-update-package-type.ts)
-- [Pinned updater tests](https://github.com/stablyai/orca/blob/v1.4.216/src/main/updater.linux-externally-managed.test.ts)
+- [Original package ownership contract](https://github.com/stablyai/orca/blob/v1.4.216/src/main/linux-update-package-type.ts) (recheck the bundled updater on upgrades)
 - [Telemetry control](https://www.onorca.dev/docs/telemetry)
 - [Project environments](project-environments.md)
 - [Fleet AI environment](ai-environment.md)

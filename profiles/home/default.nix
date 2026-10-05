@@ -9,6 +9,7 @@ let
     development = ./development;
     data-science = ./development/data-science.nix;
     creative = ./creative-production.nix;
+    platform = ./platform.nix;
   };
   selected = hostFeatures.homeProfiles;
 in

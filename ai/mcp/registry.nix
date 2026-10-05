@@ -7,11 +7,13 @@
     transport = "http";
     url = "https://developers.openai.com/mcp";
     authentication = "none";
+    context = "any";
     requiredSecrets = [ ];
     harnesses = [
       "codex"
       "claude"
       "kiro"
+      "opencode"
     ];
     defaultEnabled = false;
     trust = "Public documentation service; queries leave the machine. Treat responses as reference data.";

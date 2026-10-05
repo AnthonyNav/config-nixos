@@ -4,14 +4,18 @@ Victus is the high-performance interactive workstation in this fleet. It shares 
 
 ## Role
 
-The inventory selects development, data-science and creative in `profiles/home/default.nix`:
+The inventory selects development, data-science, creative and platform in `profiles/home/default.nix`:
 
 - `development`: Flutter/Android, web/backend, AI tools, API/database tooling.
 - `development/data-science.nix`: Micromamba, DuckDB, and JupyterLab.
 - `creative-production.nix`: Resolve, Kdenlive, Blender, Krita, GIMP, Inkscape, Glaxnimate, FFmpeg/NVENC, and multi-GPU `nvtop`.
+- `platform`: infrastructure/Kubernetes, supply-chain, secrets and network CLI clients; no background workloads.
 - `performance-workstation.nix`: `work-balanced`, `work-performance`, and `work-save`.
 
 Project-specific ML frameworks are intentionally not installed globally. Keep PyTorch, TensorFlow, NumPy/Pandas/scikit-learn and CUDA development libraries in project-specific Nix/uv/Micromamba environments so versions remain reproducible and do not inflate every workstation generation.
+
+See [workspace-workflow.md](workspace-workflow.md) for neutral/work/personal
+identity, two shared-only Syncthing roots and the per-host Orca/Android acceptance.
 
 ## GPU model
 

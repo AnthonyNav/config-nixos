@@ -1,5 +1,11 @@
 # Codex Git Prompt Correction
 
+Historical incident analysis. PR #77 removes the global work identity and
+HTTPS-to-SSH rewrite described below. Current invocation-scoped routing is in
+[work-context.md](work-context.md); the noninteractive Codex wrapper remains.
+The fleet now requires two system and two Home builds. Real TUI acceptance
+still requires a separately deployed session.
+
 ## Reported problem
 
 Opening a Codex session on Victus produced raw escape sequences when moving
@@ -54,7 +60,7 @@ nix-check all
 ```
 
 The wrapper is shared by Desktop and Victus. `nix-check all` builds
-the executable flake checks and all six NixOS/Home Manager outputs without
+the executable flake checks and all four NixOS/Home Manager workstation outputs without
 activation. Keep `flake.lock` unchanged.
 
 Inspect the wrapper in the Codex package output selected by Home Manager.

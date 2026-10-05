@@ -1,5 +1,10 @@
 # Global AI Environment Plan
 
+Historical design notes. The implemented Linux contract, including universal
+skills and the bounded OpenCode adapter, is [ai-environment.md](ai-environment.md).
+The current workspace/context design supersedes older default-work and
+OpenCode-unmanaged decisions; see [workspace-workflow.md](workspace-workflow.md).
+
 ## Goal
 
 Provide one declarative source of truth so every supported AI harness knows:

@@ -5,6 +5,7 @@
     codex = [ ];
     claude = [ ];
     kiro = [ ];
+    opencode = [ ];
   };
   hosts = { };
 }

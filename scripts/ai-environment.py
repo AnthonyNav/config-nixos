@@ -3,6 +3,7 @@
 import argparse
 import copy
 import json
+import importlib.util
 import os
 from pathlib import Path
 import shutil
@@ -133,16 +134,27 @@ def reconcile(home, manifest, check):
             raise ValueError("Symlinked backup")
     if check:
         return
-    for path, raw, updated in changes:
-        if read(path) != raw:
-            raise ValueError(f"Configuration changed during activation: {path}")
-        if path.exists():
-            backup = path.with_name(path.name + ".fleet-ai-backup")
-            if backup.is_symlink():
-                raise ValueError(f"Refusing symlink backup: {backup}")
-            atomic_write(backup, raw)
-        atomic_write(path, updated)
-    atomic_write(state, json.dumps(manifest, indent=2) + "\n")
+    written = []
+    try:
+        for path, raw, updated in changes:
+            if read(path) != raw:
+                raise ValueError(f"Configuration changed during activation: {path}")
+            existed = path.exists()
+            if existed:
+                backup = path.with_name(path.name + ".fleet-ai-backup")
+                atomic_write(backup, raw)
+            atomic_write(path, updated)
+            written.append((path, raw, updated, existed))
+        atomic_write(state, json.dumps(manifest, indent=2) + "\n")
+    except (ValueError, OSError):
+        for path, raw, updated, existed in reversed(written):
+            # Preserve concurrent user edits rather than overwriting them.
+            if read(path) == updated:
+                if existed:
+                    atomic_write(path, raw)
+                else:
+                    path.unlink()
+        raise
 
 
 def doctor(home, bundle):
@@ -150,13 +162,30 @@ def doctor(home, bundle):
     registry = json.loads((bundle / "registry.json").read_text())
     manifest = json.loads((bundle / "manifest.json").read_text())
     print(f'Host: {facts["host"]} | {facts["platform"]} | {facts["kind"]}')
+    policy = bundle / "workspace-policy.json"
+    if policy.exists():
+        spec = importlib.util.spec_from_file_location("workspace", Path(__file__).with_name("workspace-context.py"))
+        workspace = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(workspace)
+        configuration = json.loads(policy.read_text())
+        info = workspace.resolve(configuration)
+        print("Workspace: " + json.dumps(workspace.status(configuration, info)))
+        allowed = [entry["id"] for entry in registry if entry["context"] in ("any", info["context"])]
+        print("MCP eligible in this context (enablement remains separate): " + ", ".join(allowed))
     failures = []
-    for binary in ("codex", "claude", "kiro-cli", "rtk"):
+    for binary in ("codex", "claude", "kiro-cli", "opencode", "rtk"):
         present = shutil.which(binary) is not None
         print(f'{binary}: {"available" if present else "MISSING"}')
         if not present:
             failures.append(binary)
     print(f'Canonical skills: {len(list((bundle / "skills").glob("*/SKILL.md")))}')
+    for name in ("orca-cli", "orchestration", "computer-use", "orca-emulator-android"):
+        path = home / ".agents/skills" / name / "SKILL.md"
+        print(f'Orca skill {name}: {"not installed" if not path.exists() else "read-only link; needs owner review" if path.is_symlink() else "mutable local stub"}')
+    for binary in ("orca-ide", "postman", "posting", "hurl", "tofu", "terragrunt", "kubectl", "helm", "k9s", "kustomize", "kubectx", "kubens", "stern", "trivy", "syft", "grype", "cosign", "dive", "gitleaks", "sops", "age", "nmap", "mtr", "iperf3", "dig", "host", "tcpdump", "fd", "yq", "just", "watchexec", "hyperfine", "nvd"):
+        print(f'{binary}: {shutil.which(binary) or "not selected/present"}')
+    print("Managed Syncthing roots: fleet-work -> ~/Workspace/work; fleet-personal -> ~/Workspace/personal (shared/ only)")
+    print("Postman: fleet wrapper provides GTK schemas; GUI health requires a deployed session")
     print(f'MCP catalog: {len(registry)}; enabled: ' + json.dumps(json.loads((bundle / "enabled.json").read_text())))
     try:
         previous = json.loads(read(home / ".local/state/nixos-ai/ownership.json") or "{}")
@@ -201,7 +230,7 @@ def main():
         return 0
     except (ValueError, OSError) as exc:
         # Error type/path only; never include a raw settings file or parser document.
-        print(f"ai-environment: {type(exc).__name__}: integration validation failed; existing configuration preserved where not already updated.", file=__import__("sys").stderr)
+        print(f"ai-environment: {type(exc).__name__}: integration validation failed; recovery was attempted for any written fleet entries.", file=__import__("sys").stderr)
         return 1
 
 

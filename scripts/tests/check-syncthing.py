@@ -67,6 +67,10 @@ def fake_tool(tool, args):
         if method == "GET":
             result = objects if object_id is None else existing
         elif method == "POST":
+            if collection == "folders" and state.get("requireIgnores"):
+                ignore = Path(payload["path"]) / ".stignore"
+                if not ignore.is_file() or "# BEGIN fleet-ignore-scope" not in ignore.read_text():
+                    return 22
             # Syncthing POST replaces the entire object, not a recursive merge.
             state[collection] = [obj for obj in objects if obj[key] != payload[key]] + [payload]
             result = {}
@@ -117,6 +121,7 @@ class ReconcileTests(unittest.TestCase):
             ],
             "writes": [],
         }
+        self.folders = [{"id": "fleet-shared", "label": "Fleet Shared", "path": str(self.folder_path), "type": "sendreceive", "hosts": ["desktop", "victus"]}]
 
     def run_script(self, *args, expected=0):
         self.state_path.write_text(json.dumps(self.state))
@@ -125,7 +130,8 @@ class ReconcileTests(unittest.TestCase):
             "TEST_SYNCTHING_STATE": str(self.state_path),
             "SYNCTHING_CONFIG_DIR": str(self.root), "SYNCTHING_FLEET_HOST": "desktop",
             "SYNCTHING_FLEET_PEERS_JSON": '["victus"]',
-            "SYNCTHING_FLEET_FOLDERS_JSON": json.dumps([{"id": "fleet-shared", "label": "Fleet Shared", "path": str(self.folder_path), "type": "sendreceive", "hosts": ["desktop", "victus"]}]),
+            "SYNCTHING_FLEET_FOLDERS_JSON": json.dumps(self.folders),
+            "SYNCTHING_FLEET_IGNORE_HELPER": str(Path(RECONCILER).with_name("syncthing-ignores.py")),
         }
         result = subprocess.run(["bash", RECONCILER, *args], env=env, capture_output=True, text=True, timeout=30)
         self.assertEqual(result.returncode, expected, result.stderr)
@@ -192,6 +198,58 @@ class ReconcileTests(unittest.TestCase):
                 before = copy.deepcopy(self.state)
                 self.run_script(expected=75)
                 self.assertEqual(self.state, before)
+
+    def workspace_folders(self):
+        self.folders = [{"id": f"fleet-{name}", "label": name, "path": str(self.root / "Workspace" / name), "type": "sendreceive", "hosts": ["desktop", "victus"], "migrationFrom": "fleet-shared", "ignorePatterns": ["/repos", "/worktrees", ".git", ".env", "node_modules", ".stignore*"]} for name in ("work", "personal")]
+        self.state["requireIgnores"] = True
+
+    def test_workspace_migration_prepares_ignores_before_registration(self):
+        self.workspace_folders()
+        before = copy.deepcopy(self.state)
+        self.run_script()
+        managed = [folder for folder in self.state["folders"] if folder["id"].startswith("fleet-")]
+        self.assertEqual({folder["id"] for folder in managed}, {"fleet-work", "fleet-personal"})
+        for folder in managed:
+            self.assertEqual(folder["versioning"], before["folders"][0]["versioning"])
+            self.assertTrue(folder["paused"])
+            self.assertNotIn("FRIEND", {d["deviceId"] for d in folder["devices"]})
+            ignore = Path(folder["path"]) / ".stignore"
+            text = ignore.read_text()
+            self.assertLess(text.index(".env"), text.index("!/shared"))
+            self.assertEqual(ignore.stat().st_mode & 0o777, 0o600)
+        self.assertEqual((self.folder_path / "keep.txt").read_text(), "personal data")
+        retired = list(self.root.glob("fleet-retired-fleet-shared.*.json"))
+        self.assertEqual(len(retired), 1)
+        self.assertEqual(retired[0].stat().st_mode & 0o777, 0o600)
+        self.assertEqual(json.loads(retired[0].read_text()), before["folders"][0])
+        self.state["writes"] = []
+        self.run_script()
+        self.assertEqual(self.state["writes"], [])
+
+    def test_ignore_preflight_failure_leaves_all_folders_and_rest_unchanged(self):
+        self.workspace_folders()
+        root = Path(self.folders[1]["path"])
+        root.mkdir(parents=True)
+        (root / ".stignore").write_text("!/repos\n")
+        before = copy.deepcopy(self.state)
+        self.run_script(expected=78)
+        self.assertEqual(self.state, before)
+        self.assertFalse(Path(self.folders[0]["path"]).exists())
+        self.assertEqual((root / ".stignore").read_text(), "!/repos\n")
+
+    def test_preserves_positive_user_ignores_and_rejects_owned_edits(self):
+        self.workspace_folders()
+        root = Path(self.folders[0]["path"])
+        root.mkdir(parents=True)
+        (root / ".stignore").write_text("shared/private-notes\n")
+        self.run_script()
+        text = (root / ".stignore").read_text()
+        self.assertLess(text.index("shared/private-notes"), text.index("!/shared"))
+        self.assertEqual((root / ".stignore.fleet-backup").read_text(), "shared/private-notes\n")
+        (root / ".stignore").write_text(text.replace("/repos\n", "!/repos\n"))
+        self.state["writes"] = []
+        self.run_script(expected=78)
+        self.assertEqual(self.state["writes"], [])
 
 
 if __name__ == "__main__":

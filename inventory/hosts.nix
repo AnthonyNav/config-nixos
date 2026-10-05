@@ -10,6 +10,7 @@ let
       "development"
       "data-science"
       "creative"
+      "platform"
     ];
     desktopStyle = "caelestia";
     connectivity = {

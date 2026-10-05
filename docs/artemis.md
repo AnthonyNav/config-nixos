@@ -1,9 +1,10 @@
 # Optional Android automation with Artemis
 
 Artemis is an optional testing companion, not a prerequisite for Spec Kit,
-Flutter, Codex, Claude or Kiro. Every host keeps it **disabled by default**.
+Flutter, Codex, Claude, Kiro or OpenCode. Every host keeps it **disabled by default**.
 No global testing rules, skills, Android services, ports or agent permissions
-are added. OpenCode remains unmanaged. No other project repository is changed.
+are added. OpenCode uses the bounded process-local fleet adapter when explicitly
+selected; its providers/settings remain user-owned. No other project repository is changed.
 
 ## Try the CLI without changing a host profile
 
@@ -45,9 +46,10 @@ fleet.ai.artemis = {
 };
 ```
 
-`kiro` is also accepted; its generated stdio adapter is tested, but native Kiro
-login/discovery still needs manual validation. Home Manager reconciles only the
-owned `fleet-artemis` entry and preserves unrelated MCPs, permissions and hooks.
+`kiro` and `opencode` are also accepted; generated stdio adapters are tested, but
+native login/discovery still needs manual validation. Home Manager reconciles
+only the owned `fleet-artemis` entry in persistent adapters; OpenCode receives
+it in its process-local overlay. Unrelated MCPs, permissions and hooks remain.
 No tool is automatically approved. Each selected assistant can start its own
 MCP process; only explicit tool calls should dispatch device tasks.
 

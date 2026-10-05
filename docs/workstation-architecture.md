@@ -38,14 +38,20 @@ asistentes y controles de energía. El inventario selecciona `homeProfiles`:
 | `development` | IDEs, Flutter/Android, web/backend, clientes API/database |
 | `data-science` | Micromamba, DuckDB, JupyterLab y compatibilidad nativa existente |
 | `creative` | Herramientas audiovisuales y lanzadores GPU, requiere NVIDIA |
+| `platform` | Infraestructura/Kubernetes, seguridad, secretos y diagnósticos CLI |
 
-Desktop y Victus seleccionan los tres. La base diaria funciona sin ellos:
+Desktop y Victus seleccionan los cuatro. La base diaria funciona sin ellos:
 el check `fleet-policy` evalúa una workstation sintética integrada sin
 NVIDIA, VM, GPU compute ni SDKs. No exporta una máquina desplegable.
 
 `fleet.home.profiles` es un hecho evaluado de sólo lectura, no un segundo
 selector. Cambia `homeProfiles` en el inventario. `homeModules = [ ];`
 permite excepciones explícitas, no copias del entorno completo.
+
+El perfil `platform` instala clientes sin iniciar infraestructura o capturas.
+Las identidades se resuelven por invocación con contexto neutral predeterminado;
+Syncthing administra dos raíces y solo comparte `shared/`. Consulta
+[workspace-workflow.md](workspace-workflow.md) para migración y validación.
 
 ## Agregar un dotfile
 
