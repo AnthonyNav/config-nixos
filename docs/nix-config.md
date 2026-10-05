@@ -59,6 +59,24 @@ from deployment and require a separate feature branch.
 Rollbacks are an intentional recovery exception: they operate on an existing
 generation and do not require Git or a successful current evaluation.
 
+## Recovering an installed Git identity hook
+
+If `nix-update` reports that Python cannot open
+`/nix/store/...-source/scripts/workspace-context.py`, an older Git configuration
+points to a flake source that is no longer available. Use the installed
+workspace wrapper to supply the personal Git identity for the update:
+
+```sh
+workspace-context exec personal -- nix-update
+```
+
+This keeps the personal account and its SSH key selection. The corrected Home
+Manager configuration retains the script in its store dependencies for both SSH
+and GitHub HTTPS authentication, so garbage collection cannot remove it while
+that generation remains installed.
+The Orca server helpers and Syncthing ignore reconciler retain their scripts in
+the same way.
+
 ## Before First Activation
 
 The command is also exposed as a flake app, so a checkout that has not installed

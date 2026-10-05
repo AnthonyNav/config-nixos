@@ -30,7 +30,7 @@ let
     lib.escapeShellArgs [
       "${pkgs.python3}/bin/python3"
       "-B"
-      (toString ../../scripts/orca-server.py)
+      "${../../scripts}/orca-server.py"
       action
       "--home"
       config.home.homeDirectory
