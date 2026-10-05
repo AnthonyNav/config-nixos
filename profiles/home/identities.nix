@@ -25,7 +25,7 @@ let
     lib.escapeShellArgs [
       "${pkgs.python3}/bin/python3"
       "-B"
-      (toString ../../scripts/workspace-context.py)
+      "${../../scripts}/workspace-context.py"
       "--config"
       (toString tools.configuration)
       action
@@ -111,7 +111,7 @@ in
                 + lib.escapeShellArgs [
                   "${pkgs.python3}/bin/python3"
                   "-B"
-                  (toString ../../scripts/workspace-context.py)
+                  "${../../scripts}/workspace-context.py"
                   "--config"
                   (toString tools.configuration)
                   "gh-${context}"

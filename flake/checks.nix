@@ -213,6 +213,24 @@
       gitSettings = homeConfig.programs.git.settings;
       sshSettings = homeConfig.programs.ssh.settings;
       identityPolicy = import ../inventory/identities.nix;
+      retainsScript =
+        filename: command:
+        lib.any (path: lib.hasInfix "${path}/${filename}" command) (
+          builtins.attrNames (builtins.getContext command)
+        );
+      includesRetainScripts = lib.all (
+        include:
+        retainsScript "workspace-context.py" include.contents.core.sshCommand
+        && retainsScript "workspace-context.py" (
+          builtins.elemAt include.contents.credential."https://github.com".helper 1
+        )
+      ) homeConfig.programs.git.includes;
+      orcaHelpers = lib.filter (
+        package: lib.hasPrefix "orca-server-" package.name
+      ) homeConfig.home.packages;
+      syncthingHelpers =
+        lib.filter (package: package.name == "syncthing-fleet-reconcile")
+          self.nixosConfigurations.${builtins.head workstationNames}.config.users.users.${username}.packages;
     in
     assert identityPolicy.default == "neutral";
     assert gitSettings.user.useConfigOnly;
@@ -227,6 +245,10 @@
     assert builtins.elem "nixos-config/" identityPolicy.identities.personal.roots;
     assert identityPolicy.identities.work.aws.profile == "work-readonly";
     assert identityPolicy.identities.personal.aws.profile == "personal-readonly";
+    # Embedded commands must retain their script as a store dependency after GC.
+    assert includesRetainScripts;
+    assert lib.all (package: retainsScript "orca-server.py" package.text) orcaHelpers;
+    assert lib.all (package: retainsScript "syncthing-ignores.py" package.text) syncthingHelpers;
     pkgsFor.runCommand "identity-policy-check" { } ''
       touch "$out"
     '';
