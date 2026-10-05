@@ -7,7 +7,7 @@
   aiToolsPackages,
 }:
 let
-  representative = builtins.head fleet.workstationNames;
+  representative = builtins.head fleet.nixosHostNames;
   baseArgs = {
     inherit lib pkgs;
     hostFeatures =
@@ -77,7 +77,7 @@ let
     }
   );
   rejects = args: !(builtins.tryEval (import ../ai (baseArgs // args)).selected).success;
-  bundles = lib.genAttrs fleet.workstationNames (
+  bundles = lib.genAttrs fleet.nixosHostNames (
     name: self.homeConfigurations."${username}@${name}".config.fleet.ai.bundle
   );
   fixtures = pkgs.writeText "ai-fixtures.json" (
@@ -90,7 +90,7 @@ let
     }
   );
   python = pkgs.python3.withPackages (ps: [ ps.pyyaml ]);
-  systems = map (name: self.nixosConfigurations.${name}.config) fleet.workstationNames;
+  systems = map (name: self.nixosConfigurations.${name}.config) fleet.nixosHostNames;
   remoteFixture = self.nixosConfigurations.${representative}.extendModules {
     specialArgs.hostFeatures = baseArgs.hostFeatures // {
       orcaRemote.mode = "desktop-app";
@@ -99,6 +99,11 @@ let
   headlessFixture = self.nixosConfigurations.${representative}.extendModules {
     specialArgs.hostFeatures = baseArgs.hostFeatures // {
       orcaRemote.mode = "headless";
+    };
+  };
+  invalidRemoteFixture = self.nixosConfigurations.${representative}.extendModules {
+    specialArgs.hostFeatures = baseArgs.hostFeatures // {
+      orcaRemote.mode = "unknown";
     };
   };
   antigravityFixture = self.nixosConfigurations.${representative}.extendModules {
@@ -132,11 +137,11 @@ in
       name:
       let
         system = self.nixosConfigurations.${name}.config;
-        enabled = (fleet.hosts.${name}.features.orcaRemote.mode or "off") == "desktop-app";
+        enabled = (fleet.hosts.${name}.features.orcaRemote.mode or "off") != "off";
       in
       (builtins.elem endpoints.ports.orca system.networking.firewall.interfaces.tailscale0.allowedTCPPorts)
       == enabled
-    ) fleet.workstationNames;
+    ) fleet.nixosHostNames;
     assert
       !(builtins.elem endpoints.ports.orca offFixture.config.networking.firewall.interfaces.tailscale0.allowedTCPPorts);
     assert builtins.elem pkgs.nsjail antigravityFixture.config.environment.systemPackages;
@@ -144,7 +149,9 @@ in
       remoteFixture.config.networking.firewall.interfaces.tailscale0.allowedTCPPorts;
     assert
       !(builtins.elem endpoints.ports.orca remoteFixture.config.networking.firewall.allowedTCPPorts);
-    assert !(builtins.tryEval headlessFixture.config.system.build.toplevel.drvPath).success;
+    assert headlessFixture.config.users.users.${username}.linger;
+    assert !offFixture.config.users.users.${username}.linger;
+    assert !(builtins.tryEval invalidRemoteFixture.config.system.build.toplevel.drvPath).success;
     assert
       (builtins.any (endpoint: endpoint.name == "orca") endpoints.tailnet)
       == (fleet.orcaRemoteHostNames != [ ]);
@@ -153,6 +160,38 @@ in
       == lib.sort builtins.lessThan (lib.unique (fleet.orcaRemoteHostNames ++ [ representative ]));
     assert remoteEndpoints.public == [ ];
     pkgs.runCommand "agent-runtime-policy-check" { } ''touch "$out"'';
+  orca-headless =
+    let
+      home = self.homeConfigurations."${username}@desktop".config;
+      service = home.systemd.user.services.orca-serve;
+    in
+    assert self.nixosConfigurations.desktop.config.users.users.${username}.linger;
+    assert !self.nixosConfigurations.victus.config.users.users.${username}.linger;
+    assert !(self.homeConfigurations."${username}@victus".config.systemd.user.services ? orca-serve);
+    assert service.Service.Restart == "on-failure";
+    assert service.Service.RestartPreventExitStatus == 3;
+    assert service.Service.KillMode == "mixed";
+    assert service.Unit.StartLimitBurst == 5;
+    assert service.Unit.StartLimitIntervalSec == 300;
+    assert service.Install.WantedBy == [ "default.target" ];
+    assert builtins.elem "LIBGL_ALWAYS_SOFTWARE=1" service.Service.Environment;
+    assert lib.any (package: lib.getName package == "xorg-server") home.home.packages;
+    assert
+      !(builtins.elem endpoints.ports.orca self.nixosConfigurations.desktop.config.networking.firewall.allowedTCPPorts);
+    pkgs.runCommand "orca-headless-check"
+      {
+        nativeBuildInputs = [
+          pkgs.python3
+          pkgs.bash
+          pkgs.jq
+          pkgs.shellcheck
+        ];
+      }
+      ''
+        shellcheck -s bash ${../scripts/orca-serve-fleet.sh}
+        python ${../scripts/tests/check-orca-server.py} ${../scripts}
+        touch "$out"
+      '';
   ai-environment =
     assert rejects { registry = registry ++ registry; };
     assert rejects (

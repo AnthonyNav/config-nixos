@@ -1,5 +1,6 @@
 {
   config,
+  hostFeatures,
   lib,
   pkgs,
   ...
@@ -10,6 +11,10 @@ let
     inherit pkgs lib;
     inherit (config.home) homeDirectory;
   };
+  headlessGui = pkgs.writeShellScript "orca-headless-profile-owner" ''
+    printf '%s\n' 'This Orca profile is owned by orca-serve.service. Connect from a paired client; change the reviewed host mode before using its GUI.' >&2
+    exit 3
+  '';
   launcher = pkgs.symlinkJoin {
     name = "fleet-orca-${orca.version}";
     inherit (orca) version meta;
@@ -17,7 +22,12 @@ let
     nativeBuildInputs = [ pkgs.makeWrapper ];
     postBuild = ''
       wrapProgram "$out/bin/orca-ide" --prefix PATH : ${workspaceTools.wrappers}/bin
-      wrapProgram "$out/bin/orca-ide-gui" --prefix PATH : ${workspaceTools.wrappers}/bin
+      ${
+        if (hostFeatures.orcaRemote.mode or "off") == "headless" then
+          ''ln -sf ${headlessGui} "$out/bin/orca-ide-gui"''
+        else
+          ''wrapProgram "$out/bin/orca-ide-gui" --prefix PATH : ${workspaceTools.wrappers}/bin''
+      }
       # symlinkJoin shares the original desktop file; copy before modifying it.
       desktop="$out/share/applications/orca-ide.desktop"
       cp --remove-destination "$desktop" "$desktop.tmp"

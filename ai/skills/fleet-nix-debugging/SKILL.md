@@ -4,9 +4,10 @@ description: Diagnose Nix evaluation, builds, activation or systemd failures on 
 ---
 
 Identify whether failure occurs at evaluation, realization, activation or
-runtime. Record the failing installable, host and relevant commit. Use
+runtime. Record the failing installable, host, platform and relevant commit. Use
 nix eval for effective options and nix log for failed derivations; inspect
-journalctl -u UNIT and systemctl status UNIT for runtime failures.
+journalctl -u UNIT and systemctl status UNIT for Linux runtime failures. On
+Darwin inspect launchctl and macOS logs; do not require Linux sandbox tools.
 
 Compare the built result with /run/current-system and Home Manager generations.
 Do not infer deployment from the checkout branch. Inspect PATH with

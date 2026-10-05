@@ -4,6 +4,9 @@
   username,
   fleetNames,
   homeHostNames,
+  fleetHostPlatforms,
+  fleetHostUsers,
+  fleetHostSystems,
   ...
 }:
 
@@ -15,6 +18,9 @@ let
       username
       fleetNames
       homeHostNames
+      fleetHostPlatforms
+      fleetHostUsers
+      fleetHostSystems
       ;
   };
 in

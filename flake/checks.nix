@@ -110,7 +110,13 @@
     assert !desktop.systemd.sleep.settings.Sleep.AllowHibernation;
     assert !desktop.systemd.sleep.settings.Sleep.AllowHybridSleep;
     assert !desktop.systemd.sleep.settings.Sleep.AllowSuspendThenHibernate;
-    assert desktopHome.estoma.idle.suspendTimeoutSeconds == 1800;
+    assert desktopHome.estoma.idle.suspendTimeoutSeconds == null;
+    assert
+      self.homeConfigurations."${username}@victus".config.estoma.idle.suspendTimeoutSeconds == 1800;
+    assert
+      !(lib.any (
+        l: (l.on-timeout or "") == "systemctl suspend"
+      ) desktopHome.services.hypridle.settings.listener);
     assert lib.all (
       c:
       c.virtualisation.docker.enable
@@ -180,7 +186,7 @@
         lib.sort builtins.lessThan (map (peer: peer.host) workstations.${host}.features.inputSharing.peers);
       validPort = endpoint: endpoint.port > 0 && endpoint.port <= 65535;
       orcaEnabled = lib.any (
-        name: (workstations.${name}.features.orcaRemote.mode or "off") == "desktop-app"
+        name: (workstations.${name}.features.orcaRemote.mode or "off") != "off"
       ) workstationNames;
     in
     assert lib.all (host: builtins.elem host fleetNames) endpointHosts;
@@ -340,11 +346,11 @@
       systemConfigs = map (name: self.nixosConfigurations.${name}.config) workstationNames;
       homeConfigs = map (name: self.homeConfigurations."${username}@${name}".config) workstationNames;
     in
-    assert self.nixosConfigurations.desktop.config.users.users.${username}.linger == false;
+    assert self.nixosConfigurations.desktop.config.users.users.${username}.linger;
+    assert !self.nixosConfigurations.victus.config.users.users.${username}.linger;
     assert lib.all (
       c:
-      (c.users.users.${username}.linger != true)
-      && !c.services.k3s.enable
+      !c.services.k3s.enable
       && !(builtins.hasAttr "woodpecker-agent-desktop" c.systemd.services)
       && !(builtins.hasAttr "woodpecker-agent-victus" c.systemd.services)
       && !(builtins.hasAttr "remote-workspace-serve" c.systemd.services)

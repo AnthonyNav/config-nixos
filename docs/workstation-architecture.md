@@ -31,7 +31,8 @@ hostname dentro de la personalización.
 ## Entorno diario y perfiles
 
 `profiles/home/default.nix` compone siempre la base diaria, identidades/acceso,
-asistentes y controles de energía. El inventario selecciona `homeProfiles`:
+asistentes. La capa Linux añade escritorio y controles de energía; Darwin añade
+adaptadores nativos. El inventario selecciona `homeProfiles` por plataforma:
 
 | Perfil | Contenido |
 | --- | --- |
@@ -75,16 +76,22 @@ selecciona capacidades. Reutiliza la política común: no copies un Home complet
 No inventes direcciones PCI, GPU o discos del equipo de reemplazo.
 
 El constructor rechaza otros tipos de host. Todas las workstations tienen
-NixOS y Home Manager. Las listas de SSH, Syncthing, input sharing y CI salen
+Home Manager; el sistema se compone con NixOS o nix-darwin según `platform`.
+Las listas de SSH, Syncthing, input sharing y CI salen
 del inventario. La matriz actual es Desktop/Victus, cuatro builds.
 
-Esta composición sigue siendo Linux/x86_64. Darwin requiere separar módulos
-Linux y paquetes no disponibles antes de agregar un Mac real; no se afirma
-portabilidad entre sistemas operativos sólo por separar archivos.
+La base portable comparte identidades, workspaces, shell, editor y herramientas
+de IA. `profiles/home/linux.nix` y `profiles/home/darwin.nix` separan sus
+importaciones; la Mac no evalúa el escritorio ni los servicios de Linux.
+La integración Apple Silicon queda preparada sin un host real: la plantilla
+`inventory/darwin-template.nix` y los fixtures Darwin validan la composición.
+El alta futura requiere usuario/hostname reales, revisión de peers, builds en
+macOS y aceptación de GUI/launchd. Consulta [el plan](macos-workstation-plan.md)
+y [el onboarding](macos-onboarding.md).
 
 ## Retiro y preservación
 
-ThinkPad deja de ser output/peer administrado. Se eliminan perfiles headless,
+ThinkPad deja de ser output/peer administrado. Se eliminan los antiguos perfiles de host headless,
 K3s, agentes CI, publicación web y el laboratorio AlmaLinux. Docker de desarrollo
 y virt-manager/libvirt locales permanecen; no se crean VMs ni se arrancan guests.
 

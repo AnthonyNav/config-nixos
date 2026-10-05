@@ -208,7 +208,9 @@ def git_ssh(config, args):
             if aliases[host] is not None and aliases[host] != context:
                 raise PermissionError("GitHub SSH alias conflicts with the selected workspace")
             identity = config["policy"]["identities"][context]
-            ssh_args[index] = (destination.rsplit("@", 1)[0] + "@" if "@" in destination else "") + "github.com"
+            # GitHub always uses the SSH transport user `git`. Our -F /dev/null
+            # intentionally removes account-independent ~/.ssh/config routing.
+            ssh_args[index] = "git@github.com"
             ssh_args = ["-F", "/dev/null", "-i", str(Path(config["homeDirectory"]) / identity["sshKey"]), "-o", "IdentitiesOnly=yes", *ssh_args]
     if os.environ.get("GIT_TERMINAL_PROMPT") == "0":
         ssh_args = ["-o", "BatchMode=yes", *ssh_args]

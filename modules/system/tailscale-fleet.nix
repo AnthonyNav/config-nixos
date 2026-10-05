@@ -14,7 +14,7 @@ let
   sshEnabled = connectivity.ssh or false;
   syncthingEnabled = connectivity.syncthing or false;
   inputSharingEnabled = inputSharing.enable or false;
-  orcaRemoteEnabled = (hostFeatures.orcaRemote.mode or "off") == "desktop-app";
+  orcaRemoteEnabled = (hostFeatures.orcaRemote.mode or "off") != "off";
   requiresIncoming = sshEnabled || syncthingEnabled || inputSharingEnabled || orcaRemoteEnabled;
   hostName = hostFeatures.hostName or "";
 in

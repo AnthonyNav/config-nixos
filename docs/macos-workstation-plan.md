@@ -2,7 +2,7 @@
 
 ## Status
 
-Documental plan for adding an Apple Silicon MacBook Pro (M5-class,
+Implemented portability foundation for adding an Apple Silicon MacBook Pro (M5-class,
 `aarch64-darwin`) to the development fleet without trying to make macOS behave
 like NixOS.
 
@@ -11,6 +11,38 @@ system responsibilities separate.
 
 No Darwin host should be added to deployable outputs until the real Mac exists
 and its hostname/user requirements are known.
+
+The Mac is not available yet. Production inventory still contains only Desktop
+and Victus; `darwinConfigurations` is empty. `inventory/darwin-template.nix`
+provides the reviewed host shape without registering a peer. Darwin system and
+Home fixtures are exposed only under `checks.aarch64-darwin`, with Linux
+evaluation in `checks.x86_64-linux.darwin-evaluation` and a native macOS CI job.
+
+The implementation keeps existing paths: `profiles/home/base.nix` and common
+modules own portable behavior, `profiles/home/linux.nix` owns Linux behavior,
+`profiles/home/darwin.nix` owns Darwin adapters, and `modules/darwin` owns the
+macOS system. There is no directory-wide relocation.
+
+Portable AI CLIs are Codex, Claude Code, OpenCode and RTK from the locked
+`llm-agents` input. Kiro's Linux wrapper and Herdr are retained on Linux;
+Darwin does not silently install unsupported Linux packages or require their
+presence in `ai-doctor`. Optional Artemis remains off and needs separate native
+validation before enabling it on a Mac.
+
+Native ownership is explicit: Homebrew manages Orca, standalone `tailscale-app`,
+VS Code with the development profile, Android Studio with the mobile profile,
+and Colima with development. Nix owns Docker-compatible clients; Colima is
+installed without starting a VM. Xcode and project Flutter SDKs stay external
+to the workstation's common package set. Homebrew activation disables automatic
+updates, upgrades and cleanup of unrelated applications.
+
+Register Orca's native `orca` CLI in its settings after installation. The Darwin
+`orca-ide` adapter preserves shared workspace and skill commands. Tailscale's
+adapter invokes the standalone app binary; it does not install a second daemon.
+
+Evaluating Darwin on Linux does not prove Darwin builds, first activation,
+native GUI behavior, connectivity or mobile workflows. Native CI performs builds
+and portable contract tests; acceptance on the real Mac remains in onboarding.
 
 ## Target architecture
 
@@ -289,7 +321,8 @@ behave the same on Darwin.
 The Mac should support both:
 
 1. autonomous local Orca development;
-2. client access to Desktop's optional primary Orca runtime over Tailscale.
+2. client access to Desktop's primary headless Orca runtime over Tailscale after
+   its reviewed-main deployment and explicit pairing; see [Orca](orca.md).
 
 Desktop remains optional. If it is offline, the Mac must still be able to clone
 repos from their normal remotes and work locally.

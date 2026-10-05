@@ -10,24 +10,31 @@ rollback, and garbage-collection policy in one shell-independent executable.
 |---|---|
 | `nix-status` | Show checkout, upstream, and active system status. |
 | `nix-format [--check]` | Format Nix sources or verify formatting. |
-| `nix-check [current\|all]` | Run executable flake checks and build the selected NixOS and Home Manager outputs. |
-| `nix-config build system HOST` | Build one NixOS output without activation. |
+| `nix-check [current\|all]` | Run native flake checks and build the selected system and Home Manager outputs. |
+| `nix-config build system HOST` | Build one NixOS or nix-darwin output without activation. |
 | `nix-config build home HOST` | Build one Home Manager output without activation. |
 | `nix-config build all HOST` | Build both outputs for one host. |
-| `nix-config build all all` | Build all workstation outputs. |
+| `nix-config build all all` | Build workstation outputs matching the native CPU/OS system. |
 | `nix-config build iso` | Build the installer ISO. |
 | `nix-switch` | Validate and activate the system only when local `main` exactly matches `origin/main`. |
 | `nix-home-switch` | Validate and activate Home Manager under the same published-main policy. |
 | `nix-update` | Fetch and fast-forward reviewed `main`, validate the current host, and activate it. |
 | `nix-input-update` | Update `flake.lock` on a clean feature branch and validate every host. |
 | `nix-generations [system\|home]` | List rollback candidates. |
-| `nix-rollback` | Roll back the NixOS generation. |
+| `nix-rollback` | Roll back the native system generation. |
 | `nix-config rollback home PATH` | Activate a selected Home Manager generation path. |
 | `nix-clean [AGE]` | Delete generations older than `AGE`; the default is `30d`. |
 
 The short commands are thin wrappers over the corresponding `nix-config`
 subcommand. `nixos-update` and `hm-switch` remain temporary compatibility
 shims and print their replacements before continuing.
+
+Inventory selects the platform, CPU/OS and user for each output. Darwin detects
+the LocalHostName with `scutil`, builds `darwinConfigurations.<host>.system`,
+and activates through `darwin-rebuild`; NixOS keeps its existing behavior.
+`nix-config test system` remains NixOS-only. Explicit non-native build selectors
+can use a separately configured builder. No Mac is registered yet; the Darwin
+checks validate preparation without activating a fixture.
 
 ## Safety Model
 

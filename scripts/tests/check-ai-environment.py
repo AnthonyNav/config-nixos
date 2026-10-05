@@ -163,7 +163,7 @@ class Integration(unittest.TestCase):
         manager.reconcile(self.home, self.manifest, False)
         for relative in json.loads((bundle / "files.json").read_text()):
             self.seed(relative, "fixture")
-        with patch.object(manager.shutil, "which", return_value="/fixture/bin/tool"), patch.dict(os.environ, {}, clear=True):
+        with patch.object(manager.shutil, "which", return_value="/fixture/bin/tool"), patch.dict(os.environ, {}, clear=True), patch.object(manager, "orca_probe", return_value={"mode": "headless", "probed": True, "healthy": True}):
             with contextlib.redirect_stdout(io.StringIO()):
                 self.assertFalse(manager.doctor(self.home, bundle))
             settings = self.home / ".claude/settings.json"

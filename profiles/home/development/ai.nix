@@ -1,23 +1,25 @@
 {
   lib,
+  pkgs,
   aiToolsPackages,
-  herdrPackage,
-  kiroPackages,
+  herdrPackage ? null,
+  kiroPackages ? null,
   ...
 }:
 
 {
   imports = [
     ../../../modules/home/ai-environment.nix
-    ../../../modules/home/orca.nix
   ];
   fleet.ai.enable = lib.mkDefault true;
 
   home.packages = [
-    kiroPackages.cli
-    herdrPackage
     aiToolsPackages.claude-code
     aiToolsPackages.codex
     aiToolsPackages.rtk
+  ]
+  ++ lib.optionals pkgs.stdenv.hostPlatform.isLinux [
+    kiroPackages.cli
+    herdrPackage
   ];
 }

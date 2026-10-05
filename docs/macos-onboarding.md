@@ -3,8 +3,15 @@
 This guide describes how to bootstrap an Apple Silicon Mac and keep its
 development environment aligned with the NixOS fleet.
 
-It assumes the Darwin implementation described in
-[macOS workstation portability plan](macos-workstation-plan.md) has been merged.
+The foundation in [macOS workstation portability plan](macos-workstation-plan.md)
+is implemented. The real Mac is not registered yet. Do not use validation
+fixtures as workstation configurations or activate them.
+
+Before first activation, add a reviewed inventory entry using
+`inventory/darwin-template.nix`, supplying the actual macOS user and using the
+actual LocalHostName as the inventory key. Select `mobile` only when needed;
+review the work-folder allowlist and Syncthing/Tailscale peer policy. Merge that
+host registration and complete its native builds first.
 
 ## 0. Before touching the Mac
 
@@ -101,7 +108,8 @@ Do not copy the NixOS checkout with Syncthing.
 
 ## 5. First nix-darwin activation
 
-The repository should expose the real Mac host as a Darwin flake output, e.g.:
+After the real host registration is reviewed and merged, the repository exposes
+the host under `darwinConfigurations.<actual-hostname>`, for example:
 
 ```text
 darwinConfigurations.macbook
@@ -110,10 +118,15 @@ darwinConfigurations.macbook
 For the first installation, use nix-darwin's bootstrap runner against the
 repository flake. The implementation should document the exact host selector.
 
-Conceptually:
+Install Homebrew using its official installer before activation. The Darwin
+module manages native casks but does not bootstrap Homebrew or erase unrelated
+applications. Use exactly one standalone Tailscale app.
+
+From clean published `main`, bootstrap with the repository's locked runner,
+replacing `macbook` with the actual inventory key:
 
 ```sh
-sudo nix run nix-darwin/master#darwin-rebuild --   switch --flake .#macbook
+sudo nix run .#darwin-rebuild -- switch --flake .#macbook
 ```
 
 After nix-darwin is installed, normal updates should use the repository-managed
@@ -209,6 +222,12 @@ fleet-info --json
 
 Then connect Orca on the Mac to Desktop's optional Remote Orca Server over
 Tailscale.
+
+Register the native `orca` CLI through Settings → General → Orca CLI. The
+managed `orca-ide` command forwards to it, preserving shared workspace helpers.
+Desktop declares a persistent headless runtime; remote connection is available
+after its separate reviewed-main deployment and explicit pairing. Verify
+`orca-server-status` on Desktop and follow [the runtime guide](orca.md).
 
 The Mac must also work locally when Desktop is offline.
 
@@ -334,9 +353,36 @@ nix flake check --no-build --no-write-lock-file
 sudo darwin-rebuild switch --flake .#macbook
 ```
 
-The final implementation should provide a Darwin equivalent to the fleet's
-current `nix-update`/doctor workflow so the user does not have to remember
-platform-specific commands.
+Once the host is registered and activated, use the shared workflow:
+
+```sh
+nix-config build all             # build the current host, no activation
+nix-check all                   # validate/build hosts matching this native system
+nix-update                      # fetch, verify clean published main, build and switch
+nix-switch                      # verify/build/switch an already published main
+nix-home-switch                 # verify/build/switch the current host's Home
+```
+
+`nix-config test system` is NixOS-only. `build all all` skips other CPU/OS
+systems; an explicit host selector can still use a configured remote builder.
+Every activation keeps the same clean-main and freshly fetched origin/main
+gate as Linux. A feature branch may build but cannot activate.
+
+Before the Mac exists, validation on Linux is:
+
+```sh
+nix flake check --all-systems --no-build --no-write-lock-file
+nix build --no-link .#checks.x86_64-linux.darwin-evaluation
+```
+
+On an Apple Silicon builder, without activation:
+
+```sh
+nix build --no-link \
+  .#checks.aarch64-darwin.darwin-system \
+  .#checks.aarch64-darwin.darwin-home \
+  .#checks.aarch64-darwin.portable-contracts
+```
 
 Do not use application self-updaters for binaries owned by Nix/nix-darwin.
 

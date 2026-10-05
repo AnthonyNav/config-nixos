@@ -54,9 +54,15 @@ servicios y memoria sin llamar a Docker ni consultar la GPU.
 
 Los favoritos iniciales son Firefox, Kitty y Thunar. Nexus permite cambiar
 favoritos, fuentes, iconos del workspace, reloj de escritorio, densidad y opciones
-por monitor. `dashboard.performance.showGpu` parte desactivado y los recursos se
-actualizan cada tres segundos; habilitar el indicador GPU es una elección local,
-no una prueba de que exista un trabajo GPU activo.
+por monitor. El indicador GPU parte habilitado y los recursos se actualizan cada
+segundo, siguiendo los valores nativos de Caelestia. Su presencia depende del
+backend detectado; no demuestra que exista un trabajo GPU activo.
+
+El bootstrap corrige una sola vez la pareja antigua de valores de la flota
+(`showGpu = false`, intervalo de 3000 ms), preservando los demás ajustes de Nexus.
+Los intervalos personalizados se conservan; una vez registrada la migración,
+los cambios posteriores del usuario no se sobrescriben. Los archivos siguen
+siendo mutables y la copia previa conserva permisos privados.
 
 ## Fondos y propietarios
 

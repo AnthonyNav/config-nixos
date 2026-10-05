@@ -1,4 +1,4 @@
-{ config, username, ... }:
+{ config, ... }:
 
 {
   imports = [
@@ -23,9 +23,6 @@
   # Keep Docker available for development without starting it at boot.
   virtualisation.docker.enableOnBoot = false;
 
-  # Explicitly retire the linger marker used by the persistent web terminal.
-  users.users.${username}.linger = false;
-
   services.xserver.enable = true;
   services.xserver.videoDrivers = [ "nvidia" ];
 
@@ -42,8 +39,8 @@
   # cómo los lanzadores de DaVinci/Blender se adaptan a esto en runtime.
   hardware.nvidia = {
     modesetting.enable = true;
-    # Preserve VRAM and run the NVIDIA suspend/resume hooks; Hypridle can
-    # suspend this direct-rendering workstation after 30 minutes of inactivity.
+    # Preserve VRAM and run NVIDIA hooks for manual suspend. Automatic idle
+    # suspension is paused in home.nix pending multi-monitor resume validation.
     powerManagement.enable = true;
     open = false;
     nvidiaSettings = true;

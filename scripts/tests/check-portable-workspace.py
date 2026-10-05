@@ -229,6 +229,12 @@ class WorkspaceTests(unittest.TestCase):
         self.assertEqual(data["workspace"]["root"], str(root))
         self.assertNotIn(str(Path(self.tmp.name) / "backend.git"), json.dumps(data))
         self.assertFalse(data["sandbox"]["codex"]["runtime_verified"])
+        (bundle / "host.json").write_text(json.dumps({"host": "macos-fixture", "os": "macOS", "platform": "aarch64-darwin"}))
+        darwin = manager.information(self.home, bundle)
+        self.assertEqual(darwin["sandbox"]["codex"]["backend"], "native macOS sandbox")
+        self.assertIsNone(darwin["sandbox"]["claude"]["dependencies_available"])
+        self.assertFalse(darwin["sandbox"]["codex"]["runtime_verified"])
+        self.assertFalse(darwin["warnings"])
         (root / "HANDOFF.md").write_text("x" * 32769)
         self.assertNotIn("x" * 100, hook.context(self.config, root))
 

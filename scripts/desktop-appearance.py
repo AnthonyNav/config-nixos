@@ -134,10 +134,21 @@ def run(args, policy):
         print(json.dumps({"preset": saved.get("preset", "personalizado"), "mode": scheme.get("mode", "dark")}, ensure_ascii=False))
         return
     if args.command == "bootstrap":
+        performance_migration = state / "dashboard-defaults-v2.json"
+        legacy_dashboard = shell.get("dashboard", {})
+        # Repair the exact fleet defaults which hid the GPU and slowed polling.
+        # Run once; preserve later Nexus choices and other custom intervals.
+        if (not performance_migration.exists()
+                and legacy_dashboard.get("resourceUpdateInterval") == 3000
+                and legacy_dashboard.get("performance", {}).get("showGpu") is False):
+            legacy_dashboard["resourceUpdateInterval"] = 1000
+            legacy_dashboard["performance"]["showGpu"] = True
         shell = merge(shell, policy["defaults"], missing_only=True)
         merge_actions(shell, policy)
         colours = scheme.get("colours", policy["colours"]["dark"])
         changes = {shell_path: encode(shell)}
+        if not performance_migration.exists():
+            changes[performance_migration] = encode({"version": 2})
         if not scheme:
             changes[scheme_path] = encode({"name": "catppuccin", "flavour": "mocha", "mode": "dark", "variant": "tonalspot", "colours": colours})
         if not hypr_path.exists():
