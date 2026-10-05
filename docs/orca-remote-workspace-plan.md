@@ -124,8 +124,15 @@ Recommended structure:
 What this workspace is trying to achieve.
 
 ## Repositories
-- repos/mobile — role
-- repos/backend — role
+
+| Repository | Remote | Local path | Base | Active branch | Role |
+| --- | --- | --- | --- | --- | --- |
+| mobile | <clone URL> | repos/mobile | develop | feat/example | Flutter app |
+| backend | <clone URL> | repos/backend | main | feat/example-api | Go API |
+
+## Resume on another machine
+Exact minimal steps needed to clone/fetch the repositories, check out the
+current branches, load the project environment, and continue safely.
 
 ## Current state
 What currently works and what has already been completed.
@@ -139,14 +146,98 @@ Important architectural/business decisions that future agents must preserve.
 ## Pending
 Concrete next steps, blockers and verification still required.
 
+## WIP sync state
+Temporary WIP commits/branches that were pushed only to transfer unfinished work
+between machines, including the repository and latest pushed commit when relevant.
+
 ## Last update
 Date and short summary.
+```
+
+## Golden rule: the handoff must be portable
+
+A valid `HANDOFF.md` must contain enough non-secret information for a fresh
+agent on the other workstation to reconstruct the workspace without asking the
+user which repositories or branches are involved.
+
+At minimum it must identify, for every active repository:
+
+- repository name and role;
+- clone/fetch remote URL or an unambiguous remote name already defined by policy;
+- expected local path under `repos/`;
+- base branch/ref;
+- active task branch when work is in progress;
+- project bootstrap/environment command when it is not obvious;
+- any required ordering/dependency between repositories;
+- whether unfinished work has been pushed as temporary WIP commits.
+
+The handoff may include commands such as:
+
+```sh
+git clone <remote> repos/mobile
+git -C repos/mobile fetch --all --prune
+git -C repos/mobile switch <active-branch>
+direnv allow repos/mobile
+```
+
+but must never embed credentials, access tokens, private keys, secret URLs or
+machine-specific authentication material.
+
+The target is:
+
+```text
+new machine
+-> sync HANDOFF.md
+-> clone/fetch listed repos
+-> checkout listed branches
+-> load repo instructions/dev environment
+-> continue
+```
+
+## WIP commits as transport, not history
+
+Temporary commits are allowed to move incomplete work safely between Desktop and
+Victus when the work is not ready to represent a meaningful reviewable commit.
+
+Convention:
+
+```text
+WIP: <short description>
+```
+
+Rules:
+
+- WIP commits live only on a task/feature branch, never on protected/base branches;
+- push them only when needed to preserve/transfer unfinished work;
+- record the relevant branch/repository in `HANDOFF.md`;
+- another machine may fetch that branch and continue from the WIP state;
+- do not treat a WIP commit as an architectural milestone or completed feature;
+- before requesting PR review, technical audit, merge approval or similar final
+  review, remove WIP commits from the reviewable history;
+- cleanup may use interactive rebase, squash/fixup, reset/recommit or an
+  equivalent safe history rewrite;
+- never rewrite a branch that another person/process is actively consuming
+  without coordination;
+- never force-push `main`, `develop` or another protected/shared base branch.
+
+The desired lifecycle is:
+
+```text
+unfinished work
+-> WIP commit
+-> push task branch
+-> continue on another machine
+-> finish/validate
+-> clean/squash WIP history
+-> meaningful commits
+-> request review
 ```
 
 Rules:
 
 - keep it concise and operational;
 - update it when project-level state changes;
+- update repository/branch/WIP information before handing work to another machine;
 - do not store secrets;
 - do not copy full logs/transcripts into it;
 - repository-specific coding rules continue to live in each repository's own
@@ -368,8 +459,15 @@ Teach agents the workspace convention:
 5. read repo instructions;
 6. inspect current Git/Orca task;
 7. continue work;
-8. update `HANDOFF.md` only when durable project state changes;
-9. update an Orca checkpoint for task-local progress when appropriate.
+8. update `HANDOFF.md` when durable project state changes or when a
+   cross-machine handoff needs refreshed repository/branch/WIP information;
+9. before leaving work for another machine, ensure all active repositories and
+   resumable branches are documented and unfinished local-only changes are
+   either intentionally retained on the current runtime or safely checkpointed
+   through a temporary WIP commit;
+10. before requesting PR review/audit/merge approval, clean WIP commits from the
+    reviewable history;
+11. update an Orca checkpoint for task-local progress when appropriate.
 
 ## `fleet-orca-workspaces`
 
@@ -576,6 +674,11 @@ are installed correctly.
 - detect owning workspace from repo;
 - detect owning workspace from an external Git worktree;
 - HANDOFF template is created once and preserved;
+- HANDOFF lists every active repository with remote/path/base/active-branch data;
+- a clean second-machine fixture can reconstruct the repos and active branches
+  using only the handoff plus normal configured credentials;
+- a WIP branch can be pushed/fetched/resumed across machines;
+- WIP commits are absent from the final reviewable history;
 - workspace commands do not require Orca to function.
 
 ## Agents
@@ -631,6 +734,11 @@ The follow-up implementation is complete when:
 
 - one directory represents one logical workspace;
 - every workspace has a durable `HANDOFF.md`;
+- the handoff is sufficient for a fresh agent on another workstation to
+  identify, clone/fetch and check out every active repository/branch needed to
+  continue;
+- temporary WIP commits may transport unfinished work between machines but are
+  cleaned from history before PR review/audit/merge approval;
 - multiple repos can belong to one workspace without extra mandatory metadata;
 - creating/opening a workspace is simple through the `workspace` command;
 - any supported fresh agent can discover machine + workspace + project context
