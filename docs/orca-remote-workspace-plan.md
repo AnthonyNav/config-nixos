@@ -443,6 +443,7 @@ Official Orca skills
 Fleet skills
 - fleet-orca-workspaces
 - fleet-workspace
+- fleet-agent-orchestration
 - fleet-nixos-maintenance
 - fleet-identity / context behavior
 - existing review/debug skills
@@ -473,6 +474,95 @@ Teach agents the workspace convention:
 
 Teach agents how this fleet expects Orca to be used while delegating actual Orca
 CLI syntax to the official version-matched `orca-cli` skill.
+
+## Agent orchestration policy
+
+Add a fleet-owned `fleet-agent-orchestration` skill that defines **when** and
+under which constraints an agent may orchestrate other agents.
+
+The official Orca `orchestration` skill remains responsible for **how** to use
+Runs, tasks, workers and gates. Fleet policy decides whether orchestration is
+appropriate in the first place.
+
+### Golden rule
+
+Do not spawn additional agents by default.
+
+Orchestrate only when the expected benefit from parallelism or specialization
+clearly exceeds the coordination cost.
+
+### Good candidates for orchestration
+
+Use multiple agents when one or more of these are true:
+
+- two or more independent tasks can progress in parallel;
+- separate repositories/components can be worked on independently;
+- research and implementation can proceed in parallel;
+- an implementation benefits from an independent review/security/test pass;
+- comparing multiple approaches is valuable before choosing one;
+- a large task has clear ownership boundaries between workers.
+
+### Avoid orchestration when
+
+Do not create a multi-agent run for:
+
+- small fixes;
+- one or two tightly coupled files;
+- strongly sequential tasks;
+- work where several agents would edit the same area concurrently;
+- tasks where coordination is more expensive than implementation.
+
+### Lead-agent contract
+
+One lead agent owns the final outcome.
+
+The lead must:
+
+1. understand the task and workspace before delegating;
+2. split work into independent, clearly scoped units;
+3. assign each worker a repository/worktree, goal and completion criteria;
+4. prevent workers from making final merge/publication decisions;
+5. integrate worker results and resolve overlaps/conflicts;
+6. run the complete final validation after integration;
+7. update the workspace `HANDOFF.md` for durable cross-task state;
+8. keep task-local worker progress in Orca checkpoints where appropriate;
+9. clean WIP history before review;
+10. preserve all approval/security boundaries defined by the fleet.
+
+Workers must not recursively spawn more workers unless the lead explicitly
+delegates that authority and the task still satisfies this policy.
+
+### Concurrency
+
+Start conservatively with at most 2-3 active coding/review workers per
+workstation.
+
+Increase concurrency only after measuring CPU, RAM, disk pressure, build
+contention and agent quality on Desktop and Victus.
+
+### Worktree isolation
+
+When workers modify code concurrently, prefer one Git worktree per worker/task.
+
+Remember that worktrees isolate files, not:
+
+- ports;
+- containers;
+- databases;
+- emulators/devices;
+- caches;
+- credentials.
+
+The lead must allocate or serialize those shared resources explicitly.
+
+### Review independence
+
+When orchestration includes a review/test/security worker, that worker should
+inspect the integrated behavior rather than merely approve another worker's
+summary.
+
+Final review/audit readiness still requires the normal fleet engineering rules
+and clean non-WIP history.
 
 ---
 
@@ -690,6 +780,10 @@ From a fresh Codex/Claude/OpenCode/Kiro session:
 - agent reads `HANDOFF.md`;
 - agent reads repository instructions;
 - agent discovers appropriate fleet/Orca skills;
+- agent does not spawn workers for a trivial/small task;
+- agent can identify a task that benefits from parallel workers and explain the
+  proposed split before orchestration;
+- lead agent integrates worker output and performs final validation;
 - agent can explain current project state without the user repeating it.
 
 ## Orca
@@ -743,6 +837,8 @@ The follow-up implementation is complete when:
 - creating/opening a workspace is simple through the `workspace` command;
 - any supported fresh agent can discover machine + workspace + project context
   without the user re-explaining the environment;
+- agents follow a shared orchestration policy: no unnecessary workers, one lead
+  owns integration/final validation, and parallel workers have isolated scopes;
 - Desktop can act as an optional primary Orca runtime over Tailscale;
 - Victus remains fully autonomous;
 - Android can continue/supervise Desktop-hosted Orca work;
