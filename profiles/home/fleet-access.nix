@@ -9,10 +9,15 @@
 let
   sshHosts = lib.filterAttrs (_: host: (host.connectivity.ssh or false)) fleetInventory;
   sshHostNames = builtins.attrNames sshHosts;
-  sshProxyCommand = "${lib.getExe pkgs.tailscale} nc %h %p";
+  tailscale =
+    if pkgs.stdenv.hostPlatform.isDarwin then
+      import ../../packages/native-tailscale.nix { inherit pkgs; }
+    else
+      pkgs.tailscale;
+  sshProxyCommand = "${lib.getExe tailscale} nc %h %p";
 
-  sshSettings = lib.mapAttrs (_: _: {
-    User = username;
+  sshSettings = lib.mapAttrs (_: host: {
+    User = host.username or username;
     ProxyCommand = sshProxyCommand;
     ServerAliveInterval = 15;
     ServerAliveCountMax = 3;
@@ -20,14 +25,16 @@ let
 
   fleetSsh = pkgs.writeShellApplication {
     name = "fleet-ssh";
-    runtimeInputs = with pkgs; [
-      coreutils
-      jq
+    runtimeInputs = [
+      pkgs.coreutils
+      pkgs.jq
       tailscale
     ];
     text = ''
             hosts_json=${lib.escapeShellArg (builtins.toJSON sshHostNames)}
-            ssh_user=${lib.escapeShellArg username}
+            ssh_users_json=${
+              lib.escapeShellArg (builtins.toJSON (lib.mapAttrs (_: host: host.username or username) sshHosts))
+            }
 
             usage() {
               cat <<'EOF'
@@ -73,7 +80,8 @@ let
                   printf "fleet-ssh: '%s' is not a declared SSH-capable fleet host.\n" "$target" >&2
                   exit 64
                 fi
-                exec tailscale ssh "$ssh_user@$target"
+                target_user="$(jq -er --arg host "$target" '.[$host]' <<<"$ssh_users_json")"
+                exec tailscale ssh "$target_user@$target"
                 ;;
             esac
     '';

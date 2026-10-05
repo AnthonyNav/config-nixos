@@ -10,6 +10,7 @@ let
   # A future non-NVIDIA daily device: no server fixture, no production output.
   fixture = fleet.hosts.desktop // {
     role = "daily-workstation";
+    homeModules = [ ];
     homeProfiles = [ ];
     features = {
       graphics = "integrated";
@@ -40,7 +41,9 @@ let
   };
   system = outputs.nixosConfigurations.portable-test.config;
   home = outputs.homeConfigurations."${username}@portable-test".config;
-  homes = map (name: self.homeConfigurations."${username}@${name}".config) fleet.hostNames;
+  homes = map (
+    name: self.homeConfigurations."${fleet.hosts.${name}.username or username}@${name}".config
+  ) fleet.nixosHostNames;
   endpoints = import ../inventory/endpoints.nix { fleet = testFleet; };
   endpointHosts =
     name:

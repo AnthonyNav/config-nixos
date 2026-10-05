@@ -1,4 +1,5 @@
 {
+  config,
   fleetInventory,
   hostFeatures,
   lib,
@@ -9,87 +10,18 @@
 
 let
   endpoints = import ../../inventory/endpoints.nix { };
-  policy = import ../../inventory/syncthing.nix;
-  connectivity = hostFeatures.connectivity or { };
-  enabled = connectivity.syncthing or false;
-  hostName = hostFeatures.hostName or "";
-  homeDir = "/home/${username}";
-
-  syncthingHosts = lib.filterAttrs (_: host: (host.connectivity.syncthing or false)) fleetInventory;
-  syncthingHostNames = builtins.attrNames syncthingHosts;
-  peerNames = lib.remove hostName syncthingHostNames;
-
-  folderValues = builtins.attrValues policy.folders;
-  folderIds = map (folder: folder.id) folderValues;
-  normalizedFolders = map (
-    folder:
-    let
-      hosts = if folder.hosts == null then syncthingHostNames else folder.hosts;
-    in
-    {
-      inherit (folder)
-        id
-        label
-        type
-        migrationFrom
-        ;
-      inherit (policy) ignorePatterns;
-      inherit hosts;
-      path = "${homeDir}/${folder.relativePath}";
-    }
-  ) folderValues;
-  localFolders = lib.filter (folder: builtins.elem hostName folder.hosts) normalizedFolders;
-  declaredFolderHosts = lib.concatLists (map (folder: folder.hosts) normalizedFolders);
-
-  syncthingFleetReconcile = pkgs.writeShellApplication {
-    name = "syncthing-fleet-reconcile";
-    runtimeInputs = with pkgs; [
-      coreutils
-      curl
-      gawk
-      gnugrep
-      jq
-      libxml2
-      openssl
-      python3
-      tailscale
-    ];
-    text = ''
-      export SYNCTHING_FLEET_HOST=${lib.escapeShellArg hostName}
-      export SYNCTHING_FLEET_PEERS_JSON=${lib.escapeShellArg (builtins.toJSON peerNames)}
-      export SYNCTHING_FLEET_FOLDERS_JSON=${lib.escapeShellArg (builtins.toJSON localFolders)}
-      export SYNCTHING_CONFIG_DIR=${lib.escapeShellArg "${homeDir}/.config/syncthing"}
-      export SYNCTHING_API_URL=http://127.0.0.1:8384
-      export SYNCTHING_MANAGED_DEVICE_PREFIX=${lib.escapeShellArg policy.managedDevicePrefix}
-      export SYNCTHING_MANAGED_FOLDER_PREFIX=${lib.escapeShellArg policy.managedFolderPrefix}
-      export SYNCTHING_FLEET_IGNORE_HELPER=${lib.escapeShellArg (toString ../../scripts/syncthing-ignores.py)}
-      ${builtins.readFile ../../scripts/syncthing-fleet-reconcile.sh}
-    '';
+  enabled = hostFeatures.connectivity.syncthing or false;
+  homeDir = config.users.users.${username}.home;
+  shared = import ../../packages/syncthing-fleet.nix {
+    inherit pkgs lib fleetInventory;
+    inherit (hostFeatures) hostName;
+    homeDirectory = homeDir;
   };
+  syncthingFleetReconcile = shared.reconcile;
+
 in
 {
-  assertions = lib.optionals enabled [
-    {
-      assertion = builtins.elem hostName syncthingHostNames;
-      message = "A Syncthing-enabled host must exist in fleetInventory.";
-    }
-    {
-      assertion = builtins.length folderIds == builtins.length (lib.unique folderIds);
-      message = "Syncthing managed folder IDs must be unique.";
-    }
-    {
-      assertion = builtins.all (folder: lib.hasPrefix policy.managedFolderPrefix folder.id) folderValues;
-      message = "Syncthing managed folder IDs must use the declared managedFolderPrefix.";
-    }
-    {
-      assertion = builtins.all (folder: !(lib.hasPrefix "/" folder.relativePath)) folderValues;
-      message = "Syncthing managed folder paths must be relative to the user's home directory.";
-    }
-    {
-      assertion = builtins.all (name: builtins.elem name syncthingHostNames) declaredFolderHosts;
-      message = "Syncthing folders may reference only Syncthing-enabled fleet hosts.";
-    }
-  ];
+  assertions = lib.optionals enabled shared.assertions;
 
   networking.firewall.interfaces.tailscale0.allowedTCPPorts = lib.mkIf enabled (
     lib.mkAfter [ endpoints.ports.syncthing ]
@@ -104,13 +36,7 @@ in
     openDefaultPorts = false;
     overrideDevices = false;
     overrideFolders = false;
-    settings.options = {
-      listenAddresses = [ "tcp://0.0.0.0:${toString endpoints.ports.syncthing}" ];
-      globalAnnounceEnabled = false;
-      localAnnounceEnabled = false;
-      relaysEnabled = false;
-      natEnabled = false;
-    };
+    inherit (shared) settings;
   };
 
   users.users.${username}.packages = lib.optionals enabled [ syncthingFleetReconcile ];
@@ -146,7 +72,7 @@ in
     wantedBy = [ "timers.target" ];
     timerConfig = {
       OnBootSec = "2m";
-      OnUnitActiveSec = policy.reconcileInterval;
+      OnUnitActiveSec = shared.reconcileInterval;
       Persistent = true;
       Unit = "syncthing-fleet-reconcile.service";
     };

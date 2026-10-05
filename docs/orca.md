@@ -29,8 +29,9 @@ The desktop entry launches `orca-ide-gui`; `orca-ide` is the bundled CLI.
 Neither command claims the GNOME screen reader's `orca` name. Both launchers
 set `ORCA_TELEMETRY_DISABLED=1`. The Home Manager desktop/CLI launchers put the
 fleet identity wrappers on PATH, including noninteractive agent launches.
-No extra agent, SDK, account, permission policy, MCP connection, autostart or
-network service is provisioned by this module.
+The application module does not provision accounts, SDKs or MCP connections.
+The separate `orca-remote.nix` modules own the explicitly selected runtime,
+user service, linger and private firewall boundary described below.
 
 The `.deb` retains its `resources/package-type` marker. In the packaged updater,
 the absence of apt/dpkg in trusted system directories identifies an externally
@@ -102,53 +103,99 @@ an answer; never fabricate a blocking state or send the digit/Escape sequence
 for a different blocking prompt. True blocking approvals still need their native
 approval/Terminal View path. Record this fallback on the real phone.
 
-Desktop and Victus stay autonomous. Optional SSH worktrees may use the existing
-Tailscale/SSH boundary after local acceptance; no permanent Orca server or new
-public service is provisioned. Remote acceptance must verify the original host,
-project environment and account context separately.
+Victus and the future Mac remain autonomous. SSH worktrees use the existing
+Tailscale/SSH boundary. Remote acceptance must verify the original host, project
+environment and account context separately.
 
-## Optional Desktop App Remote Server
+## Persistent Desktop runtime
 
-Both inventory features.orcaRemote.mode values default to "off". Desktop is the
-preferred optional runtime; Victus stays autonomous. Evaluated AI facts and
-fleet-info expose that policy without claiming a running server. The system
-module supports only off/desktop-app, never starts Orca, provisions tokens or
-enables linger. Headless is rejected until recovery is designed/tested.
+`features.orcaRemote.mode` accepts `off`, `desktop-app` and `headless` on NixOS.
+Desktop selects **headless**, `preferredRuntime = true`; Victus selects **off**.
+The Darwin template remains off and does not create a macOS server. These are
+declarations for the next reviewed-main deployment, not proof of active health.
 
-For a separately authorized deployment of reviewed main, select "desktop-app"
-on the intended host. The endpoint registry and per-interface firewall then
-admit TCP 6768 only on tailscale0. Inspect/apply the reviewed tailnet policy
-output separately. No public firewall port or public tailnet service is added.
-The other workstation keeps working when Desktop is asleep or unavailable.
+`modules/system/orca-remote.nix` enables linger for the ordinary managed user
+only in headless mode. `modules/home/orca-remote.nix` installs
+`orca-serve.service`, wanted by the user's `default.target`. At boot the user
+manager starts without graphical login. The service uses the user's existing
+home, projects, managed AI tools, workspace identity wrappers and local Orca
+state; it does not copy credentials into a separate account or the Nix store.
+Provider authentication and encrypted SSH key unlocking remain owned by the user.
 
-Before opting in, verify the actual app listener and access link's port against
-inventory/endpoints.nix. 6768 is the explicit upstream CLI example, not evidence
-about a running Desktop App listener. If the supported UI setup uses another
-port, declare that verified port in reviewed configuration. An advertised
-Tailscale address does not restrict the server's listening interface.
+`scripts/orca-serve-fleet.sh` waits until Tailscale reports Running/online and a
+valid current tailnet IPv4 address, then runs the pinned absolute `orca-ide`
+CLI with `serve --port 6768 --pairing-address <current-ip> --json`. No address is
+hardcoded. The wrapper clears inherited graphical display/profile overrides,
+provides Xvfb on PATH and uses `LIBGL_ALWAYS_SOFTWARE=1`. Orca owns its virtual
+display lifecycle. The service does not depend on a graphical session target.
 
-On Desktop, use Settings → Remote Orca Servers → Advertise this app as a server
-→ New Link, select its Tailscale address and generate the access link. On Victus,
-Add Server with that private link. Pair Android through the supported mobile
-flow with the phone on the same tailnet. Pairing links/client grants stay in
-user-owned runtime state, never HANDOFF.md, Git or Nix.
+The firewall admits TCP 6768 only on `tailscale0`, through the existing endpoint
+registry. `--pairing-address` advertises an address; it does not constrain the
+listener, which may bind wildcard interfaces. The wrapper refuses an occupied
+port; health requires the current invocation's bound/advertised port to remain
+6768, the advertised address to match Tailscale, and the actual listener PID to
+match the reachable local Orca runtime. An upstream fallback port is unhealthy.
+Tailnet policy publication is still a separate operation.
 
-Remote agents use Desktop's repositories, tools and provider credentials, not
-Victus's login cache. Verify each remote worktree's context. Use one host mode at
-a time and preserve original-session questions/approvals.
-[Upstream Remote Servers](https://www.onorca.dev/docs/remote-servers).
+The unit uses `Restart=on-failure`, `RestartSec=5`, `KillMode=mixed`,
+`RestartPreventExitStatus=3`, `StartLimitIntervalSec=300` and `StartLimitBurst=5`.
+Exit 3 means another process owns the profile and must not cause a restart loop.
+The managed GUI launcher refuses to open Desktop's headless-owned profile;
+use Victus/Mac/Mobile as a client or change the host mode through review.
+`desktop-app` prepares the same private firewall without a service or linger.
 
-Real-device acceptance remains pending: connection, network loss/reconnect,
-Android background/resume, Claude/Codex questions and rejection, work/personal
-identity, multi-repo paths, handoff replacement and autonomous Victus use while
-Desktop is unavailable. Record versions, actual listener and reachability from
-tailnet and ordinary LAN paths. Package builds cannot establish these results.
+After separately deploying reviewed main, use:
 
-After stable Phase A use, decide whether persistence is needed. An optional user
-systemd service around orca-ide serve belongs to Phase C, after a backup destination
-and restoration test exist. Restic remains prepared/off. A server restart does
-not resurrect agent memory or recover unpublished work; Git plus HANDOFF.md remain
-the recovery contract.
+```sh
+orca-server-status --json
+orca-server-logs
+orca-server-logs --follow
+ai-doctor
+fleet-info --json
+```
+
+These commands separate policy from bounded, local runtime probes. They never
+print bootstrap auth tokens or pairing codes by default. For the first pairing,
+explicitly request the sensitive link in a private terminal:
+
+```sh
+orca-server-logs --pairing
+```
+
+Treat that output as a password; add the server on Victus/Mac or pair Android
+through the supported mobile flow with both devices on the tailnet. The raw
+user journal also contains the upstream readiness event and its private link.
+Do not paste raw journal or pairing output into Git, HANDOFF, tickets or chats.
+Client grants remain mutable under the user's Orca profile.
+
+`orca-server-restart` checks live daemon isolation before restarting. Version
+**1.4.220** is the latest pinned release, but its readiness publisher does not
+populate main's optional `health.terminalDaemon` payload. We therefore verify
+the profile's `daemon/daemon-v*.pid` records against `/proc` boot ID, process start
+ticks, user, command and actual `orca-daemon-*.scope` membership. A persisted
+scope claim alone is insufficient. If isolation is unverified, the helper
+requires a fresh, explicitly untruncated empty terminal census covering local
+execution with no affected/unknown omitted SSH hosts. Otherwise it defers the
+restart. Pause clients before a census-based restart; upstream has no atomic
+census-and-stop fence. Service recovery uses `systemctl --user reset-failed
+orca-serve.service` if the start limit has tripped.
+
+A verified isolated daemon can preserve terminal/agent processes across a
+service restart, subject to real-machine acceptance. A physical reboot ends
+those processes. Repositories, worktrees, handoffs and persisted client grants
+remain local; a new agent resumes through Git plus HANDOFF. Restic remains
+prepared/off as requested. Headless mode does not send renderer-dependent
+agent-completion push notifications to mobile.
+
+Acceptance after deployment: boot without graphical login, current endpoint and
+pairing, tailnet reachability/LAN denial, isolated-daemon restart with a test
+terminal, reboot recovery, Tailscale loss/reconnect, Android background/resume,
+Claude/Codex questions/rejection, work/personal identities and autonomous Victus
+use while Desktop is unavailable. An IP change during an existing invocation is
+reported as unhealthy and needs a guarded restart. Builds cannot prove these
+runtime results. See [upstream headless reference](https://github.com/stablyai/orca/blob/main/docs/reference/headless-linux-server.md),
+the [published release](https://github.com/stablyai/orca/releases/tag/v1.4.220)
+and [Remote Servers](https://www.onorca.dev/docs/remote-servers).
 
 ## Development checks
 
@@ -172,7 +219,7 @@ published main through the normal `nix-update` / `nix-switch` workflow.
 
 ## Local acceptance after deployment
 
-1. Launch **Orca** from the application menu on the workstation being validated.
+1. On Victus (or a reviewed `desktop-app` host), launch **Orca** from the application menu.
    Check rendering, resizing, clipboard, terminal and browser under its normal
    Hyprland session. Do not force NVIDIA PRIME offload for routine IDE work.
 2. Check `orca-ide --version`, `type -a claude codex opencode kiro-cli` and

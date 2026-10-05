@@ -7,12 +7,14 @@ under `hosts/desktop/`; no hardware configuration is generalized across machines
 
 NVIDIA Container Toolkit supplies CDI for explicitly requested GPU containers.
 Local VMs, Tailscale SSH, Syncthing, Lan Mouse, audio, Bluetooth and Pritunl
-remain available. No headless/server workload is provisioned by this repository.
+remain available. Desktop declares a persistent, ordinary-user
+[Orca headless runtime](orca.md), available after reviewed-main deployment.
 
 See [architecture](workstation-architecture.md), [monitors](monitors.md) and
 [resource policy](resource-policy.md). Profiles are based on connected monitor
-identities, not the name Desktop. The workstation retains ordinary suspend and
-Caelestia locking/DPMS; hibernation stays disabled.
+identities, not the name Desktop. Caelestia locking/DPMS remains enabled;
+automatic idle suspension is paused while the NVIDIA/Aquamarine resume crash is
+investigated. Manual suspend remains available; hibernation stays disabled.
 
 The [workspace workflow](workspace-workflow.md) covers invocation-scoped work,
 personal and neutral identities, shared-only Syncthing roots and Orca acceptance.

@@ -631,9 +631,11 @@ Validate:
 
 No public Internet port exposure.
 
-## Phase B — evaluate persistence
+## Phase B — persistence selected
 
-After stable real use, decide whether a headless runtime is needed.
+The maintainer selected a persistent Desktop user runtime for this PR. The
+implementation and acceptance procedure are in [Orca](orca.md); real-device
+acceptance and deployment remain separate. Victus and the Darwin template stay off.
 
 Possible inventory capability:
 
@@ -643,10 +645,11 @@ features.orcaRemote.mode = "off" | "desktop-app" | "headless";
 
 This is a capability flag, not a new server host type.
 
-## Phase C — optional `orca serve`
+## Phase C — declared `orca serve`
 
-Only after Phase A acceptance and backup/recovery validation, evaluate a user
-systemd service around `orca serve`.
+The same PR prepares the linger-backed user service around `orca-ide serve`.
+Restic remains prepared/off until an actual backup destination is selected;
+the earlier staged rollout does not gate this explicitly requested implementation.
 
 Requirements:
 

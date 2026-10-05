@@ -5,12 +5,18 @@
   ...
 }:
 let
-  profiles = {
+  linuxProfiles = {
     development = ./development;
     data-science = ./development/data-science.nix;
     creative = ./creative-production.nix;
     platform = ./platform.nix;
   };
+  darwinProfiles = {
+    development = ./darwin/development.nix;
+    platform = ./platform.nix;
+    mobile = ./darwin/mobile.nix;
+  };
+  profiles = if hostFeatures.platform == "darwin" then darwinProfiles else linuxProfiles;
   selected = hostFeatures.homeProfiles;
 in
 {
@@ -19,7 +25,6 @@ in
     ./identities.nix
     ./fleet-access.nix
     ./development/ai.nix
-    ./performance-workstation.nix
   ]
   ++ map (name: profiles.${name} or (throw "Unknown Home profile '${name}'.")) selected;
 

@@ -2,20 +2,17 @@
   lib,
   pkgs,
   username,
+  homeDirectory,
   ...
 }:
 
 {
   imports = [
-    ../../modules/home/browsers.nix
-    ../../modules/home/media.nix
     ../../modules/home/shell-tools.nix
     ../../modules/home/neovim.nix
-    ../../modules/home/orca.nix
   ];
-  fleet.ai.orca.enable = true;
   home.username = username;
-  home.homeDirectory = "/home/${username}";
+  home.homeDirectory = homeDirectory;
 
   home.packages = with pkgs; [
     nerd-fonts.jetbrains-mono

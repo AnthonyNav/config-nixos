@@ -147,6 +147,12 @@ class WorkspaceTests(unittest.TestCase):
         args = json.loads(self.capture.read_text())["args"]
         self.assertIn(str(self.home / ".ssh/work"), args)
         self.assertIn("IdentitiesOnly=yes", args)
+        self.assertIn("git@github.com", args)
+        for destination in ("github.com-personal", "git@github.com-personal", "github.com"):
+            self.run_tool("git-ssh", "personal", destination, "git-upload-pack repo")
+            selected = json.loads(self.capture.read_text())["args"]
+            self.assertIn("git@github.com", selected)
+            self.assertIn(str(self.home / ".ssh/personal"), selected)
         self.run_tool("git-ssh", "personal", "git@github.com-work", expected=77)
         self.run_tool("git-ssh", "neutral", "git@github.com", expected=77)
         self.run_tool("git-ssh", "neutral", "victus", "true")

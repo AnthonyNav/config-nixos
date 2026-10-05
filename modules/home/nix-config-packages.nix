@@ -4,6 +4,9 @@
   username,
   fleetNames,
   homeHostNames,
+  fleetHostPlatforms ? lib.genAttrs fleetNames (_: "nixos"),
+  fleetHostUsers ? lib.genAttrs fleetNames (_: username),
+  fleetHostSystems ? lib.genAttrs fleetNames (_: "x86_64-linux"),
 }:
 
 let
@@ -13,12 +16,17 @@ let
       pkgs.coreutils
       pkgs.git
       pkgs.nix
-      pkgs.systemd
-    ];
+      pkgs.jq
+    ]
+    ++ lib.optional pkgs.stdenv.hostPlatform.isLinux pkgs.systemd;
     text = ''
       export NIX_CONFIG_USER=${lib.escapeShellArg username}
       export NIX_CONFIG_HOSTS=${lib.escapeShellArg (lib.concatStringsSep " " fleetNames)}
       export NIX_CONFIG_HOME_HOSTS=${lib.escapeShellArg (lib.concatStringsSep " " homeHostNames)}
+      export NIX_CONFIG_HOST_PLATFORMS_JSON=${lib.escapeShellArg (builtins.toJSON fleetHostPlatforms)}
+      export NIX_CONFIG_HOST_USERS_JSON=${lib.escapeShellArg (builtins.toJSON fleetHostUsers)}
+      export NIX_CONFIG_HOST_SYSTEMS_JSON=${lib.escapeShellArg (builtins.toJSON fleetHostSystems)}
+      export NIX_CONFIG_NATIVE_SYSTEM=${lib.escapeShellArg pkgs.stdenv.hostPlatform.system}
       ${builtins.readFile ../../scripts/nix-config.sh}
     '';
   };

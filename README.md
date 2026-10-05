@@ -1,6 +1,13 @@
-# NixOS Multi-Host Dev Environment
+# Nix Workstation Fleet
 
 Configuración modular de NixOS + Flakes + Home Manager orientada al uso diario, desarrollo y creación audiovisual con escritorio Wayland (Hyprland), herramientas modernas de IA y soporte multi-máquina.
+
+La integración Apple Silicon/macOS está preparada con nix-darwin y una base
+Home Manager portable. Desktop y Victus siguen siendo los únicos equipos
+administrados; la Mac se registrará cuando estén disponibles sus datos reales.
+Consulta el [plan macOS](docs/macos-workstation-plan.md) y el
+[onboarding](docs/macos-onboarding.md). Los fixtures Darwin se evalúan desde
+Linux y se construyen en CI macOS sin activación.
 
 ---
 
@@ -350,6 +357,11 @@ sin reescribir sus archivos JSON/JSONC. Seis skills `fleet-*` comparten una fuen
 canónica y se publican también en `~/.agents/skills` para OpenCode y Orca.
 
 Orca 1.4.220 está disponible en ambos equipos con los lanzadores de identidad.
+Desktop declara un runtime headless persistente mediante `systemd --user` y
+linger; Victus conserva el modo remoto `off`. El puerto 6768 se permite solo en
+Tailscale. `orca-server-status`, `orca-server-logs` y `orca-server-restart`
+ofrecen diagnóstico y reinicio con comprobación de terminales; el emparejamiento
+se solicita explícitamente. Su activación requiere desplegar main revisado.
 Sus sesiones y skills propios siguen siendo mutables; `orca-skills-sync --dry-run`
 permite revisar una actualización explícita. Los MCPs y Artemis permanecen
 desactivados por defecto. Consulta [docs/ai-environment.md](docs/ai-environment.md)

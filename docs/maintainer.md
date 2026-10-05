@@ -9,15 +9,24 @@ and static `dotfiles/` are shared. See [workstation-architecture.md](workstation
 for extension rules, [monitors.md](monitors.md) for topology selection and
 [workstation-research.md](workstation-research.md) for update decisions.
 
-`flake/hosts.nix` composes NixOS, Home Manager and a registered desktop style.
+`flake/hosts.nix` dispatches inventory hosts by platform: NixOS uses its system
+and desktop modules; Darwin uses nix-darwin and its native adapters. Common Home
+Manager stays shared. The Mac is not available and is not registered yet;
+Darwin fixtures in `flake/darwin-checks.nix` and a native macOS CI job validate
+the prepared constructor without creating a production peer.
 All inventory members are daily workstations with Home Manager; the installer
 is a separate output. SSH, Syncthing, input-sharing peers and CI's build matrix
 are inventory-derived. Shared changes require two systems and two Home builds.
+See [macOS workstation plan](macos-workstation-plan.md) and
+[onboarding](macos-onboarding.md). `nix-check all` builds hosts matching the
+native system; other platforms require their native builder. The full CI gate
+also requires the Darwin fixture job.
 The integrated-GPU fixture verifies the daily environment without development,
 creative, compute or virtualization dependencies; it is not deployable.
 
 Local Docker and virt-manager/libvirt remain. Server provisioning, CI agents,
-headless profiles, public/web-terminal publication and ThinkPad are retired.
+legacy server/headless host profiles, public/web-terminal publication and ThinkPad are retired.
+Desktop's ordinary-user Orca runtime is a workstation service, not a server host profile.
 Removing their declarations never authorizes deletion of local data or external
 identities. This repository does not publish tailnet policy or deploy itself.
 
@@ -114,6 +123,17 @@ Build both Desktop and Victus for shared changes. Their GPU paths differ;
 evaluation cannot prove rendering/suspend. Follow [resource-policy.md](resource-policy.md)
 and perform main-only runtime acceptance after authorized deployment.
 
+If an older workspace Git wrapper fails to fetch a GitHub SSH alias with no
+explicit transport user, normalize this repository's personal remote once:
+
+```sh
+git remote set-url origin git@github.com-personal:AnthonyNav/config-nixos.git
+```
+
+The updated wrapper always uses GitHub's transport user `git`, including URLs
+without an explicit user. The explicit URL also works with the previous active
+wrapper, so reviewed-main deployment can fetch the correction before activating it.
+
 ## Development command resolution
 
 Interactive Zsh keeps inherited project and Nix paths ahead of manual global
@@ -149,6 +169,10 @@ Herdr through its flake input, not its self-updater.
 
 Orca's [workstation application](orca.md) is enabled in the shared daily profile for Desktop and Victus, pinned in `packages/orca-ide.nix` and exposed as `.#orca-ide`.
 Its Linux CLI is `orca-ide`; the application launcher is `orca-ide-gui`.
+Desktop selects headless with a linger-backed user service; its managed GUI
+launcher blocks a conflicting profile owner. Victus stays off and uses the GUI.
+Use `orca-server-status`, redacted `orca-server-logs`, and the guarded
+`orca-server-restart` on Desktop. Pairing links require explicit `--pairing`.
 Update the package version/hash through review and revalidate
 upstream's externally-managed-install guard. Mutable application state is local.
 

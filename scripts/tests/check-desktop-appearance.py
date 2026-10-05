@@ -87,6 +87,27 @@ if not os.environ.get('TEST_THEME_STALE'):
         self.assertEqual(self.files(), before)
         self.assertEqual({p: p.stat().st_mtime_ns for p in mtimes}, mtimes)
 
+    def test_repairs_legacy_dashboard_once_and_preserves_later_nexus_choices(self):
+        self.shell.write_text(json.dumps({"dashboard": {"resourceUpdateInterval": 3000, "performance": {"showGpu": False, "showBattery": False}}, "privateChoice": True}))
+        self.run_script("bootstrap")
+        result = json.loads(self.shell.read_text())
+        self.assertEqual(result["dashboard"]["resourceUpdateInterval"], 1000)
+        self.assertTrue(result["dashboard"]["performance"]["showGpu"])
+        self.assertFalse(result["dashboard"]["performance"]["showBattery"])
+        self.assertTrue(result["privateChoice"])
+        result["dashboard"]["resourceUpdateInterval"] = 3000
+        result["dashboard"]["performance"]["showGpu"] = False
+        self.shell.write_text(json.dumps(result))
+        self.run_script("bootstrap")
+        self.assertEqual(json.loads(self.shell.read_text()), result)
+
+    def test_preserves_custom_dashboard_polling(self):
+        self.shell.write_text(json.dumps({"dashboard": {"resourceUpdateInterval": 5000, "performance": {"showGpu": False}}}))
+        self.run_script("bootstrap")
+        result = json.loads(self.shell.read_text())["dashboard"]
+        self.assertEqual(result["resourceUpdateInterval"], 5000)
+        self.assertFalse(result["performance"]["showGpu"])
+
     def test_bootstrap_preserves_a_saved_native_scheme(self):
         # Native schemes have Material/terminal roles, without Catppuccin names.
         names = set(policy["colours"]["dark"])

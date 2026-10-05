@@ -28,7 +28,7 @@ jobs:
 
   host-build:
     needs: hosts
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.platform == 'darwin' && 'macos-15' || 'ubuntu-latest' }}
     timeout-minutes: 120
     strategy:
       fail-fast: false
@@ -38,6 +38,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Free disk space
+        if: matrix.platform == 'nixos'
         shell: bash
         run: |
           set -euxo pipefail
@@ -71,30 +72,56 @@ jobs:
         with:
           extra_nix_config: |
             accept-flake-config = true
-            build-dir = /mnt/nix-build
+            build-dir = ${{ matrix.platform == 'darwin' && format('{0}/nix-build', runner.temp) || '/mnt/nix-build' }}
             auto-optimise-store = true
 
+      - name: Prepare Darwin build directory
+        if: matrix.platform == 'darwin'
+        run: mkdir -p "${{ runner.temp }}/nix-build"
+
       - name: Build NixOS system
+        if: matrix.platform == 'nixos'
         run: nix build --max-jobs 1 --cores 2 --no-link --print-build-logs --no-write-lock-file .#nixosConfigurations.${{ matrix.host }}.config.system.build.toplevel
+      - name: Build Darwin system
+        if: matrix.platform == 'darwin'
+        run: nix build --max-jobs 1 --cores 2 --no-link --print-build-logs --no-write-lock-file .#darwinConfigurations.${{ matrix.host }}.system
 
       - name: Build Home Manager
         if: matrix.home
-        run: nix build --max-jobs 1 --cores 2 --no-link --print-build-logs --no-write-lock-file '.#homeConfigurations."anthony@${{ matrix.host }}".activationPackage'
+        run: nix build --max-jobs 1 --cores 2 --no-link --print-build-logs --no-write-lock-file '.#homeConfigurations."${{ matrix.username }}@${{ matrix.host }}".activationPackage'
 
       - name: Disk usage
         if: always()
         run: |
-          df -h / /mnt || true
+          df -h / || true
           sudo du -sh /nix/store 2>/dev/null || true
-          sudo du -sh /mnt/nix-build 2>/dev/null || true
+          sudo du -sh "${{ runner.temp }}/nix-build" 2>/dev/null || true
+
+  darwin-foundation:
+    runs-on: macos-15
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31.11.1
+        with:
+          extra_nix_config: accept-flake-config = true
+      - name: Confirm Apple Silicon builder
+        run: test "$(uname -m)" = arm64
+      - name: Evaluate all platforms without activation
+        run: nix flake check --all-systems --no-build --no-write-lock-file
+      - name: Build Darwin system, Home and AI fixtures
+        run: nix flake check --no-write-lock-file --max-jobs 1 --cores 2
+      - name: Ensure flake.lock is unchanged
+        run: git diff --exit-code -- flake.lock
 
   full-build-gate:
     if: always()
-    needs: [hosts, host-build]
+    needs: [hosts, host-build, darwin-foundation]
     runs-on: ubuntu-latest
     steps:
       - name: Require all inventory builds
         env:
           HOSTS_RESULT: ${{ needs.hosts.result }}
           BUILDS_RESULT: ${{ needs.host-build.result }}
-        run: test "$HOSTS_RESULT" = success && test "$BUILDS_RESULT" = success
+          DARWIN_RESULT: ${{ needs.darwin-foundation.result }}
+        run: test "$HOSTS_RESULT" = success && test "$BUILDS_RESULT" = success && test "$DARWIN_RESULT" = success

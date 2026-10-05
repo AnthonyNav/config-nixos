@@ -28,6 +28,8 @@ jobs:
         run: nix fmt -- --ci
       - name: Evaluate and build all flake checks
         run: nix flake check --no-write-lock-file
+      - name: Evaluate every supported platform
+        run: nix flake check --all-systems --no-build --no-write-lock-file
       - name: Show AI tool smoke-test evidence
         run: nix build --no-link --print-build-logs .#checks.x86_64-linux.ai-tools
       - name: Ensure flake.lock is unchanged
@@ -47,7 +49,7 @@ jobs:
 
   plan-host-build:
     needs: hosts
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.platform == 'darwin' && 'macos-15' || 'ubuntu-latest' }}
     strategy:
       fail-fast: false
       matrix:
@@ -58,7 +60,11 @@ jobs:
         with:
           extra_nix_config: accept-flake-config = true
       - name: Plan NixOS system build
+        if: matrix.platform == 'nixos'
         run: nix build --dry-run --no-link --no-write-lock-file .#nixosConfigurations.${{ matrix.host }}.config.system.build.toplevel
+      - name: Plan Darwin system build
+        if: matrix.platform == 'darwin'
+        run: nix build --dry-run --no-link --no-write-lock-file .#darwinConfigurations.${{ matrix.host }}.system
       - name: Plan Home Manager activation build
         if: matrix.home
-        run: nix build --dry-run --no-link --no-write-lock-file '.#homeConfigurations."anthony@${{ matrix.host }}".activationPackage'
+        run: nix build --dry-run --no-link --no-write-lock-file '.#homeConfigurations."${{ matrix.username }}@${{ matrix.host }}".activationPackage'

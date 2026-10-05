@@ -28,6 +28,10 @@ git -C "$repo" config user.name Test
 git -C "$repo" config user.email test@example.com
 
 mkdir -p "$fake_bin"
+cat >"$fake_bin/uname" <<'EOF'
+#!/bin/sh
+printf '%s\n' Linux
+EOF
 cat >"$fake_bin/hostnamectl" <<'EOF'
 #!/bin/sh
 printf '%s\n' victus
@@ -143,4 +147,47 @@ if bash "$script" build all retired-device >"$tmp/stdout" 2>"$tmp/stderr"; then
   printf 'unknown host was accepted\n' >&2
   exit 1
 fi
+[[ ! -s "$log" ]]
+
+# Darwin dispatch uses the native selector and per-host user. Building all on
+# the Mac skips Linux outputs, while explicit cross-host build remains allowed.
+cat >"$fake_bin/uname" <<'EOF'
+#!/bin/sh
+printf '%s\n' Darwin
+EOF
+cat >"$fake_bin/scutil" <<'EOF'
+#!/bin/sh
+printf '%s\n' macbook
+EOF
+chmod +x "$fake_bin/uname" "$fake_bin/scutil"
+export NIX_CONFIG_HOSTS="victus desktop macbook"
+export NIX_CONFIG_HOME_HOSTS="victus desktop macbook"
+export NIX_CONFIG_HOST_PLATFORMS_JSON='{"victus":"nixos","desktop":"nixos","macbook":"darwin"}'
+export NIX_CONFIG_HOST_USERS_JSON='{"victus":"anthony","desktop":"anthony","macbook":"mac-user"}'
+export NIX_CONFIG_HOST_SYSTEMS_JSON='{"victus":"x86_64-linux","desktop":"x86_64-linux","macbook":"aarch64-darwin"}'
+export NIX_CONFIG_NATIVE_SYSTEM=aarch64-darwin
+: >"$log"
+bash "$script" build all all
+grep -q 'darwinConfigurations.macbook.system' "$log"
+grep -q 'homeConfigurations."mac-user@macbook"' "$log"
+if grep -q 'nixosConfigurations' "$log"; then
+  printf 'Darwin native build selected a Linux output\n' >&2
+  exit 1
+fi
+# The branch remains unpublished: even Darwin activation must stop here.
+assert_rejected 'expected branch main'
+git -C "$repo" switch main >/dev/null
+: >"$log"
+bash "$script" deploy
+grep -q '^sudo darwin-rebuild switch --flake .#macbook$' "$log"
+if grep -q 'nixos-rebuild' "$log"; then
+  printf 'Darwin deploy selected nixos-rebuild\n' >&2
+  exit 1
+fi
+: >"$log"
+if bash "$script" test system >"$tmp/stdout" 2>"$tmp/stderr"; then
+  printf 'Darwin accepted NixOS test activation\n' >&2
+  exit 1
+fi
+grep -q 'nix-darwin has no NixOS test activation' "$tmp/stderr"
 [[ ! -s "$log" ]]

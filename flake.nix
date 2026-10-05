@@ -1,5 +1,5 @@
 {
-  description = "Toño's Master Multi-Host NixOS Configuration";
+  description = "Toño's NixOS and macOS workstation configuration";
 
   nixConfig = {
     extra-substituters = [ "https://cache.numtide.com" ];
@@ -17,6 +17,10 @@
 
     home-manager = {
       url = "github:nix-community/home-manager";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    nix-darwin = {
+      url = "github:nix-darwin/nix-darwin/master";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
@@ -53,6 +57,15 @@
         localSystem = system;
         config.allowUnfree = true;
       };
+      systems = [
+        "x86_64-linux"
+        "aarch64-darwin"
+      ];
+      darwinPkgs = import nixpkgs {
+        localSystem = "aarch64-darwin";
+        config.allowUnfree = true;
+      };
+      darwinTreefmt = treefmt-nix.lib.evalModule darwinPkgs ./treefmt.nix;
       aiToolsPackages = import ./packages/ai-tools.nix {
         pkgs = pkgsFor;
         llmAgents = inputs.llm-agents.packages.${system};
@@ -69,9 +82,10 @@
         rtk = aiToolsPackages.rtk.version;
       };
       treefmtEval = treefmt-nix.lib.evalModule pkgsFor ./treefmt.nix;
-      fleet = import ./inventory/fleet.nix { };
+      fleet = import ./inventory/fleet.nix { inherit username; };
       workstations = lib.getAttrs fleet.workstationNames fleet.hosts;
-      inherit (fleet) workstationNames homeHostNames inputSharingHostNames;
+      inherit (fleet) homeHostNames inputSharingHostNames;
+      workstationNames = fleet.nixosHostNames;
       fleetNames = fleet.hostNames;
       fleetInventory = fleet.inventory;
       hostOutputs = import ./flake/hosts.nix { inherit inputs username fleet; };
@@ -93,6 +107,27 @@
           homeHostNames
           ;
         pkgs = pkgsFor;
+        fleetHostPlatforms = builtins.mapAttrs (_: h: h.platform) fleet.hosts;
+        fleetHostSystems = builtins.mapAttrs (_: h: h.system) fleet.hosts;
+        fleetHostUsers = builtins.mapAttrs (_: h: h.username or username) fleet.hosts;
+      };
+      darwinNixConfigPackages = import ./modules/home/nix-config-packages.nix {
+        inherit lib username;
+        inherit (fleet) homeHostNames;
+        fleetNames = fleet.hostNames;
+        pkgs = darwinPkgs;
+        fleetHostPlatforms = builtins.mapAttrs (_: h: h.platform) fleet.hosts;
+        fleetHostSystems = builtins.mapAttrs (_: h: h.system) fleet.hosts;
+        fleetHostUsers = builtins.mapAttrs (_: h: h.username or username) fleet.hosts;
+      };
+      darwinChecks = import ./flake/darwin-checks.nix {
+        inherit
+          inputs
+          lib
+          fleet
+          username
+          ;
+        pkgs = darwinPkgs;
       };
     in
     {
@@ -102,16 +137,19 @@
           fleetEndpoints
           fleetInventory
           tailnetPolicy
-          workstationNames
           fleetNames
           homeHostNames
           inputSharingHostNames
           ;
         inherit (fleet)
+          workstationNames
           sshHostNames
           syncthingHostNames
           buildMatrix
+          nixosHostNames
+          darwinHostNames
           ;
+        inherit systems;
       };
 
       nixosConfigurations = hostOutputs.nixosConfigurations // {
@@ -124,9 +162,10 @@
         };
       };
 
-      inherit (hostOutputs) homeConfigurations;
+      inherit (hostOutputs) homeConfigurations darwinConfigurations;
 
       formatter.${system} = treefmtEval.config.build.wrapper;
+      formatter.aarch64-darwin = darwinTreefmt.config.build.wrapper;
       packages.${system} = {
         nix-config = nixConfigPackages.nixConfig;
         inherit (pkgsFor) gitleaks;
@@ -155,6 +194,17 @@
           meta.description = "Render the declared Tailscale tailnet policy";
         };
       };
+      packages.aarch64-darwin = {
+        nix-config = darwinNixConfigPackages.nixConfig;
+        inherit (darwinPkgs) gitleaks;
+        darwin-rebuild = inputs.nix-darwin.packages.aarch64-darwin.darwin-rebuild;
+      };
+      apps.aarch64-darwin.nix-config = {
+        type = "app";
+        program = lib.getExe darwinNixConfigPackages.nixConfig;
+        meta.description = "Validate, build and deploy the native workstation configuration";
+      };
+      checks.aarch64-darwin = darwinChecks.native;
       checks.${system} =
         (import ./flake/checks.nix {
           inherit
@@ -219,6 +269,7 @@
           pkgs = pkgsFor;
         })
         // {
+          darwin-evaluation = darwinChecks.evaluation pkgsFor;
           maintenance-lint =
             pkgsFor.runCommand "maintenance-lint-check"
               {
@@ -238,6 +289,19 @@
       devShells.${system}.default = pkgsFor.mkShell {
         packages = with pkgsFor; [
           treefmtEval.config.build.wrapper
+          actionlint
+          nixfmt
+          statix
+          deadnix
+          shellcheck
+          gitleaks
+          nodejs_22
+          jq
+        ];
+      };
+      devShells.aarch64-darwin.default = darwinPkgs.mkShell {
+        packages = with darwinPkgs; [
+          darwinTreefmt.config.build.wrapper
           actionlint
           nixfmt
           statix

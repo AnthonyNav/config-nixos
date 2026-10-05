@@ -122,7 +122,14 @@ let
       )
     ) names;
   facts = {
-    os = "NixOS";
+    os = if pkgs.stdenv.hostPlatform.isDarwin then "macOS" else "NixOS";
+    agents = [
+      "codex"
+      "claude"
+      "opencode"
+      "rtk"
+    ]
+    ++ lib.optional pkgs.stdenv.hostPlatform.isLinux "kiro-cli";
     host = hostFeatures.hostName;
     platform = hostFeatures.system;
     inherit (hostFeatures) kind;
@@ -136,13 +143,18 @@ let
     orcaRemote = {
       mode = hostFeatures.orcaRemote.mode or "off";
       preferredRuntime = hostFeatures.orcaRemote.preferredRuntime or false;
-      headlessImplemented = false;
+      headlessImplemented = pkgs.stdenv.hostPlatform.isLinux;
+      service =
+        if (hostFeatures.orcaRemote.mode or "off") == "headless" then "orca-serve.service" else null;
+      port = (import ../inventory/endpoints.nix { }).ports.orca;
     };
   };
   context =
     builtins.readFile ./context/global.md
     + "\n"
-    + builtins.readFile ./context/nixos.md
+    + builtins.readFile (
+      if pkgs.stdenv.hostPlatform.isDarwin then ./context/darwin.md else ./context/nixos.md
+    )
     + "\n# Evaluated host facts\n\n"
     + lib.concatStringsSep "\n" [
       "OS: ${facts.os}"
@@ -333,7 +345,7 @@ let
       [ ];
   kiroAgent = {
     name = "nixos-fleet";
-    description = "NixOS fleet context and shared maintenance skills";
+    description = "Nix fleet context and shared maintenance skills";
     prompt = "At session start run fleet-info --json, read the resolved workspace HANDOFF.md, then the repository instructions. Use relevant fleet skills and respect the current task's authorization.";
     resources = [
       "file://${homeDirectory}/.kiro/steering/nixos-fleet.md"

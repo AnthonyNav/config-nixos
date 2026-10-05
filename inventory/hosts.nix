@@ -2,6 +2,7 @@ let
   # One daily environment. Hosts only select capabilities and hardware modules.
   workstation = {
     system = "x86_64-linux";
+    platform = "nixos";
     kind = "workstation";
     role = "creative-ml-workstation";
     capabilities = { };
@@ -23,9 +24,10 @@ in
 {
   desktop = workstation // {
     systemModule = ../hosts/desktop;
+    homeModules = [ ../hosts/desktop/home.nix ];
     features = {
       orcaRemote = {
-        mode = "off";
+        mode = "headless";
         preferredRuntime = true;
       };
       virtualization.enable = true;

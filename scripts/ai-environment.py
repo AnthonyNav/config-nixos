@@ -191,6 +191,13 @@ def reconcile(home, manifest, check):
         raise
 
 
+def orca_probe(facts, home):
+    spec = importlib.util.spec_from_file_location("orca_server", Path(__file__).with_name("orca-server.py"))
+    server = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(server)
+    return server.probe(facts.get("orcaRemote", {}), home)
+
+
 def information(home, bundle):
     """Credential-free diagnostics; eligibility never implies a running service."""
     spec = importlib.util.spec_from_file_location("workspace_identity", Path(__file__).with_name("workspace-context.py"))
@@ -201,16 +208,19 @@ def information(home, bundle):
     spec.loader.exec_module(portable)
     config = json.loads((bundle / "workspace-policy.json").read_text())
     info = identity.resolve(config)
+    facts = json.loads((bundle / "host.json").read_text())
+    orca = orca_probe(facts, home)
+    darwin = facts.get("os") == "macOS" or facts.get("platform", "").endswith("-darwin")
     binaries = {name: shutil.which(name) for name in ("codex", "claude", "kiro-cli", "opencode", "orca-ide", "agy", "bwrap", "socat", "nsjail")}
     warnings = []
     for agent, required in (("codex", ("bwrap",)), ("claude", ("bwrap", "socat")), ("agy", ("nsjail",))):
-        if binaries[agent]:
+        if not darwin and binaries[agent]:
             for binary in required:
                 if not binaries[binary]:
                     warnings.append(f"{agent}: missing Linux sandbox dependency {binary}")
     return {
         "schema_version": 1,
-        "host": json.loads((bundle / "host.json").read_text()),
+        "host": facts,
         "context": info["context"],
         "directory": info["directory"],
         "git_common_dir": info["git_common_dir"],
@@ -218,13 +228,17 @@ def information(home, bundle):
         "skills": sorted(path.parent.name for path in (bundle / "skills").glob("*/SKILL.md")),
         "binaries": binaries,
         "sandbox": {
-            "codex": {"backend": "bubblewrap", "dependencies_available": bool(binaries["bwrap"]), "runtime_verified": False},
-            "claude": {"backend": "native Bash sandbox", "dependencies_available": bool(binaries["bwrap"] and binaries["socat"]), "runtime_verified": False},
-            "antigravity": {"applicable": bool(binaries["agy"]), "dependencies_available": bool(binaries["nsjail"]) if binaries["agy"] else None, "runtime_verified": False},
+            "codex": {"backend": "native macOS sandbox" if darwin else "bubblewrap", "dependencies_available": None if darwin else bool(binaries["bwrap"]), "runtime_verified": False},
+            "claude": {"backend": "native macOS sandbox" if darwin else "native Bash sandbox", "dependencies_available": None if darwin else bool(binaries["bwrap"] and binaries["socat"]), "runtime_verified": False},
+            "antigravity": {"applicable": bool(binaries["agy"]), "dependencies_available": None if darwin else bool(binaries["nsjail"]) if binaries["agy"] else None, "runtime_verified": False},
             "opencode": {"backend": "permission policy", "os_isolation_claimed": False},
             "kiro": {"backend": "local permission/trust policy", "os_isolation_claimed": False},
         },
-        "orca_runtime_status": "not probed; availability/policy do not imply a running runtime",
+        "orca_runtime": orca,
+        "orca_runtime_status": (f'headless: {"ready" if orca.get("healthy") else "not ready"}; '
+                                f'service={orca.get("service", {}).get("ActiveState", "unknown")}; '
+                                f'endpoint={orca.get("endpoint") or "unavailable"}') if orca.get("probed")
+                               else "not probed; availability/policy do not imply a running runtime",
         "warnings": warnings,
     }
 
@@ -245,7 +259,7 @@ def doctor(home, bundle):
         allowed = [entry["id"] for entry in registry if entry["context"] in ("any", info["context"])]
         print("MCP eligible in this context (enablement remains separate): " + ", ".join(allowed))
     failures = []
-    for binary in ("codex", "claude", "kiro-cli", "opencode", "rtk"):
+    for binary in facts.get("agents", ("codex", "claude", "kiro-cli", "opencode", "rtk")):
         present = shutil.which(binary) is not None
         print(f'{binary}: {"available" if present else "MISSING"}')
         if not present:
@@ -258,11 +272,15 @@ def doctor(home, bundle):
         print(f'{binary}: {shutil.which(binary) or "not selected/present"}')
     runtime = information(home, bundle)
     print("Workspace handoff: " + json.dumps(runtime["workspace"]))
-    print("Orca Remote policy: " + json.dumps(facts.get("orcaRemote", {})) + " (runtime not probed)")
+    print("Orca Remote policy: " + json.dumps(facts.get("orcaRemote", {})))
+    print("Orca runtime evidence: " + json.dumps(runtime["orca_runtime"]))
+    if runtime["orca_runtime"].get("probed") and not runtime["orca_runtime"].get("healthy"):
+        failures.append("Headless Orca is not ready; inspect orca-server-status and orca-server-logs")
     failures.extend(runtime["warnings"])
     print("Sandbox dependencies: " + json.dumps(runtime["sandbox"]) + " (verify the agents' effective native modes separately)")
     print("Managed Syncthing roots: fleet-work/personal -> ~/Workspace/{work,personal}; project HANDOFF/docs/assets plus legacy shared/")
-    print("Postman: fleet wrapper provides GTK schemas; GUI health requires a deployed session")
+    if facts.get("os") != "macOS":
+        print("Postman: fleet wrapper provides GTK schemas; GUI health requires a deployed session")
     print(f'MCP catalog: {len(registry)}; enabled: ' + json.dumps(json.loads((bundle / "enabled.json").read_text())))
     try:
         previous = json.loads(read(home / ".local/state/nixos-ai/ownership.json") or "{}")
@@ -287,7 +305,7 @@ def doctor(home, bundle):
         if os.environ.get(variable):
             failures.append(f"{variable} is set; integration targets the standard home directories")
     print("RTK: Claude conservative automatic hook; Codex/Kiro instruction fallback")
-    print("No external authentication or network checks performed.")
+    print("No external authentication performed. Headless Orca probes local CLI, Tailscale state, journal and listener only.")
     for issue in failures:
         print(f"ATTENTION: {issue}")
     return bool(failures)

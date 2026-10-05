@@ -85,6 +85,24 @@ errors with a Hyprland SIGABRT on resume at 10:24 on 2026-10-04. The evaluated
 configuration and builds verify integration; they do not prove runtime recovery.
 Victus already had this setting enabled and its hardware configuration is unchanged.
 
+A second Desktop cycle on 2026-10-04 exposed a separate failure after the first
+correction was deployed and rebooted. Idle suspend started at 22:26:50; S3
+returned at 22:35:12. NVIDIA's suspend and resume hooks both succeeded and
+`PreserveVideoMemoryAllocations` was already `1`. At 22:35:16 Hyprland crashed:
+`hyprlandCrashReport2244.txt` records SIGSEGV in Aquamarine 0.15.1's
+`CDRMAtomicRequest::restateConnectors`, reached through a monitor mode retry.
+Its log repeats atomic DRM `EINVAL` commits on DP-3. The compositor's crash
+handler then produced the journal's SIGABRT; portal, Caelestia and Hypridle
+failed after the graphical session disappeared. The user rebooted from a TTY.
+
+Desktop therefore disables **automatic idle suspension** through
+`hosts/desktop/home.nix`, for both integrated and standalone Home Manager.
+Locking and DPMS remain active; manual suspend remains available with NVIDIA's
+VRAM preservation and hooks. This contains the automatic trigger; it does not
+claim the graphics backend is repaired. Restore the idle timeout only after
+a reviewed backend/driver correction passes real multi-monitor suspend/resume.
+Victus retains its existing idle suspend policy.
+
 After an authorized rollout from clean, reviewed `main`, reboot before testing
 or leaving the machine idle. A live switch does not reload the NVIDIA module
 and its new memory-preservation parameter. Save work before suspend testing.

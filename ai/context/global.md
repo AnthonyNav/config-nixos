@@ -16,7 +16,7 @@ Workers do not publish or recursively delegate without explicit authorization.
 Worktrees separate Git edits; they do not provide OS isolation.
 
 This host uses declarative Nix configuration. Inspect the existing modules and
-profiles before adding abstractions. Put system services/drivers in NixOS,
+profiles before adding abstractions. Put system services/drivers in the platform's system layer,
 user tools and dotfiles in Home Manager, and project SDKs/dependencies in the
 project's development environment. Use nix shell/nix run for temporary tools
 and nix develop with direnv for project work. Do not use apt/dnf/pacman or

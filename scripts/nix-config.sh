@@ -21,7 +21,7 @@ Commands:
   status                         Show repository and generation status
   fmt [--check]                  Format Nix files or verify formatting
   check [current|all]            Run checks and build the selected scope
-  build system [HOST|all]        Build NixOS output(s)
+  build system [HOST|all]        Build native NixOS/nix-darwin output(s)
   build home [HOST|all]          Build Home Manager output(s)
   build all [HOST|all]           Build NixOS and Home Manager output(s)
   build iso                      Build the installer ISO
@@ -31,7 +31,7 @@ Commands:
   deploy                         Fast-forward, validate, and activate this host
   inputs update                  Update inputs on a clean feature branch
   generations [system|home]      List available generations
-  rollback system                Roll back the NixOS generation
+  rollback system                Roll back the native system generation
   rollback home GENERATION_PATH  Activate an older Home Manager generation
   gc [AGE]                       Delete generations older than AGE (default: 30d)
 EOF
@@ -66,7 +66,11 @@ resolve_host() {
   local allowed
 
   if [[ -z "$candidate" ]]; then
-    candidate="$(hostnamectl --static)"
+    if [[ "$(uname -s)" == "Darwin" ]]; then
+      candidate="$(scutil --get LocalHostName)"
+    else
+      candidate="$(hostnamectl --static)"
+    fi
   fi
 
   for allowed in "${host_names[@]}"; do
@@ -77,6 +81,22 @@ resolve_host() {
   done
 
   die "$candidate is not a declared fleet host"
+}
+
+host_property() {
+  local host="$1" kind="$2" data="" fallback=""
+  case "$kind" in
+    platform) data="${NIX_CONFIG_HOST_PLATFORMS_JSON:-}"; fallback=nixos ;;
+    user) data="${NIX_CONFIG_HOST_USERS_JSON:-}"; fallback="$config_user" ;;
+    system) data="${NIX_CONFIG_HOST_SYSTEMS_JSON:-}"; fallback="${NIX_CONFIG_NATIVE_SYSTEM:-x86_64-linux}" ;;
+    *) die "unknown host property: $kind" ;;
+  esac
+  if [[ -z "$data" ]]; then printf '%s\n' "$fallback"; return; fi
+  jq -er --arg host "$host" '.[$host] // error("missing inventory host property")' <<<"$data"
+}
+
+is_native_host() {
+  [[ "$(host_property "$1" system)" == "${NIX_CONFIG_NATIVE_SYSTEM:-x86_64-linux}" ]]
 }
 
 require_clean_main() {
@@ -160,12 +180,16 @@ static_checks() {
 
 system_installable() {
   local host="$1"
-  printf '%s#nixosConfigurations.%s.config.system.build.toplevel\n' "$flake" "$host"
+  if [[ "$(host_property "$host" platform)" == "darwin" ]]; then
+    printf '%s#darwinConfigurations.%s.system\n' "$flake" "$host"
+  else
+    printf '%s#nixosConfigurations.%s.config.system.build.toplevel\n' "$flake" "$host"
+  fi
 }
 
 home_installable() {
   local host="$1"
-  printf '%s#homeConfigurations."%s@%s".activationPackage\n' "$flake" "$config_user" "$host"
+  printf '%s#homeConfigurations."%s@%s".activationPackage\n' "$flake" "$(host_property "$host" user)" "$host"
 }
 
 build_system() {
@@ -209,6 +233,7 @@ build_scope() {
 
   if [[ "$selection" == "all" ]]; then
     for host in "${host_names[@]}"; do
+      if ! is_native_host "$host"; then continue; fi
       if [[ "$target" == "home" ]] && ! has_home "$host"; then continue; fi
       build_host "$target" "$host"
     done
@@ -236,7 +261,12 @@ run_check() {
 switch_system() {
   local action="$1"
   local host="$2"
-  (cd "$repo" && sudo nixos-rebuild "$action" --no-write-lock-file --flake "$flake#$host")
+  if [[ "$(host_property "$host" platform)" == "darwin" ]]; then
+    [[ "$action" == "switch" ]] || die "nix-darwin has no NixOS test activation"
+    (cd "$repo" && sudo darwin-rebuild switch --flake "$flake#$host")
+  else
+    (cd "$repo" && sudo nixos-rebuild "$action" --no-write-lock-file --flake "$flake#$host")
+  fi
 }
 
 switch_home() {
@@ -277,6 +307,9 @@ show_status() {
   if [[ -e /run/current-system ]]; then
     system_generation="$(readlink /run/current-system)"
     printf 'System: %s\n' "$system_generation"
+  fi
+  if [[ "$(uname -s)" == "Darwin" && -e /nix/var/nix/profiles/system ]]; then
+    printf 'Darwin system: %s\n' "$(readlink /nix/var/nix/profiles/system)"
   fi
 }
 
@@ -328,6 +361,7 @@ case "$command" in
     [[ "${2:-}" == "system" && $# -eq 2 ]] || die "usage: nix-config test system"
     resolve_repo
     host="$(resolve_host)"
+    [[ "$(host_property "$host" platform)" != "darwin" ]] || die "nix-darwin has no NixOS test activation; use build system"
     require_published_main
     static_checks
     build_host all "$host"
@@ -376,7 +410,13 @@ case "$command" in
   generations)
     [[ $# -le 2 ]] || die "usage: nix-config generations [system|home]"
     case "${2:-system}" in
-      system) nixos-rebuild list-generations ;;
+      system)
+        if [[ "$(uname -s)" == "Darwin" ]]; then
+          nix-env --list-generations --profile /nix/var/nix/profiles/system
+        else
+          nixos-rebuild list-generations
+        fi
+        ;;
       home)
         command -v home-manager >/dev/null 2>&1 || die "home-manager is not available"
         home-manager generations
@@ -388,7 +428,11 @@ case "$command" in
     case "${2:-}" in
       system)
         [[ $# -eq 2 ]] || die "rollback system takes no additional arguments"
-        sudo nixos-rebuild switch --rollback
+        if [[ "$(uname -s)" == "Darwin" ]]; then
+          sudo darwin-rebuild --rollback
+        else
+          sudo nixos-rebuild switch --rollback
+        fi
         ;;
       home)
         [[ $# -eq 3 ]] || die "usage: nix-config rollback home GENERATION_PATH"

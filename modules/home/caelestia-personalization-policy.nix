@@ -38,8 +38,8 @@ in
       occupiedBg = true;
     };
     dashboard = {
-      resourceUpdateInterval = 3000;
-      performance.showGpu = false;
+      resourceUpdateInterval = 1000;
+      performance.showGpu = true;
     };
   };
   nativeActions = [
