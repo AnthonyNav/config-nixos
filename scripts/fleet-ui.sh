@@ -236,15 +236,16 @@ case "$action" in
     ;;
 
   shortcuts)
+    shortcut_bin="$(peer_command fleet-shortcuts)"
     if [ "$platform" = Darwin ]; then
       if [ -x /Applications/kitty.app/Contents/MacOS/kitty ]; then
-        /Applications/kitty.app/Contents/MacOS/kitty -e sh -lc 'fleet-shortcuts; printf "\nPress Enter to close..."; read _' >/dev/null 2>&1 &
+        /Applications/kitty.app/Contents/MacOS/kitty -e "$shortcut_bin" --hold >/dev/null 2>&1 &
       else
-        fleet-shortcuts
+        "$shortcut_bin"
       fi
     else
       have kitty || die "kitty is not installed"
-      kitty --class fleet-shortcuts -e sh -lc 'fleet-shortcuts; printf "\nPress Enter to close..."; read _' >/dev/null 2>&1 &
+      kitty --class fleet-shortcuts -e "$shortcut_bin" --hold >/dev/null 2>&1 &
     fi
     ;;
 
