@@ -33,10 +33,22 @@
     hs.autoLaunch(true)
 
     local home = os.getenv("HOME")
-    local fleetUi = home .. "/.nix-profile/bin/fleet-ui"
+    local user = os.getenv("USER")
+    local candidates = {
+      home .. "/.nix-profile/bin/fleet-ui",
+      "/etc/profiles/per-user/" .. user .. "/bin/fleet-ui",
+    }
+
+    local fleetUi = nil
+    for _, candidate in ipairs(candidates) do
+      if hs.fs.attributes(candidate) then
+        fleetUi = candidate
+        break
+      end
+    end
 
     local function run(args)
-      if not hs.fs.attributes(fleetUi) then
+      if not fleetUi then
         hs.alert.show("fleet-ui is not available in the active Home Manager profile")
         return
       end
@@ -69,6 +81,8 @@
     fleet:bind({}, "o", function() run({ "orca" }) end)
     fleet:bind({}, "l", function() run({ "lock" }) end)
     fleet:bind({}, "f", function() run({ "fullscreen" }) end)
+    fleet:bind({}, "e", function() run({ "toggle-floating" }) end)
+    fleet:bind({}, "s", function() run({ "resize" }) end)
     fleet:bind({}, "k", function() run({ "shortcuts" }) end)
 
     local directions = { "left", "right", "up", "down" }
@@ -101,5 +115,13 @@
     default-root-container-orientation = 'auto'
 
     [mode.main.binding]
+
+    [mode.resize.binding]
+    left = 'resize width -50'
+    right = 'resize width +50'
+    up = 'resize height -50'
+    down = 'resize height +50'
+    enter = 'mode main'
+    esc = 'mode main'
   '';
 }
