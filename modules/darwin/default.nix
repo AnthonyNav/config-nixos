@@ -18,6 +18,10 @@ in
   users.users.${username}.home = homeDirectory;
   programs.zsh.enable = true;
   environment.shells = [ pkgs.zsh ];
+  environment.systemPath = lib.optionals config.homebrew.enable [
+    "${config.homebrew.prefix}/bin"
+    "${config.homebrew.prefix}/sbin"
+  ];
   nix.settings = {
     experimental-features = [
       "nix-command"
@@ -48,9 +52,12 @@ in
       "stablyai/orca"
       "nikitabobko/tap"
     ];
+    # Keep the existing App Store variant; the standalone cask cannot replace
+    # it safely during a remote activation.
+    masApps.Tailscale = 1475387142;
+    # The unqualified `orca` resolves to Plotly's unrelated, disabled cask.
     casks = [
-      "orca"
-      "tailscale-app"
+      "stablyai/orca/orca"
       "kitty"
       "hammerspoon"
       "karabiner-elements"
@@ -67,7 +74,7 @@ in
     }
     {
       assertion = !config.services.tailscale.enable;
-      message = "Use the standalone macOS Tailscale application, without a second Nix daemon.";
+      message = "Use the native macOS Tailscale application, without a second Nix daemon.";
     }
   ];
 }

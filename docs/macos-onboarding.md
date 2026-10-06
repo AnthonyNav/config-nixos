@@ -73,7 +73,9 @@ The Nix platform will be `aarch64-darwin`.
 
 ## 2. Install Tailscale first
 
-Install Tailscale's official **Standalone** macOS app.
+The registered Mac uses the official **App Store** variant. Keep that installation;
+the Darwin module declares its App Store ID through Homebrew's `masApps` support.
+For a new Mac using this profile, install Tailscale from the App Store first.
 
 Sign into the existing tailnet and approve the Mac according to current tailnet
 policy.
@@ -86,6 +88,9 @@ tailscale ip
 ```
 
 Do not install both App Store and Standalone variants.
+Switching variants requires a separate local migration and reboot; do not replace
+the app providing connectivity during a remote activation. See
+[Tailscale's variant guidance](https://tailscale.com/docs/concepts/macos-variants).
 
 Tailscale provides private connectivity to Desktop/Victus/Orca; it does not
 replace Git or Syncthing.
@@ -277,8 +282,9 @@ Do not synchronize their token/session databases from Linux.
 
 Use the native Apple Silicon Orca distribution.
 
-If the Darwin configuration chooses Homebrew ownership, manage the official
-Orca tap/cask declaratively rather than installing a second copy manually.
+The Darwin configuration uses the official `stablyai/orca/orca` cask. Keep the
+full tap-qualified name: the unqualified `orca` cask is Plotly's unrelated app.
+The cask also registers the bundled `orca` CLI in Homebrew's bin directory.
 
 At first launch:
 
@@ -296,7 +302,7 @@ fleet-info --json
 Then connect Orca on the Mac to Desktop's optional Remote Orca Server over
 Tailscale.
 
-Register the native `orca` CLI through Settings → General → Orca CLI. The
+If the bundled CLI is absent, register it through Settings → General → Orca CLI. The
 managed `orca-ide` command forwards to it, preserving shared workspace helpers.
 Desktop declares a persistent headless runtime; remote connection is available
 after its separate reviewed-main deployment and explicit pairing. Verify
@@ -310,6 +316,9 @@ The Darwin implementation should start Syncthing as a user LaunchAgent through
 the declarative Home Manager adapter.
 
 Do not manually create a second set of folder rules.
+Syncthing 2 generates an empty initial folder list. The removed
+`--no-default-folder` option must not be passed to its service; the fleet
+reconciler installs the bounded ignore rules before registering managed folders.
 
 Pair the new device with the existing fleet and verify the declared folders:
 
