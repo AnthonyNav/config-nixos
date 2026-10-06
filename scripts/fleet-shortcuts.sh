@@ -31,3 +31,8 @@ Platform-native shortcuts remain native:
   macOS Command shortcuts, Mission Control and application shortcuts are not remapped.
   NixOS keeps existing Caelestia/Hyprland aliases and advanced shortcuts.
 EOF
+
+if [ "${1:-}" = "--hold" ]; then
+  printf '\nPress Enter to close...'
+  read -r _
+fi
