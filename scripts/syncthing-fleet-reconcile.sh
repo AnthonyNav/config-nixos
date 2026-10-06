@@ -53,7 +53,8 @@ wait_for_tailscale() {
 
 resolve_tailscale_ip() {
   local host="$1" status_json="$2"
-  jq -r --arg host "$host" '[.Peer[]? | select((.HostName // "") == $host or (((.DNSName // "") | split(".")[0]) == $host)) | .TailscaleIPs[]? | select(contains(":") | not)][0] // empty' <<<"$status_json"
+  # LocalHostName may preserve capitals while MagicDNS always uses lowercase.
+  jq -r --arg host "$host" '[.Peer[]? | select(((.HostName // "") | ascii_downcase) == ($host | ascii_downcase) or (((.DNSName // "") | split(".")[0] // "" | ascii_downcase) == ($host | ascii_downcase))) | .TailscaleIPs[]? | select(contains(":") | not)][0] // empty' <<<"$status_json"
 }
 
 discover_device_id() {

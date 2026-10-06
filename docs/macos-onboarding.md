@@ -4,14 +4,35 @@ This guide describes how to bootstrap an Apple Silicon Mac and keep its
 development environment aligned with the NixOS fleet.
 
 The foundation in [macOS workstation portability plan](macos-workstation-plan.md)
-is implemented. The real Mac is not registered yet. Do not use validation
-fixtures as workstation configurations or activate them.
+is implemented. The real Mac is registered as `MacBook-Pro-de-Antonio`, with
+user `anthonynav` and home `/Users/anthonynav`. Do not use validation fixtures
+as workstation configurations or activate them.
 
 Before first activation, add a reviewed inventory entry using
 `inventory/darwin-template.nix`, supplying the actual macOS user and using the
 actual LocalHostName as the inventory key. Select `mobile` only when needed;
 review the work-folder allowlist and Syncthing/Tailscale peer policy. Merge that
 host registration and complete its native builds first.
+
+## Registered Mac
+
+Facts verified over native SSH on 2026-10-05: Apple M5 (`Mac17,2`), 16 GiB RAM,
+`arm64`, macOS 27.0.1 after the user's update, FileVault enabled. The initial
+bootstrap and native builds completed on macOS 26.5.1; SSH, Tailscale, Nix,
+Command Line Tools and built executables were checked again after the update.
+The selected profiles are `development`,
+`platform` and `mobile`; Nix builds use two jobs and two suggested cores.
+
+The standalone Tailscale app is already joined to the existing tailnet. Native
+Remote Login permits `anthonynav`, using a locally authorized public key.
+Connect with `ssh anthonynav@macbook-pro-de-antonio.tail88c098.ts.net`.
+The template keeps `connectivity.ssh = false`: `fleet-ssh` targets Tailscale SSH
+servers, which the standalone macOS app does not provide. Native Remote Login
+is managed in macOS settings, separately from that fleet capability.
+
+Syncthing eligibility includes the Mac in the work/personal document folders.
+Use the generated allowlist and peer reconciliation after native activation;
+repository clones, credentials and mutable application state stay local.
 
 ## 0. Before touching the Mac
 
@@ -109,10 +130,10 @@ Do not copy the NixOS checkout with Syncthing.
 ## 5. First nix-darwin activation
 
 After the real host registration is reviewed and merged, the repository exposes
-the host under `darwinConfigurations.<actual-hostname>`, for example:
+the host under:
 
 ```text
-darwinConfigurations.macbook
+darwinConfigurations.MacBook-Pro-de-Antonio
 ```
 
 For the first installation, use nix-darwin's bootstrap runner against the
@@ -122,18 +143,17 @@ Install Homebrew using its official installer before activation. The Darwin
 module manages native casks but does not bootstrap Homebrew or erase unrelated
 applications. Use exactly one standalone Tailscale app.
 
-From clean published `main`, bootstrap with the repository's locked runner,
-replacing `macbook` with the actual inventory key:
+From clean published `main`, bootstrap with the repository's locked runner:
 
 ```sh
-sudo nix run .#darwin-rebuild -- switch --flake .#macbook
+sudo nix run .#darwin-rebuild -- switch --flake .#MacBook-Pro-de-Antonio
 ```
 
 After nix-darwin is installed, normal updates should use the repository-managed
 wrapper or:
 
 ```sh
-sudo darwin-rebuild switch --flake .#macbook
+sudo darwin-rebuild switch --flake .#MacBook-Pro-de-Antonio
 ```
 
 Never activate a feature branch as the normal workstation configuration.
@@ -151,6 +171,37 @@ Expected first activation:
 
 macOS may request permissions for native applications. Grant only permissions
 required by the documented workflow.
+
+### Flutter and iOS
+
+The mobile profile supplies FVM and CocoaPods. Each project supplies its Flutter
+version through `.fvmrc` and its development environment; do not copy a Linux SDK
+cache or install another global Flutter.
+
+Install full Xcode from Apple's official downloads or App Store. Command Line
+Tools alone do not provide the iOS SDK or simulator. On 2026-10-05,
+[Apple's compatibility table](https://developer.apple.com/xcode/system-requirements)
+lists stable Xcode 27 for macOS 26.6 or later. The verified Mac now runs
+macOS 27.0.1; select stable Xcode 27 from
+[Apple Developer downloads](https://developer.apple.com/download/all/?q=Xcode%2027),
+signing in locally if needed. After installation, run locally and review the
+license in the terminal:
+
+```sh
+sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer
+sudo xcodebuild -license
+sudo xcodebuild -runFirstLaunch
+xcodebuild -downloadPlatform iOS
+```
+
+Follow [Flutter's iOS setup](https://docs.flutter.dev/platform-integration/ios/setup)
+for native device support. Validate `xcodebuild -version` and `pod --version`,
+then `fvm flutter doctor -v` inside the project's selected environment. Verify
+`git --version` first: the shared Git version/help forwarding fix must be merged
+before FVM is accepted as working on this Mac.
+
+Use a simulator build before configuring signing for physical devices. Apple ID,
+signing certificates and credentials remain local to the Mac.
 
 ## 6. Create local credentials
 

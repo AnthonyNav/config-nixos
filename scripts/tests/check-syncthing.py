@@ -15,7 +15,7 @@ def fake_tool(tool, args):
     state_path = Path(os.environ["TEST_SYNCTHING_STATE"])
     state = json.loads(state_path.read_text())
     if tool == "tailscale":
-        print(json.dumps({"Peer": {"peer": {"HostName": "victus", "TailscaleIPs": ["100.64.0.2"]}}}))
+        print(json.dumps({"Peer": {"peer": state.get("tailscalePeer", {"HostName": "victus", "TailscaleIPs": ["100.64.0.2"]})}}))
         return 0
     if tool == "xmllint":
         print("test-api-key")
@@ -122,6 +122,7 @@ class ReconcileTests(unittest.TestCase):
             "writes": [],
         }
         self.folders = [{"id": "fleet-shared", "label": "Fleet Shared", "path": str(self.folder_path), "type": "sendreceive", "hosts": ["desktop", "victus"]}]
+        self.peers = ["victus"]
 
     def run_script(self, *args, expected=0):
         self.state_path.write_text(json.dumps(self.state))
@@ -129,13 +130,34 @@ class ReconcileTests(unittest.TestCase):
             "PATH": str(self.bin) + os.pathsep + os.environ["PATH"],
             "TEST_SYNCTHING_STATE": str(self.state_path),
             "SYNCTHING_CONFIG_DIR": str(self.root), "SYNCTHING_FLEET_HOST": "desktop",
-            "SYNCTHING_FLEET_PEERS_JSON": '["victus"]',
+            "SYNCTHING_FLEET_PEERS_JSON": json.dumps(self.peers),
             "SYNCTHING_FLEET_FOLDERS_JSON": json.dumps(self.folders),
             "SYNCTHING_FLEET_IGNORE_HELPER": str(Path(RECONCILER).with_name("syncthing-ignores.py")),
         }
         result = subprocess.run(["bash", RECONCILER, *args], env=env, capture_output=True, text=True, timeout=30)
         self.assertEqual(result.returncode, expected, result.stderr)
         self.state = json.loads(self.state_path.read_text())
+
+    def test_mac_localhostname_resolves_lowercase_magicdns(self):
+        self.peers = ["MacBook-Pro-de-Antonio"]
+        self.folders[0]["hosts"] = ["desktop", *self.peers]
+        self.state["tailscalePeer"] = {
+            "HostName": "MacBook Pro de Antonio",
+            "DNSName": "macbook-pro-de-antonio.tailnet.example.",
+            "TailscaleIPs": ["fd7a:115c:a1e0::2", "100.64.0.2"],
+        }
+        self.state["peerID"] = "MAC"
+        self.run_script()
+        peer = next(d for d in self.state["devices"] if d["deviceID"] == "MAC")
+        self.assertEqual(peer["name"], "fleet:MacBook-Pro-de-Antonio")
+        self.assertEqual(peer["addresses"], ["tcp://100.64.0.2:22000"])
+
+    def test_unrelated_magicdns_peer_leaves_configuration_unchanged(self):
+        self.peers = ["MacBook-Pro-de-Antonio"]
+        self.folders[0]["hosts"] = ["desktop", *self.peers]
+        before = copy.deepcopy(self.state)
+        self.run_script(expected=75)
+        self.assertEqual(self.state, before)
 
     def test_preserves_local_folder_and_device_settings(self):
         before = copy.deepcopy(self.state)

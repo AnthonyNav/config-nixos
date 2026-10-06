@@ -22,6 +22,20 @@ let
   };
 in
 {
+  MacBook-Pro-de-Antonio =
+    (import ./darwin-template.nix {
+      username = "anthonynav";
+      homeDirectory = "/Users/anthonynav";
+    })
+    // {
+      homeProfiles = [
+        "development"
+        "platform"
+        "mobile"
+      ];
+      systemModule = ../hosts/MacBook-Pro-de-Antonio;
+    };
+
   desktop = workstation // {
     systemModule = ../hosts/desktop;
     homeModules = [ ../hosts/desktop/home.nix ];
