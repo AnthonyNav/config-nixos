@@ -2,14 +2,27 @@ self_dir="$(cd "$(dirname "$0")" && pwd)"
 
 resolve_command() {
   local name="$1"
+
+  if [ "$name" = "fleet-ui" ] && [ -n "${FLEET_UI_BIN:-}" ] && [ -x "$FLEET_UI_BIN" ]; then
+    printf '%s\n' "$FLEET_UI_BIN"
+    return
+  fi
+
   if command -v "$name" >/dev/null 2>&1; then
     command -v "$name"
     return
   fi
-  if [ -x "$self_dir/$name" ]; then
-    printf '%s\n' "$self_dir/$name"
-    return
-  fi
+
+  for candidate in \
+    "$self_dir/$name" \
+    "$HOME/.nix-profile/bin/$name" \
+    "/etc/profiles/per-user/${USER:-}/bin/$name"; do
+    if [ -x "$candidate" ]; then
+      printf '%s\n' "$candidate"
+      return
+    fi
+  done
+
   printf 'fleet-menu: %s is not available\n' "$name" >&2
   return 1
 }
