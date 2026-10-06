@@ -31,6 +31,21 @@ have() {
   command -v "$1" >/dev/null 2>&1
 }
 
+self_dir="$(cd "$(dirname "$0")" && pwd)"
+
+peer_command() {
+  local name="$1"
+  if have "$name"; then
+    command -v "$name"
+    return
+  fi
+  if [ -x "$self_dir/$name" ]; then
+    printf '%s\n' "$self_dir/$name"
+    return
+  fi
+  die "$name is not available in the active Home Manager profile"
+}
+
 darwin_app() {
   local app="$1"
   /usr/bin/open -Ra "$app" >/dev/null 2>&1
@@ -101,14 +116,14 @@ case "$action" in
   menu)
     if [ "$platform" = Darwin ]; then
       if [ -x /Applications/kitty.app/Contents/MacOS/kitty ]; then
-        /Applications/kitty.app/Contents/MacOS/kitty -e fleet-menu >/dev/null 2>&1 &
+        /Applications/kitty.app/Contents/MacOS/kitty -e "$(peer_command fleet-menu)" >/dev/null 2>&1 &
       else
         /usr/bin/open -a Terminal
         die "kitty is required for the managed Fleet menu"
       fi
     else
       have kitty || die "kitty is not installed"
-      kitty --class fleet-menu -e fleet-menu >/dev/null 2>&1 &
+      kitty --class fleet-menu -e "$(peer_command fleet-menu)" >/dev/null 2>&1 &
     fi
     ;;
 
@@ -245,8 +260,18 @@ case "$action" in
     }
 
     printf 'Fleet interaction doctor (%s)\n' "$platform"
-    check_command fleet-menu
-    check_command fleet-shortcuts
+    if peer_command fleet-menu >/dev/null 2>&1; then
+      printf 'OK   command: fleet-menu\n'
+    else
+      printf 'MISS command: fleet-menu\n'
+      fail=1
+    fi
+    if peer_command fleet-shortcuts >/dev/null 2>&1; then
+      printf 'OK   command: fleet-shortcuts\n'
+    else
+      printf 'MISS command: fleet-shortcuts\n'
+      fail=1
+    fi
 
     if [ "$platform" = Darwin ]; then
       for app in kitty Hammerspoon Karabiner-Elements AeroSpace; do
