@@ -56,6 +56,10 @@ def git_options(args, cwd=None):
     with_value = {"-C", "-c", "--git-dir", "--work-tree", "--namespace", "--config-env"}
     while index < len(args) and args[index].startswith("-"):
         arg = args[index]
+        # Git turns version/help options into commands; configuration must
+        # precede them rather than become arguments to those commands.
+        if arg in ("--version", "-v", "--help", "-h"):
+            break
         prefix.append(arg)
         index += 1
         if arg in with_value:
