@@ -172,6 +172,28 @@ Expected first activation:
 macOS may request permissions for native applications. Grant only permissions
 required by the documented workflow.
 
+### Keyboard-first Fleet interaction
+
+The workstation installs Kitty, Hammerspoon, Karabiner-Elements and AeroSpace
+as native Homebrew applications. Home Manager supplies the cross-platform
+`fleet-ui`, `fleet-menu` and `fleet-shortcuts` commands plus the Darwin
+adapter.
+
+After the first reviewed-main activation, complete the one-time macOS consent
+steps in [Fleet keyboard interaction](fleet-interaction.md): approve the
+required Accessibility/Input Monitoring permissions and enable the supplied
+Karabiner **Fleet Key** Complex Modification.
+
+Then validate:
+
+```sh
+fleet-ui doctor
+fleet-shortcuts
+```
+
+Caps Lock becomes the Fleet Key. Visual macOS personalization remains entirely
+user-owned; this layer manages keyboard/workspace behavior only.
+
 ### Flutter and iOS
 
 The mobile profile supplies FVM and CocoaPods. Each project supplies its Flutter
