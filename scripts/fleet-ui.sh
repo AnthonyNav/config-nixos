@@ -15,6 +15,8 @@ Actions:
   workspace <1-10>
   move-workspace <1-10>
   fullscreen
+  toggle-floating
+  resize
   shortcuts
   doctor
 EOF
@@ -197,6 +199,24 @@ case "$action" in
     else
       have hyprctl || die "hyprctl is not installed"
       hyprctl dispatch fullscreen 0
+    fi
+    ;;
+
+  toggle-floating)
+    if [ "$platform" = Darwin ]; then
+      "$(aerospace_bin)" layout floating tiling
+    else
+      have hyprctl || die "hyprctl is not installed"
+      hyprctl dispatch togglefloating
+    fi
+    ;;
+
+  resize)
+    if [ "$platform" = Darwin ]; then
+      "$(aerospace_bin)" mode resize
+    else
+      have hyprctl || die "hyprctl is not installed"
+      hyprctl dispatch submap resize
     fi
     ;;
 
