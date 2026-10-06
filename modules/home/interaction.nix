@@ -1,5 +1,4 @@
 {
-  lib,
   pkgs,
   ...
 }:
@@ -8,9 +7,6 @@ let
     name = "fleet-ui";
     runtimeInputs = [
       pkgs.coreutils
-    ]
-    ++ lib.optionals pkgs.stdenv.hostPlatform.isLinux [
-      pkgs.hyprland
     ];
     text = builtins.readFile ../../scripts/fleet-ui.sh;
   };
@@ -19,7 +15,6 @@ let
     name = "fleet-menu";
     runtimeInputs = [
       pkgs.fzf
-      fleetUi
     ];
     text = builtins.readFile ../../scripts/fleet-menu.sh;
   };
@@ -31,8 +26,8 @@ let
 in
 {
   # Shared human-interface contract. Platform adapters translate the same
-  # actions to Hyprland/Caelestia or macOS/AeroSpace without leaking either
-  # implementation into portable Home configuration.
+  # actions to Hyprland/Caelestia or macOS/AeroSpace without pulling either
+  # platform implementation into portable Home configuration.
   home.packages = [
     fleetUi
     fleetMenu
