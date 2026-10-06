@@ -27,6 +27,13 @@ in
     extra-trusted-public-keys = [ "niks3.numtide.com-1:DTx8wZduET09hRmMtKdQDxNNthLQETkc/yaX7M4qK0g=" ];
   };
   system.stateVersion = 6;
+
+  # Functional keyboard defaults only. Visual appearance remains user-owned.
+  system.defaults.NSGlobalDomain = {
+    AppleKeyboardUIMode = 2;
+    InitialKeyRepeat = 15;
+    KeyRepeat = 2;
+  };
   # Homebrew itself is installed explicitly during onboarding. Activation may
   # manage only these native apps; it must not uninstall unrelated user apps.
   homebrew = {
@@ -36,10 +43,17 @@ in
       upgrade = false;
       cleanup = "none";
     };
-    taps = [ "stablyai/orca" ];
+    taps = [
+      "stablyai/orca"
+      "nikitabobko/tap"
+    ];
     casks = [
       "orca"
       "tailscale-app"
+      "kitty"
+      "hammerspoon"
+      "karabiner-elements"
+      "aerospace"
     ]
     ++ lib.optional development "visual-studio-code"
     ++ lib.optional mobile "android-studio";
