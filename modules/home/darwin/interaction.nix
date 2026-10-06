@@ -1,5 +1,14 @@
-{ ... }:
+{ pkgs, ... }:
+let
+  backend = pkgs.writeShellApplication {
+    name = "fleet-ui-backend";
+    runtimeInputs = [ pkgs.coreutils ];
+    text = builtins.readFile ../../../scripts/fleet-ui-darwin.sh;
+  };
+in
 {
+  fleet.interaction.backend = backend;
+
   # Karabiner owns only the physical-key normalization. The active profile stays
   # mutable/user-owned; this repository ships an importable Complex Modification
   # instead of replacing Karabiner's device-specific state.
@@ -67,7 +76,7 @@
         if exitCode ~= 0 and stdErr and #stdErr > 0 then
           hs.alert.show(stdErr)
         end
-      end, args)
+      end, nil, args)
 
       if task then
         fleetInteraction.tasks[taskId] = task
@@ -84,10 +93,16 @@
     fleetInteraction.modal = hs.hotkey.modal.new()
     local fleet = fleetInteraction.modal
 
-    fleetInteraction.trigger = hs.hotkey.bind({}, "f18",
-      function() fleet:enter() end,
-      function() fleet:exit() end
-    )
+    fleetInteraction.triggers = {
+      hs.hotkey.bind({}, "f18",
+        function() fleet:enter() end,
+        function() fleet:exit() end
+      ),
+      hs.hotkey.bind({ "shift" }, "f18",
+        function() fleet:enter() end,
+        function() fleet:exit() end
+      ),
+    }
 
     fleet:bind({}, "return", function() run({ "terminal" }) end)
     fleet:bind({}, "space", function() run({ "menu" }) end)
