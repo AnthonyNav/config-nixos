@@ -10,6 +10,7 @@
   imports = [
     ../../modules/home/shell-tools.nix
     ../../modules/home/neovim.nix
+    ../../modules/home/interaction.nix
   ];
   home.username = username;
   home.homeDirectory = homeDirectory;
