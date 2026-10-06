@@ -69,10 +69,7 @@ let
       lib.hasInfix "# macOS workflow" facts.context && !lib.hasInfix "# NixOS workflow" facts.context;
     assert !darwin.config.services.tailscale.enable;
     assert lib.any (c: c.name == "tailscale-app") darwin.config.homebrew.casks;
-    assert
-      lib.all (
-        name: lib.any (c: c.name == name) darwin.config.homebrew.casks
-      ) [
+    assert lib.all (name: lib.any (c: c.name == name) darwin.config.homebrew.casks) [
         "kitty"
         "hammerspoon"
         "karabiner-elements"
