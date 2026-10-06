@@ -71,6 +71,30 @@ class WorkspaceTests(unittest.TestCase):
                           extra={"WORK_CONTEXT": "neutral", "GIT_AUTHOR_EMAIL": "wrong@example.org", "GIT_COMMITTER_EMAIL": "wrong@example.org"})
             self.assertEqual(self.raw("-C", str(path), "log", "-1", "--format=%ae:%ce"), f"{email}:{email}")
 
+    def test_version_and_help_options_match_native_git(self):
+        options = (("--version",), ("-v",), ("--version", "--build-options"),
+                   ("-C", ".", "--version"), ("-c", "user.name=Ignored", "--version"),
+                   ("-h",), ("--help", "-h"), ("--version", "--invalid-option"))
+        for directory in (self.work, self.personal, self.neutral):
+            for args in options:
+                with self.subTest(directory=directory, args=args):
+                    native = subprocess.run([GIT, *args], cwd=directory, env=self.env,
+                                            capture_output=True, text=True, timeout=10)
+                    managed = self.run_tool("git", *args, cwd=directory, expected=native.returncode)
+                    self.assertEqual(managed.stdout, native.stdout)
+                    self.assertEqual(managed.stderr, native.stderr)
+        self.assertFalse(self.capture.exists())
+
+    def test_explicit_git_config_cannot_override_selected_identity(self):
+        for path, email in ((self.work, "work@example.org"), (self.personal, "personal@example.org")):
+            self.init(path)
+            self.run_tool("git", "-c", "user.name=Wrong", "-c", "user.email=wrong@example.org",
+                          "commit", "--allow-empty", "-m", "selected identity", cwd=path)
+            self.assertEqual(self.raw("-C", str(path), "log", "-1", "--format=%ae:%ce"), f"{email}:{email}")
+        self.init(self.neutral)
+        self.run_tool("git", "-c", "user.name=Wrong", "-c", "user.email=wrong@example.org",
+                      "commit", "--allow-empty", "-m", "neutral", expected=128)
+
     def test_external_linked_worktree_inherits_original_context(self):
         self.init(self.work)
         self.run_tool("git", "commit", "--allow-empty", "-m", "initial", cwd=self.work)
