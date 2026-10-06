@@ -70,6 +70,16 @@ let
     assert !darwin.config.services.tailscale.enable;
     assert lib.any (c: c.name == "tailscale-app") darwin.config.homebrew.casks;
     assert
+      lib.all (
+        name: lib.any (c: c.name == name) darwin.config.homebrew.casks
+      ) [
+        "kitty"
+        "hammerspoon"
+        "karabiner-elements"
+        "aerospace"
+      ];
+    assert lib.getName home.config.fleet.interaction.backend == "fleet-ui-backend";
+    assert
       !lib.any (
         p:
         builtins.elem (lib.getName p) [
