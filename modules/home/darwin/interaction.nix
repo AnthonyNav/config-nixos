@@ -33,10 +33,17 @@
     hs.autoLaunch(true)
 
     local home = os.getenv("HOME")
-    local user = os.getenv("USER")
+    local user = os.getenv("USER") or ""
     local candidates = {
       home .. "/.nix-profile/bin/fleet-ui",
-      "/etc/profiles/per-user/" .. user .. "/bin/fleet-ui",
+    }
+    if user ~= "" then
+      table.insert(candidates, "/etc/profiles/per-user/" .. user .. "/bin/fleet-ui")
+    end
+
+    fleetInteraction = {
+      tasks = {},
+      nextTaskId = 0,
     }
 
     local fleetUi = nil
@@ -53,23 +60,31 @@
         return
       end
 
+      fleetInteraction.nextTaskId = fleetInteraction.nextTaskId + 1
+      local taskId = fleetInteraction.nextTaskId
       local task = hs.task.new(fleetUi, function(exitCode, _, stdErr)
+        fleetInteraction.tasks[taskId] = nil
         if exitCode ~= 0 and stdErr and #stdErr > 0 then
           hs.alert.show(stdErr)
         end
       end, args)
+
       if task then
-        task:start()
+        fleetInteraction.tasks[taskId] = task
+        if not task:start() then
+          fleetInteraction.tasks[taskId] = nil
+        end
       end
     end
 
     hs.urlevent.bind("fleet-lock", function()
-      hs.caffeinate.lockScreen()
+      hs.eventtap.keyStroke({ "ctrl", "cmd" }, "q")
     end)
 
-    local fleet = hs.hotkey.modal.new()
+    fleetInteraction.modal = hs.hotkey.modal.new()
+    local fleet = fleetInteraction.modal
 
-    hs.hotkey.bind({}, "f18",
+    fleetInteraction.trigger = hs.hotkey.bind({}, "f18",
       function() fleet:enter() end,
       function() fleet:exit() end
     )
