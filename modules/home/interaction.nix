@@ -36,7 +36,7 @@ in
 
   # Shared human-interface contract. Platform modules provide the backend;
   # this module contains no Linux or Darwin implementation details.
-  home.packages = [
+  config.home.packages = [
     fleetUi
     fleetMenu
     fleetShortcuts
