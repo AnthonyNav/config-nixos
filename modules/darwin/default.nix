@@ -31,6 +31,7 @@ in
   # Functional keyboard defaults only. Visual appearance remains user-owned.
   system.defaults.NSGlobalDomain = {
     AppleKeyboardUIMode = 2;
+    ApplePressAndHoldEnabled = false;
     InitialKeyRepeat = 15;
     KeyRepeat = 2;
   };
