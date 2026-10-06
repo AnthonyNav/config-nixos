@@ -1,3 +1,6 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
 self_dir="$(cd "$(dirname "$0")" && pwd)"
 
 resolve_command() {
