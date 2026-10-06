@@ -35,6 +35,12 @@ identities. This repository does not publish tailnet policy or deploy itself.
 `desktopStyles` is a closed registry in `flake/hosts.nix`. Current machines use
 Caelestia. New desktop variants belong there, not in permanent branches.
 
+The shared [Fleet keyboard interaction](fleet-interaction.md) is an intent-level
+interface, not a desktop style. Portable commands must remain free of
+Hyprland/AeroSpace dependencies; Linux and Darwin adapters own their respective
+window-manager/input integrations. macOS visual personalization remains
+user-owned.
+
 ## Commands
 
 Format and fully validate the current workstation without activation:
