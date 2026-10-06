@@ -35,7 +35,7 @@
       input = {
         kb_layout = "us,latam";
         kb_variant = ",";
-        kb_options = "grp:shifts_toggle,grp_led:scroll";
+        kb_options = "grp:shifts_toggle,grp_led:scroll,caps:super";
         follow_mouse = 1;
         touchpad = {
           natural_scroll = true;
@@ -68,6 +68,9 @@
       bind = [
         # Gestión del Sistema y Terminal
         "$mainMod, Return, exec, kitty"
+        "$mainMod, Space, exec, fleet-ui menu" # Fleet menu compartido con macOS
+        "$mainMod, O, exec, fleet-ui orca" # mismo gesto lógico en toda la flota
+        "$mainMod, K, exec, fleet-ui shortcuts" # contrato portable de atajos
         "$mainMod, R, exec, caelestia shell drawers toggle launcher" # launcher nativo de Caelestia (antes rofi -show drun)
         "$mainMod, D, global, caelestia:dashboard" # dashboard (media, clima, info del sistema)
         "$mainMod, C, killactive,"
