@@ -1,21 +1,15 @@
 {
+  config,
+  lib,
   pkgs,
   ...
 }:
 let
-  fleetUi = pkgs.writeShellApplication {
-    name = "fleet-ui";
-    runtimeInputs = [
-      pkgs.coreutils
-    ];
-    text = builtins.readFile ../../scripts/fleet-ui.sh;
-  };
+  cfg = config.fleet.interaction;
 
   fleetMenu = pkgs.writeShellApplication {
     name = "fleet-menu";
-    runtimeInputs = [
-      pkgs.fzf
-    ];
+    runtimeInputs = [ pkgs.fzf ];
     text = builtins.readFile ../../scripts/fleet-menu.sh;
   };
 
@@ -23,11 +17,25 @@ let
     name = "fleet-shortcuts";
     text = builtins.readFile ../../scripts/fleet-shortcuts.sh;
   };
+
+  fleetUi = pkgs.writeShellApplication {
+    name = "fleet-ui";
+    runtimeInputs = [
+      cfg.backend
+      fleetMenu
+      fleetShortcuts
+    ];
+    text = builtins.readFile ../../scripts/fleet-ui.sh;
+  };
 in
 {
-  # Shared human-interface contract. Platform adapters translate the same
-  # actions to Hyprland/Caelestia or macOS/AeroSpace without pulling either
-  # platform implementation into portable Home configuration.
+  options.fleet.interaction.backend = lib.mkOption {
+    type = lib.types.package;
+    description = "Platform adapter implementing the portable Fleet interaction contract.";
+  };
+
+  # Shared human-interface contract. Platform modules provide the backend;
+  # this module contains no Linux or Darwin implementation details.
   home.packages = [
     fleetUi
     fleetMenu
