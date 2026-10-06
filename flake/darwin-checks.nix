@@ -53,7 +53,9 @@ let
   policy =
     assert outputs.nixosConfigurations ? desktop && outputs.nixosConfigurations ? victus;
     assert !(outputs.nixosConfigurations ? macos-test);
-    assert builtins.attrNames outputs.darwinConfigurations == [ "macos-test" ];
+    assert
+      builtins.attrNames outputs.darwinConfigurations
+      == builtins.sort builtins.lessThan (fleet.darwinHostNames ++ [ "macos-test" ]);
     assert home.config.home.homeDirectory == fixture.homeDirectory;
     assert home.config.fleet.home.profiles == fixture.homeProfiles;
     assert !home.config.wayland.windowManager.hyprland.enable;

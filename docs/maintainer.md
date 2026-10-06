@@ -2,8 +2,9 @@
 
 ## Architecture
 
-The inventory currently contains Desktop and Victus. Both consume one daily
-Home environment and select development, data-science, creative and platform profiles.
+The inventory contains Desktop, Victus and `MacBook-Pro-de-Antonio`. Desktop and
+Victus consume one daily Home environment and select development, data-science,
+creative and platform profiles. The Mac selects development, platform and mobile.
 Hardware modules stay under `hosts/<name>/`; explicit per-program Home modules
 and static `dotfiles/` are shared. See [workstation-architecture.md](workstation-architecture.md)
 for extension rules, [monitors.md](monitors.md) for topology selection and
@@ -11,12 +12,13 @@ for extension rules, [monitors.md](monitors.md) for topology selection and
 
 `flake/hosts.nix` dispatches inventory hosts by platform: NixOS uses its system
 and desktop modules; Darwin uses nix-darwin and its native adapters. Common Home
-Manager stays shared. The Mac is not available and is not registered yet;
-Darwin fixtures in `flake/darwin-checks.nix` and a native macOS CI job validate
-the prepared constructor without creating a production peer.
+Manager stays shared. The Mac uses its actual local hostname and `anthonynav`
+user. Darwin fixtures in `flake/darwin-checks.nix` remain validation-only; the
+native macOS CI job also builds the registered Mac's system and Home outputs.
 All inventory members are daily workstations with Home Manager; the installer
 is a separate output. SSH, Syncthing, input-sharing peers and CI's build matrix
-are inventory-derived. Shared changes require two systems and two Home builds.
+are inventory-derived. Shared changes require system and Home builds for all
+affected workstations, using a native builder for each platform.
 See [macOS workstation plan](macos-workstation-plan.md) and
 [onboarding](macos-onboarding.md). `nix-check all` builds hosts matching the
 native system; other platforms require their native builder. The full CI gate

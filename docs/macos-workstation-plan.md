@@ -12,11 +12,14 @@ system responsibilities separate.
 No Darwin host should be added to deployable outputs until the real Mac exists
 and its hostname/user requirements are known.
 
-The Mac is not available yet. Production inventory still contains only Desktop
-and Victus; `darwinConfigurations` is empty. `inventory/darwin-template.nix`
-provides the reviewed host shape without registering a peer. Darwin system and
-Home fixtures are exposed only under `checks.aarch64-darwin`, with Linux
-evaluation in `checks.x86_64-linux.darwin-evaluation` and a native macOS CI job.
+The real Apple M5 Mac is registered as `MacBook-Pro-de-Antonio`, with user
+`anthonynav`, home `/Users/anthonynav`, and development, platform and mobile
+profiles. Its system output is `darwinConfigurations.MacBook-Pro-de-Antonio`.
+`inventory/darwin-template.nix` still provides the host shape for future Macs.
+Darwin system and Home fixtures remain under `checks.aarch64-darwin`, with Linux
+evaluation in `checks.x86_64-linux.darwin-evaluation` and native macOS CI builds.
+Registration does not prove native activation or application readiness; follow
+the [onboarding runbook](macos-onboarding.md) for acceptance on the real device.
 
 The implementation keeps existing paths: `profiles/home/base.nix` and common
 modules own portable behavior, `profiles/home/linux.nix` owns Linux behavior,
@@ -32,8 +35,9 @@ validation before enabling it on a Mac.
 Native ownership is explicit: Homebrew manages Orca, standalone `tailscale-app`,
 VS Code with the development profile, Android Studio with the mobile profile,
 and Colima with development. Nix owns Docker-compatible clients; Colima is
-installed without starting a VM. Xcode and project Flutter SDKs stay external
-to the workstation's common package set. Homebrew activation disables automatic
+installed without starting a VM. The mobile Home profile provides FVM and
+CocoaPods; Xcode and project Flutter SDKs stay external to the workstation's
+common package set. Homebrew activation disables automatic
 updates, upgrades and cleanup of unrelated applications.
 
 Register Orca's native `orca` CLI in its settings after installation. The Darwin

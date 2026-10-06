@@ -72,12 +72,12 @@ jobs:
         with:
           extra_nix_config: |
             accept-flake-config = true
-            build-dir = ${{ matrix.platform == 'darwin' && format('{0}/nix-build', runner.temp) || '/mnt/nix-build' }}
+            build-dir = ${{ matrix.platform == 'darwin' && '/nix/var/nix/builds' || '/mnt/nix-build' }}
             auto-optimise-store = true
 
       - name: Prepare Darwin build directory
         if: matrix.platform == 'darwin'
-        run: mkdir -p "${{ runner.temp }}/nix-build"
+        run: sudo install -d -m 0755 /nix/var/nix/builds
 
       - name: Build NixOS system
         if: matrix.platform == 'nixos'
@@ -95,7 +95,7 @@ jobs:
         run: |
           df -h / || true
           sudo du -sh /nix/store 2>/dev/null || true
-          sudo du -sh "${{ runner.temp }}/nix-build" 2>/dev/null || true
+          sudo du -sh "${{ matrix.platform == 'darwin' && '/nix/var/nix/builds' || '/mnt/nix-build' }}" 2>/dev/null || true
 
   darwin-foundation:
     runs-on: macos-15
