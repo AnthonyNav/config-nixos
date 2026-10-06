@@ -43,7 +43,8 @@ peer_command() {
     printf '%s\n' "$self_dir/$name"
     return
   fi
-  die "$name is not available in the active Home Manager profile"
+  printf 'fleet-ui: %s is not available in the active Home Manager profile\n' "$name" >&2
+  return 1
 }
 
 darwin_app() {
@@ -116,14 +117,16 @@ case "$action" in
   menu)
     if [ "$platform" = Darwin ]; then
       if [ -x /Applications/kitty.app/Contents/MacOS/kitty ]; then
-        /Applications/kitty.app/Contents/MacOS/kitty -e "$(peer_command fleet-menu)" >/dev/null 2>&1 &
+        menu_bin="$(peer_command fleet-menu)" || die "fleet-menu is unavailable"
+        /Applications/kitty.app/Contents/MacOS/kitty -e "$menu_bin" >/dev/null 2>&1 &
       else
         /usr/bin/open -a Terminal
         die "kitty is required for the managed Fleet menu"
       fi
     else
       have kitty || die "kitty is not installed"
-      kitty --class fleet-menu -e "$(peer_command fleet-menu)" >/dev/null 2>&1 &
+      menu_bin="$(peer_command fleet-menu)" || die "fleet-menu is unavailable"
+      kitty --class fleet-menu -e "$menu_bin" >/dev/null 2>&1 &
     fi
     ;;
 
@@ -236,7 +239,7 @@ case "$action" in
     ;;
 
   shortcuts)
-    shortcut_bin="$(peer_command fleet-shortcuts)"
+    shortcut_bin="$(peer_command fleet-shortcuts)" || die "fleet-shortcuts is unavailable"
     if [ "$platform" = Darwin ]; then
       if [ -x /Applications/kitty.app/Contents/MacOS/kitty ]; then
         /Applications/kitty.app/Contents/MacOS/kitty -e "$shortcut_bin" --hold >/dev/null 2>&1 &
