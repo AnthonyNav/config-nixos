@@ -15,8 +15,8 @@ resolve_command() {
 }
 
 run_and_hold() {
-  "$@"
-  status=$?
+  status=0
+  "$@" || status=$?
   printf '\nPress Enter to close...'
   read -r _
   return "$status"
@@ -41,21 +41,27 @@ action="${choice#*$'\t'}"
 
 case "$action" in
   terminal|browser|files|orca|shortcuts)
-    "$(resolve_command fleet-ui)" "$action"
+    fleet_ui="$(resolve_command fleet-ui)"
+    "$fleet_ui" "$action"
     ;;
   doctor)
-    run_and_hold "$(resolve_command fleet-ui)" doctor
+    fleet_ui="$(resolve_command fleet-ui)"
+    run_and_hold "$fleet_ui" doctor
     ;;
   fleet-info)
-    run_and_hold "$(resolve_command fleet-info)" --json
+    command_path="$(resolve_command fleet-info)"
+    run_and_hold "$command_path" --json
     ;;
   identity-doctor)
-    run_and_hold "$(resolve_command identity-doctor)"
+    command_path="$(resolve_command identity-doctor)"
+    run_and_hold "$command_path"
     ;;
   ai-doctor)
-    run_and_hold "$(resolve_command ai-doctor)"
+    command_path="$(resolve_command ai-doctor)"
+    run_and_hold "$command_path"
     ;;
   nix-status)
-    run_and_hold "$(resolve_command nix-status)"
+    command_path="$(resolve_command nix-status)"
+    run_and_hold "$command_path"
     ;;
 esac
