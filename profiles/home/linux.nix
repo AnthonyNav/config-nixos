@@ -1,6 +1,7 @@
 { lib, ... }:
 {
   imports = [
+    ../../modules/home/linux/interaction.nix
     ../../modules/home/browsers.nix
     ../../modules/home/media.nix
     ../../modules/home/orca.nix
