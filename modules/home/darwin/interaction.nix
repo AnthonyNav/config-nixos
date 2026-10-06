@@ -12,29 +12,8 @@ in
   # Karabiner owns only the physical-key normalization. The active profile stays
   # mutable/user-owned; this repository ships an importable Complex Modification
   # instead of replacing Karabiner's device-specific state.
-  xdg.configFile."karabiner/assets/complex_modifications/fleet-key.json".text =
-    builtins.toJSON {
-      title = "Fleet Key";
-      rules = [
-        {
-          description = "Caps Lock becomes the Fleet Key (F18)";
-          manipulators = [
-            {
-              type = "basic";
-              from = {
-                key_code = "caps_lock";
-                modifiers.optional = [ "any" ];
-              };
-              to = [
-                {
-                  key_code = "f18";
-                }
-              ];
-            }
-          ];
-        }
-      ];
-    };
+  xdg.configFile."karabiner/assets/complex_modifications/fleet-key.json".source =
+    ../../../dotfiles/karabiner/fleet-key.json;
 
   # Hammerspoon turns F18 into a held modal key. This preserves distinct
   # Fleet+key and Fleet+Shift+key chords, unlike a four-modifier Hyper mapping.
