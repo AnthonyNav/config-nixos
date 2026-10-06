@@ -13,6 +13,8 @@ Core actions:
   Fleet + O              Orca
   Fleet + L              Lock
   Fleet + F              Fullscreen
+  Fleet + E              Toggle floating/tiling
+  Fleet + S              Resize mode (arrows; Enter/Escape to exit)
   Fleet + K              This shortcut guide
 
 Window navigation:
