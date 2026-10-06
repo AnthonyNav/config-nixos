@@ -21,7 +21,7 @@ in
     enable = true;
     overrideDevices = false;
     overrideFolders = false;
-    extraOptions = [ "--no-default-folder" ];
+    # Syncthing 2 creates no default folder and rejects the former CLI flag.
     inherit (syncthing) settings;
   };
   home.packages = lib.optionals enabled [
@@ -29,7 +29,7 @@ in
     syncthing.reconcile
   ];
   home.activation.syncthingLogs = lib.mkIf enabled (
-    lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+    lib.hm.dag.entryBetween [ "setupLaunchAgents" ] [ "writeBoundary" ] ''
       run ${pkgs.coreutils}/bin/install -d -m 0700 ${lib.escapeShellArg "${config.home.homeDirectory}/Library/Logs/Syncthing"}
     ''
   );

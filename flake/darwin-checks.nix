@@ -68,7 +68,9 @@ let
     assert
       lib.hasInfix "# macOS workflow" facts.context && !lib.hasInfix "# NixOS workflow" facts.context;
     assert !darwin.config.services.tailscale.enable;
-    assert lib.any (c: c.name == "tailscale-app") darwin.config.homebrew.casks;
+    assert darwin.config.homebrew.masApps.Tailscale == 1475387142;
+    assert !lib.any (c: c.name == "tailscale-app") darwin.config.homebrew.casks;
+    assert lib.any (c: c.name == "stablyai/orca/orca") darwin.config.homebrew.casks;
     assert lib.all (name: lib.any (c: c.name == name) darwin.config.homebrew.casks) [
       "kitty"
       "hammerspoon"
@@ -76,6 +78,9 @@ let
       "aerospace"
     ];
     assert lib.getName home.config.fleet.interaction.backend == "fleet-ui-backend";
+    assert builtins.elem "${darwin.config.homebrew.prefix}/bin" (
+      lib.splitString ":" darwin.config.environment.systemPath
+    );
     assert
       !lib.any (
         p:
@@ -107,6 +112,8 @@ in
             pkgs.bash
             pkgs.jq
             pkgs.coreutils
+            pkgs.syncthing
+            pkgs.libxml2
           ];
         }
         ''
@@ -114,6 +121,13 @@ in
           python ${../scripts/tests/check-workspace-context.py} ${../scripts/workspace-context.py}
           python ${../scripts/tests/check-portable-workspace.py} ${../scripts}
           bash ${../scripts/tests/check-nix-config.sh} ${../scripts/nix-config.sh}
+          # Validate the actual package's CLI and initial folder policy without
+          # running a daemon or publishing generated keys/configuration.
+          umask 077
+          export STHOMEDIR="$TMPDIR/syncthing-bootstrap"
+          syncthing serve ${lib.escapeShellArgs home.config.services.syncthing.extraOptions} --help >/dev/null
+          syncthing generate --no-port-probing
+          test "$(xmllint --xpath 'count(configuration/folder)' "$STHOMEDIR/config.xml")" = 0
           touch "$out"
         '';
     darwin-policy =
