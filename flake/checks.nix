@@ -423,10 +423,13 @@
         shellcheck \
           ${../scripts/nix-config.sh} \
           ${../scripts/tests/check-nix-config.sh} \
+          ${../scripts/macos-readiness.sh} \
+          ${../scripts/tests/check-macos-readiness.sh} \
           ${../scripts/tests/check-input-share.sh} \
           ${../scripts/input-share-reconcile.sh} \
           ${../scripts/syncthing-fleet-reconcile.sh}
         bash ${../scripts/tests/check-nix-config.sh} ${../scripts/nix-config.sh}
+        bash ${../scripts/tests/check-macos-readiness.sh} ${../scripts/macos-readiness.sh}
         bash ${../scripts/tests/check-input-share.sh} ${../scripts/input-share-reconcile.sh}
         nix-config --help >/dev/null
         touch "$out"

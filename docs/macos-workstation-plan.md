@@ -9,15 +9,16 @@ like NixOS.
 The goal is to reuse the **development experience** while keeping operating
 system responsibilities separate.
 
-No Darwin host should be added to deployable outputs until the real Mac exists
-and its hostname/user requirements are known.
-
-The real Apple M5 Mac is registered as `MacBook-Pro-de-Antonio`, with user
+A Darwin host is added only when its real hostname and local user have been
+verified. The existing Apple M5 Mac is registered as `MacBook-Pro-de-Antonio`, with user
 `anthonynav`, home `/Users/anthonynav`, and development, platform and mobile
 profiles. Its system output is `darwinConfigurations.MacBook-Pro-de-Antonio`.
 `inventory/darwin-template.nix` still provides the host shape for future Macs.
 Darwin system and Home fixtures remain under `checks.aarch64-darwin`, with Linux
 evaluation in `checks.x86_64-linux.darwin-evaluation` and native macOS CI builds.
+The `macos-readiness-<host>` flake package allows read-only host-specific
+preflight before activation; Home Manager later provides
+`fleet-macos-readiness --runtime` for CLI smoke checks.
 Registration does not prove native activation or application readiness; follow
 the [onboarding runbook](macos-onboarding.md) for acceptance on the real device.
 
@@ -32,9 +33,10 @@ Darwin does not silently install unsupported Linux packages or require their
 presence in `ai-doctor`. Optional Artemis remains off and needs separate native
 validation before enabling it on a Mac.
 
-Native ownership is explicit: Homebrew manages Orca, standalone `tailscale-app`,
-VS Code with the development profile, Android Studio with the mobile profile,
-and Colima with development. Nix owns Docker-compatible clients; Colima is
+Native ownership is explicit: Homebrew manages Orca, VS Code with the
+development profile, Android Studio with the mobile profile and Colima with
+development. The pre-existing App Store version of Tailscale remains
+macOS-owned and is declared by app ID, never replaced with a second cask. Nix owns Docker-compatible clients; Colima is
 installed without starting a VM. The mobile Home profile provides FVM and
 CocoaPods; Xcode and project Flutter SDKs stay external to the workstation's
 common package set. Homebrew activation disables automatic

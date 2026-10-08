@@ -33,8 +33,22 @@ Inventory selects the platform, CPU/OS and user for each output. Darwin detects
 the LocalHostName with `scutil`, builds `darwinConfigurations.<host>.system`,
 and activates through `darwin-rebuild`; NixOS keeps its existing behavior.
 `nix-config test system` remains NixOS-only. Explicit non-native build selectors
-can use a separately configured builder. No Mac is registered yet; the Darwin
-checks validate preparation without activating a fixture.
+can use a separately configured builder. The registered MacBook Pro has its own
+native Darwin system and Home outputs; fixture checks do not activate devices.
+
+## Checkout discovery
+
+`nix-config` first uses the current config-nixos checkout when invoked from
+inside it, then checks `~/Workspace/personal/repos/config-nixos` and the
+legacy `~/nixos-config` path. This lets the Mac run `nix-status`,
+`nix-check` and `nix-update` from any directory without a machine-specific
+shell alias. Set `NIXOS_CONFIG_DIR` to an explicit checkout to override
+discovery; an invalid override fails closed rather than falling back to another
+clone. Identity, worktree and clean-published-main restrictions still apply.
+
+The independent macOS readiness command is `fleet-macos-readiness --runtime`
+after activation, or `nix run .#macos-readiness-MacBook-Pro-de-Antonio`
+from the Mac checkout before it. Both commands only inspect local prerequisites.
 
 ## Safety Model
 
@@ -92,5 +106,6 @@ documented direct `nixos-rebuild switch --flake ...` bootstrap command.
 
 
 Every declared fleet host is a daily workstation with a Home Manager output.
-`build all all` and `check all` cover both systems and both Home outputs.
+`build all all` and `check all` build compatible native systems and Homes
+on the current machine; CI uses Linux and Darwin runners to cover the fleet.
 The installer is not included in the workstation build matrix.

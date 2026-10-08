@@ -22,6 +22,10 @@
     rar
     wget
     curl
+    # Shared essentials for interactive terminals and coding agents.
+    ripgrep
+    jq
+    fd
   ];
   programs = {
     btop = {

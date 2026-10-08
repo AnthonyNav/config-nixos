@@ -120,6 +120,16 @@
         fleetHostSystems = builtins.mapAttrs (_: h: h.system) fleet.hosts;
         fleetHostUsers = builtins.mapAttrs (_: h: h.username or username) fleet.hosts;
       };
+      darwinReadiness = lib.mapAttrs (
+        name: host:
+        import ./packages/macos-readiness.nix {
+          inherit lib;
+          pkgs = darwinPkgs;
+          hostName = name;
+          username = host.username or username;
+          homeDirectory = host.homeDirectory or "/Users/${host.username or username}";
+        }
+      ) (lib.getAttrs fleet.darwinHostNames fleet.hosts);
       darwinChecks = import ./flake/darwin-checks.nix {
         inherit
           inputs
@@ -198,7 +208,10 @@
         nix-config = darwinNixConfigPackages.nixConfig;
         inherit (darwinPkgs) gitleaks;
         darwin-rebuild = inputs.nix-darwin.packages.aarch64-darwin.darwin-rebuild;
-      };
+      }
+      // lib.mapAttrs' (
+        name: package: lib.nameValuePair "macos-readiness-${name}" package
+      ) darwinReadiness;
       apps.aarch64-darwin.nix-config = {
         type = "app";
         program = lib.getExe darwinNixConfigPackages.nixConfig;

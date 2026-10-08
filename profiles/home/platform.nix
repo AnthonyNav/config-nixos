@@ -24,7 +24,6 @@
     dnsutils
     bind.host
     tcpdump
-    fd
     yq-go
     just
     watchexec

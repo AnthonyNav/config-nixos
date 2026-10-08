@@ -93,6 +93,8 @@ in
       '';
   platform-policy =
     assert lib.all (home: builtins.elem "platform" home.fleet.home.profiles) homes;
+    # fd is shared by the portable base Home, rather than owned by platform.
+    assert lib.all (home: lib.any (p: lib.getName p == "fd") home.home.packages) homes;
     assert lib.all (
       home:
       lib.all (package: builtins.any (p: toString p == toString package) home.home.packages) [
@@ -111,7 +113,7 @@ in
       ''
         for command in tofu terragrunt kubectl helm k9s kustomize kubectx kubens stern \
           trivy syft grype cosign dive gitleaks sops age nmap mtr iperf3 dig host \
-          tcpdump fd yq just watchexec hyperfine nvd; do
+          tcpdump yq just watchexec hyperfine nvd; do
         if ! command -v "$command" >/dev/null; then
           printf 'Missing platform command: %s\n' "$command" >&2
           exit 1

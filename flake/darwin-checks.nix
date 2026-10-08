@@ -65,6 +65,12 @@ let
     assert home.config.launchd.agents.workspace-sync.enable;
     assert home.config.launchd.agents.workspace-sync.config.StartInterval == 120;
     assert !(home.config.programs.zsh.shellAliases ? pritunl);
+    assert lib.all (name: lib.any (package: lib.getName package == name) home.config.home.packages) [
+      "ripgrep"
+      "jq"
+      "fd"
+      "fleet-macos-readiness"
+    ];
     assert !home.config.fleet.development.legacyJupyterLibraries;
     assert facts.facts.os == "macOS" && facts.facts.platform == "aarch64-darwin";
     assert
@@ -117,6 +123,7 @@ in
             pkgs.coreutils
             pkgs.syncthing
             pkgs.libxml2
+            pkgs.shellcheck
           ];
         }
         ''
@@ -125,6 +132,8 @@ in
           python ${../scripts/tests/check-portable-workspace.py} ${../scripts}
           python ${../scripts/tests/check-workspace-receive.py} ${../scripts}
           bash ${../scripts/tests/check-nix-config.sh} ${../scripts/nix-config.sh}
+          shellcheck ${../scripts/macos-readiness.sh} ${../scripts/tests/check-macos-readiness.sh}
+          bash ${../scripts/tests/check-macos-readiness.sh} ${../scripts/macos-readiness.sh}
           # Validate the actual package's CLI and initial folder policy without
           # running a daemon or publishing generated keys/configuration.
           umask 077

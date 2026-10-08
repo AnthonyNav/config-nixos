@@ -8,11 +8,10 @@ is implemented. The real Mac is registered as `MacBook-Pro-de-Antonio`, with
 user `anthonynav` and home `/Users/anthonynav`. Do not use validation fixtures
 as workstation configurations or activate them.
 
-Before first activation, add a reviewed inventory entry using
-`inventory/darwin-template.nix`, supplying the actual macOS user and using the
-actual LocalHostName as the inventory key. Select `mobile` only when needed;
-review the work-folder allowlist and Syncthing/Tailscale peer policy. Merge that
-host registration and complete its native builds first.
+For an additional future Mac, derive a reviewed inventory entry from
+`inventory/darwin-template.nix`, matching its actual user, home directory and
+LocalHostName. Review mobile capabilities and Syncthing/Tailscale allowlists
+before adding it. The existing Mac is already registered; do not duplicate it.
 
 ## Registered Mac
 
@@ -146,7 +145,20 @@ repository flake. The implementation should document the exact host selector.
 
 Install Homebrew using its official installer before activation. The Darwin
 module manages native casks but does not bootstrap Homebrew or erase unrelated
-applications. Use exactly one standalone Tailscale app.
+applications. Keep the existing **App Store** Tailscale variant; do not add a
+second standalone variant.
+
+Check native prerequisites **without making changes**:
+
+```sh
+nix run .#macos-readiness-MacBook-Pro-de-Antonio -- --preflight
+```
+
+This checks Apple Silicon, the registered macOS user, home and LocalHostName,
+the Nix daemon, Homebrew and Command Line Tools. Fix any FAIL before first
+activation. If `brew` is installed at `/opt/homebrew/bin/brew` but not found
+on PATH, configure its shell environment locally. The check will report WARN,
+not silently overwrite the user's shell configuration.
 
 From clean published `main`, bootstrap with the repository's locked runner:
 
@@ -432,12 +444,14 @@ git pull --ff-only
 nix flake check --no-build --no-write-lock-file
 
 # then activate reviewed main
-sudo darwin-rebuild switch --flake .#macbook
+sudo darwin-rebuild switch --flake .#MacBook-Pro-de-Antonio
 ```
 
-Once the host is registered and activated, use the shared workflow:
+Once the host is registered and activated, use the shared workflow **from any
+directory** (the wrapper discovers the portable checkout):
 
 ```sh
+nix-config status
 nix-config build all             # build the current host, no activation
 nix-check all                   # validate/build hosts matching this native system
 nix-update                      # fetch, verify clean published main, build and switch
@@ -450,7 +464,7 @@ systems; an explicit host selector can still use a configured remote builder.
 Every activation keeps the same clean-main and freshly fetched origin/main
 gate as Linux. A feature branch may build but cannot activate.
 
-Before the Mac exists, validation on Linux is:
+Linux-side cross-platform evaluation, without attempting to activate macOS:
 
 ```sh
 nix flake check --all-systems --no-build --no-write-lock-file
@@ -476,6 +490,7 @@ documented update path.
 After onboarding or a significant update:
 
 ```sh
+fleet-macos-readiness --runtime
 workspace-context doctor
 identity-doctor
 ai-doctor
@@ -483,6 +498,10 @@ fleet-info --json
 tailscale status
 syncthing --version
 ```
+
+Runtime diagnostics only check that expected CLIs are available; warnings for
+Tailscale CLI, native Orca CLI or full Xcode describe separate local setup.
+The check neither accesses credentials nor starts applications.
 
 Also validate manually:
 

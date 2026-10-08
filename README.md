@@ -2,12 +2,14 @@
 
 Configuración modular de NixOS + Flakes + Home Manager orientada al uso diario, desarrollo y creación audiovisual con escritorio Wayland (Hyprland), herramientas modernas de IA y soporte multi-máquina.
 
-La integración Apple Silicon/macOS está preparada con nix-darwin y una base
-Home Manager portable. Desktop y Victus siguen siendo los únicos equipos
-administrados; la Mac se registrará cuando estén disponibles sus datos reales.
-Consulta el [plan macOS](docs/macos-workstation-plan.md) y el
-[onboarding](docs/macos-onboarding.md). Los fixtures Darwin se evalúan desde
-Linux y se construyen en CI macOS sin activación.
+La flota incluye Desktop y Victus (NixOS) y la MacBook Pro Apple Silicon
+(macOS). Comparten Home Manager, CLI, agentes de IA y flujos de trabajo;
+nix-darwin administra solo el sistema macOS y sus adaptadores nativos.
+La apariencia, las credenciales, las sesiones y las aplicaciones no declaradas
+siguen siendo propiedad de cada equipo. Consulta el
+[plan macOS](docs/macos-workstation-plan.md) y el
+[onboarding](docs/macos-onboarding.md). CI valida Darwin en Apple Silicon,
+pero no activa ni comprueba los permisos de las aplicaciones de la Mac real.
 
 ---
 
