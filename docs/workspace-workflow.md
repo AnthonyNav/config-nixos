@@ -1,6 +1,6 @@
 # Workspace, identity and Orca workflow
 
-Desktop and Victus share this workflow. ThinkPad remains retired; its data is
+Desktop, Victus and the registered Mac share this workflow. ThinkPad remains retired; its data is
 retained. Backup jobs and rootless Docker remain disabled. This implements
 [PR #77](https://github.com/AnthonyNav/config-nixos/pull/77) and the portable phase
 of [PR #79](https://github.com/AnthonyNav/config-nixos/pull/79); activation is a
@@ -135,6 +135,23 @@ scan and versioning preferences migrate. Old manual peer access is not granted
 to new work/personal folders. Existing unrelated folders/devices/shares remain.
 Tailnet-only discovery, no auto-accept and no introducer behavior are retained.
 
+The reconciler reuses registered `fleet:<host>` device IDs when a peer is offline
+or its Syncthing listener is unavailable. New offline participants are deferred
+until a later timer without blocking other peers or removing registered offline
+shares. Duplicate registered identities fail before writes. Available peers
+still have their certificate-derived IDs checked, including identity rotation.
+Linux retries through the ten-minute timer rather than a ten-second failure loop;
+the Mac uses its existing ten-minute LaunchAgent.
+
+The observed legacy IDs `mprez-tcw5e` (`~/Projects`) and `syf74-ywg9t` (`~/kigo`)
+are paused only on Desktop/Victus when both the ID and expected path match the
+inventory. Before changing an active folder the reconciler saves a mode-0600
+`fleet-paused-<id>.*.json` snapshot beside Syncthing's local configuration.
+Files, shares and other settings remain; a path mismatch aborts all changes.
+Already paused folders need no additional snapshot. `--check` is read-only.
+Inventory their Git repos and deliberately move/clone selected projects into
+canonical workspaces; this retirement never relocates files or publishes code.
+
 Before a separately authorized deployment, pause Syncthing on **both** machines,
 retain its configuration and ignore files, and inventory `~/Sync/Fleet`.
 After applying reviewed main, inspect IDs, paths, peers and exclusions in the
@@ -143,6 +160,64 @@ verification; test one harmless file
 in each `shared/` directory. Manually copy selected old shared data, compare both
 machines and retain the source. Review worktrees, remotes, Orca/editor and direnv
 paths before moving repositories. No automatic file migration/pruning occurs.
+
+## Automatic Git receivers
+
+After deploying reviewed main, each daily Home runs `workspace-sync run` at
+login and approximately every two minutes: a systemd user timer on Linux and a
+LaunchAgent on macOS. The local registry starts empty. Register each receiving
+checkout once, under the account that owns it:
+
+```sh
+workspace-sync register ~/Workspace/personal/example/repos/app --branch main
+workspace-sync register ~/Workspace/work/cello/repos/backend --context work --branch feature/mobile
+workspace-sync status --json
+# Leave project shells first; manual execution uses the same guards as the timer.
+cd ~
+workspace-sync run --json
+```
+
+Registration pins the physical checkout, Git common directory, work/personal
+context, remote URL and branch. It never clones or switches branches. A neutral
+compatibility path needs explicit `--context`; a conflicting owning context is
+rejected. A changed branch/remote/identity requires deliberate re-registration.
+Each fetch scopes the existing identity adapters separately, with no interactive
+login or inherited token/askpass/Git-directory overrides. If a key is locked,
+credentials are absent or the network is unavailable, a later run retries.
+
+Only a clean receiving branch that is an ancestor of the fetched published
+commit can fast-forward. Dirty/staged/untracked changes, local commits, divergent
+history, Git operations/locks and submodules defer receipt. Ignored file
+collisions abort without overwriting those files. Git hooks are disabled; no
+autostash, merge commit, reset, rebase, commit, push or Nix activation occurs.
+The process-CWD census defers application while another local process works in
+the checkout; an unavailable census also defers it. Fetch can still complete
+while the checkout is busy.
+
+Use receiving copies and separate task worktrees. Before opening a receiving
+copy for editing, including an editor with unsaved buffers, explicitly hold it:
+
+```sh
+workspace-sync hold ~/Workspace/personal/example/repos/app
+# Edit/checkpoint/publish only with the task's existing authorization.
+workspace-sync resume ~/Workspace/personal/example/repos/app
+workspace-sync unregister ~/Workspace/personal/example/repos/app
+```
+
+A CWD census cannot establish that every GUI editor has saved its buffers; the
+hold is the owner's intent lock. It persists across reboot. Active Desktop agent
+worktrees should remain unregistered. Local registry/locks are in
+`~/.config/fleet/workspace-sync.*`; receipts are in
+`~/.local/state/fleet/workspace-sync/`, all private and outside synchronized
+roots. `workspace-sync status` shows the last result without remote URLs or auth
+output. Registering receivers does not authorize publishing source work.
+
+The phone changes files on Desktop. Once an authorized task commits and pushes
+them, online Victus/Mac receivers can advance their registered branch on the next
+poll. Uncommitted work stays on its original host. Read HANDOFF.md and verify the
+published branch/SHA before resuming; automatic receipt does not transfer live
+sessions or choose the intended task branch for you. A receiving copy of this
+Nix configuration may advance on reviewed main, but deployment remains separate.
 
 ## Portable handoff and WIP
 

@@ -21,6 +21,23 @@ let
   );
 in
 {
+  workspace-receive =
+    assert lib.all (
+      home: home.systemd.user.timers.workspace-sync.Timer.OnUnitInactiveSec == "2m"
+    ) homes;
+    pkgs.runCommand "workspace-receive-check"
+      {
+        nativeBuildInputs = [
+          pkgs.python3
+          pkgs.git
+          pkgs.lsof
+        ];
+      }
+      ''
+        export PYTHONDONTWRITEBYTECODE=1
+        python ${../scripts/tests/check-workspace-receive.py} ${../scripts}
+        touch "$out"
+      '';
   portable-workspace =
     pkgs.runCommand "portable-workspace-check"
       {

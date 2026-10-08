@@ -27,6 +27,13 @@ unpushed work explicitly and clean WIP history before requesting PR review.
 Coordinate shared-history rewrites; preserve dirty worktrees and protected
 branches. Publishing always requires the task's existing authorization.
 
+Use workspace-sync status to inspect registered receiving copies and their last
+receipt. Only the owner registers a checkout/branch; do not enroll arbitrary
+repos as part of resuming work. Before editing a registered copy, use
+workspace-sync hold PATH; resume only after checkpointing and leaving it ready
+for receipt. Prefer separate unregistered task worktrees. Automatic reception
+does not commit/push, switch branches, resolve divergence or activate Nix.
+
 Git transports code. Syncthing transports handoff/docs/assets and legacy shared
 documents, never repos, worktrees, credentials or agent sessions. Assign one
 handoff writer; reconcile HANDOFF.sync-conflict files before further writes.

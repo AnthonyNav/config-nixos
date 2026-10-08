@@ -34,7 +34,8 @@ def object_from(raw):
 
 def cli_environment(home):
     environment = os.environ | {"HOME": str(home), "XDG_CONFIG_HOME": str(home / ".config")}
-    environment.pop("ORCA_USER_DATA_PATH", None)
+    for key in ("ORCA_USER_DATA_PATH", "ORCA_ENVIRONMENT", "ORCA_PAIRING_CODE", "ORCA_CLI_CWD"):
+        environment.pop(key, None)
     return environment
 
 
@@ -50,17 +51,80 @@ def endpoint(raw):
         return None
 
 
-def readiness(invocation):
-    if not re.fullmatch(r"[a-fA-F0-9]{32}", invocation or ""):
+def readiness(invocation, runtime_id, scope=None):
+    if not isinstance(runtime_id, str) or not runtime_id:
         return {}
-    raw = run(["journalctl", "--user", "-u", UNIT,
-               f"_SYSTEMD_INVOCATION_ID={invocation}", "--no-pager", "-o", "cat",
-               "--grep", "orca_server_ready", "-n", "1"])
-    for line in (raw or "").splitlines():
+    if scope is not None:
+        if not re.fullmatch(r"app-orca-[1-9][0-9]*\.scope", scope):
+            return {}
+        filters = ["-u", scope]
+    elif re.fullmatch(r"[a-fA-F0-9]{32}", invocation or ""):
+        filters = ["-u", UNIT, f"_SYSTEMD_INVOCATION_ID={invocation}"]
+    else:
+        return {}
+    raw = run(["journalctl", "--user", *filters, "--no-pager", "-o", "cat",
+               "--grep", "orca_server_ready", "-n", "20"])
+    for line in reversed((raw or "").splitlines()):
         value = object_from(line)
-        if value.get("type") == "orca_server_ready" and value.get("schemaVersion") == 1:
+        if (value.get("type") == "orca_server_ready" and value.get("schemaVersion") == 1
+                and value.get("runtimeId") == runtime_id):
             return value
     return {}
+
+
+def service_state():
+    raw = run(["systemctl", "--user", "show", UNIT, "--no-pager",
+               "--property=LoadState,ActiveState,SubState,InvocationID,MainPID,ControlGroup"])
+    return dict(line.split("=", 1) for line in (raw or "").splitlines() if "=" in line)
+
+
+def runtime_identity(pid, service, proc=Path("/proc")):
+    """Match a managed Electron PID to systemd's main PID and kernel unit.
+
+    Chromium moves its browser process into app-orca-PID.scope for desktop
+    portals. systemd still tracks/signals that PID when launched directly.
+    Electron also rewrites argv; --serve need not survive in /proc/cmdline.
+    """
+    result = {"verified": False, "service_owned": False, "unit": None}
+    if type(pid) is not int or pid <= 0:
+        return result
+    try:
+        process = proc / str(pid)
+        executable = os.readlink(process / "exe")
+        if (process.stat().st_uid != os.getuid()
+                or not re.fullmatch(r"/nix/store/[a-z0-9]{32}-orca-ide-unwrapped-[^/]+/app/orca-ide", executable)):
+            return result
+        groups = (process / "cgroup").read_text().splitlines()
+        paths = [line.split(":", 2)[2] for line in groups if line.startswith("0::") or ":name=systemd:" in line]
+        if len(paths) != 1:
+            return result
+        group = paths[0]
+        in_service = group == service.get("ControlGroup") and group.endswith("/" + UNIT)
+        scope = f"app-orca-{pid}.scope"
+        in_scope = group.endswith("/" + scope)
+        if in_service or in_scope:
+            return {"verified": True, "service_owned": service.get("MainPID") == str(pid),
+                    "unit": UNIT if in_service else scope}
+    except (OSError, ValueError, IndexError):
+        pass
+    return result
+
+
+def runtime_evidence(home, orca, service, port):
+    status = object_from(run([orca, "status", "--json"], timeout=5, env=cli_environment(home))).get("result", {})
+    runtime = status.get("runtime", {})
+    pid = status.get("app", {}).get("pid")
+    identity = runtime_identity(pid, service)
+    listeners = run(["ss", "-H", "-ltnp", f"sport = :{port}"])
+    listener_owned = type(pid) is int and f"pid={pid}," in (listeners or "")
+    ready = {}
+    if (identity["verified"] and listener_owned and runtime.get("reachable") is True
+            and runtime.get("state") == "ready"):
+        # Older installations moved the live app into its own scope. Recover
+        # their offer only after verifying that exact PID, listener and runtime.
+        scope = None if identity["unit"] == UNIT else identity["unit"]
+        ready = readiness(service.get("InvocationID"), runtime.get("runtimeId"), scope)
+    return runtime, identity, listener_owned, ready
 
 
 def daemon_scopes(home, proc=Path("/proc")):
@@ -108,9 +172,7 @@ def probe(policy, home, orca="orca-ide", username=None):
     port = policy.get("port", 6768)
     data.update(probed=True, binaries={name: shutil.which(name) is not None
                                      for name in ("orca-ide", "Xvfb", "tailscale", "systemd-run")})
-    raw = run(["systemctl", "--user", "show", UNIT, "--no-pager",
-               "--property=LoadState,ActiveState,SubState,InvocationID"])
-    service = dict(line.split("=", 1) for line in (raw or "").splitlines() if "=" in line)
+    service = service_state()
     data["service"] = {key: service.get(key, "unknown") for key in ("LoadState", "ActiveState", "SubState")}
     data["linger"] = (run(["loginctl", "show-user", username, "--property=Linger", "--value"]) or "").strip() == "yes"
     vpn = object_from(run(["tailscale", "status", "--json"]))
@@ -120,26 +182,23 @@ def probe(policy, home, orca="orca-ide", username=None):
     except ValueError:
         online = False
     data["tailscale"] = {"online": online, "address": ip if online else None}
-    ready = readiness(service.get("InvocationID"))
+    runtime, identity, listener_owned, ready = runtime_evidence(home, orca, service, port)
+    data["service_owns_runtime"] = identity["service_owned"]
+    data["readiness_source"] = identity["unit"] if ready else None
     bound = endpoint(ready.get("boundEndpoint"))
     advertised = endpoint(ready.get("advertisedEndpoint"))
     data["endpoint"] = advertised["url"] if advertised else None
     data["port_matches"] = bool(bound and advertised and bound["port"] == port and advertised["port"] == port)
     data["address_matches"] = bool(online and advertised and advertised["address"] == ip)
     data["pairing_available"] = ready.get("pairing", {}).get("available") is True
-    status = object_from(run([orca, "status", "--json"], timeout=5, env=cli_environment(home))).get("result", {})
-    runtime = status.get("runtime", {})
-    app = status.get("app", {})
     data["runtime"] = {"reachable": runtime.get("reachable") is True,
                        "state": runtime.get("state", "unknown")}
-    # A successful TCP connection alone could belong to a different application.
-    listeners = run(["ss", "-H", "-ltnp", f"sport = :{port}"])
-    pid = app.get("pid")
-    data["listener_owned"] = type(pid) is int and f"pid={pid}," in (listeners or "")
+    data["listener_owned"] = listener_owned
     data["daemon_scope"] = daemon_scopes(home)
     data["healthy"] = (service.get("ActiveState") == "active" and data["linger"] and online
                        and all(data["binaries"].values())
                        and data["port_matches"] and data["address_matches"] and data["listener_owned"]
+                       and data["service_owns_runtime"]
                        and runtime.get("reachable") is True and runtime.get("state") == "ready")
     return data
 
@@ -181,14 +240,17 @@ def main():
     args = parser.parse_args()
     if args.action == "logs":
         if args.pairing:
-            invocation = (run(["systemctl", "--user", "show", UNIT, "--property=InvocationID", "--value"]) or "").strip()
-            pairing = readiness(invocation).get("pairing", {})
+            _, _, _, ready = runtime_evidence(args.home, args.orca, service_state(), args.port)
+            pairing = ready.get("pairing", {})
             if pairing.get("available") is not True or not isinstance(pairing.get("url"), str):
                 print("No current pairing offer; check orca-server-status.", file=sys.stderr)
                 return 1
             print(pairing["url"])
             return 0
         command = ["journalctl", "--user", "-u", UNIT, "--no-pager", "-o", "cat", "-n", "80"]
+        _, identity, _, ready = runtime_evidence(args.home, args.orca, service_state(), args.port)
+        if ready and identity["unit"] != UNIT:
+            command.extend(["-u", identity["unit"]])
         if args.follow:
             command.append("--follow")
         with subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True) as journal:
@@ -203,9 +265,13 @@ def main():
         print(json.dumps(data, indent=2) if args.json else
               f'Orca: {"ready" if data.get("healthy") else "not ready"}; service={data.get("service", {}).get("ActiveState", "unknown")}; '
               f'linger={data.get("linger")}; endpoint={data.get("endpoint") or "unavailable"}; '
+              f'service owns runtime={data.get("service_owns_runtime", False)}; '
               f'daemon scope verified={data.get("daemon_scope", {}).get("verified", False)}')
         return 0 if data.get("healthy") else 1
     state = data.get("service", {}).get("ActiveState")
+    if data.get("runtime", {}).get("reachable") and not data.get("service_owns_runtime"):
+        print("Restart deferred: the running Orca runtime is outside this service. Checkpoint work and stop the legacy app explicitly before migration.", file=sys.stderr)
+        return 1
     if state in ("active", "activating", "deactivating"):
         isolated = data.get("runtime", {}).get("reachable") and data.get("daemon_scope", {}).get("verified")
         if not isolated and not empty_census(object_from(run([args.orca, "terminal", "list", "--json"], timeout=5, env=cli_environment(args.home)))):

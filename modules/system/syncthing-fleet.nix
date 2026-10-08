@@ -62,8 +62,7 @@ in
       Group = "users";
       Environment = "HOME=${homeDir}";
       ExecStart = lib.getExe syncthingFleetReconcile;
-      Restart = "on-failure";
-      RestartSec = "10s";
+      # The timer retries transient discovery failures without a restart loop.
     };
   };
 

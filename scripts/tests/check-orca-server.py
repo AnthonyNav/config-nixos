@@ -23,32 +23,38 @@ class OrcaServerTests(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.home = Path(self.temp.name)
         self.invocation = "a" * 32
+        self.identity = {"verified": True, "service_owned": True, "unit": server.UNIT}
         self.ready = {"type": "orca_server_ready", "schemaVersion": 1,
+                      "runtimeId": "test-runtime",
                       "boundEndpoint": "ws://0.0.0.0:6768", "advertisedEndpoint": "ws://100.64.1.2:6768",
                       "pairing": {"available": True, "url": "orca://pair?code=private-fixture", "qr": "private-qr"}}
 
     def execute(self, args, timeout=4, env=None):
         command = args[0]
         if command == "systemctl":
-            return f"LoadState=loaded\nActiveState=active\nSubState=running\nInvocationID={self.invocation}\n"
+            return f"LoadState=loaded\nActiveState=active\nSubState=running\nInvocationID={self.invocation}\nMainPID=42\nControlGroup=/app.slice/orca-serve.service\n"
         if command == "loginctl":
             return "yes\n"
         if command == "tailscale":
             return "100.64.1.2\n" if args[1] == "ip" else json.dumps({"BackendState": "Running", "Self": {"Online": True}})
         if command == "journalctl":
-            self.assertIn(f"_SYSTEMD_INVOCATION_ID={self.invocation}", args)
+            if self.identity["unit"] == server.UNIT:
+                self.assertIn(f"_SYSTEMD_INVOCATION_ID={self.invocation}", args)
+            else:
+                self.assertIn("app-orca-42.scope", args)
             return json.dumps(self.ready)
         if command == "orca-ide":
             self.assertEqual(env["HOME"], str(self.home))
             self.assertEqual(env["XDG_CONFIG_HOME"], str(self.home / ".config"))
-            self.assertNotIn("ORCA_USER_DATA_PATH", env)
-            return json.dumps({"ok": True, "result": {"app": {"pid": 42}, "runtime": {"reachable": True, "state": "ready"}}})
+            for key in ("ORCA_USER_DATA_PATH", "ORCA_ENVIRONMENT", "ORCA_PAIRING_CODE", "ORCA_CLI_CWD"):
+                self.assertNotIn(key, env)
+            return json.dumps({"ok": True, "result": {"app": {"pid": 42}, "runtime": {"reachable": True, "state": "ready", "runtimeId": "test-runtime"}}})
         if command == "ss":
             return 'LISTEN 0 511 0.0.0.0:6768 users:(("orca-ide",pid=42,fd=21))'
         raise AssertionError(args)
 
     def probe(self):
-        with patch.object(server, "run", side_effect=self.execute), patch.object(server.shutil, "which", return_value="/fixture/tool"), patch.object(server, "daemon_scopes", return_value={"verified": True, "units": ["orca-daemon-test.scope"]}):
+        with patch.object(server, "run", side_effect=self.execute), patch.object(server.shutil, "which", return_value="/fixture/tool"), patch.object(server, "runtime_identity", return_value=self.identity), patch.object(server, "daemon_scopes", return_value={"verified": True, "units": ["orca-daemon-test.scope"]}):
             return server.probe({"mode": "headless", "port": 6768}, self.home)
 
     def test_policy_off_does_not_probe_or_authenticate(self):
@@ -69,7 +75,55 @@ class OrcaServerTests(unittest.TestCase):
         self.ready["schemaVersion"] = 2
         self.assertFalse(self.probe()["healthy"])
         with patch.object(server, "run", return_value='{"pairing":"private-fixture"}'):
-            self.assertEqual(server.readiness(""), {})
+            self.assertEqual(server.readiness("", "test-runtime"), {})
+        self.ready["schemaVersion"] = 1
+        self.ready["runtimeId"] = "stale-runtime"
+        self.assertFalse(self.probe()["healthy"])
+
+    def test_legacy_scope_exposes_only_correlated_offer_and_requires_migration(self):
+        self.identity = {"verified": True, "service_owned": False, "unit": "app-orca-42.scope"}
+        data = self.probe()
+        self.assertEqual(data["endpoint"], "ws://100.64.1.2:6768")
+        self.assertTrue(data["pairing_available"])
+        self.assertFalse(data["healthy"])
+        self.assertFalse(data["service_owns_runtime"])
+        self.ready["runtimeId"] = "stale-runtime"
+        self.assertIsNone(self.probe()["endpoint"])
+        self.identity["verified"] = False
+        self.assertFalse(self.probe()["pairing_available"])
+
+    def test_runtime_identity_requires_managed_executable_and_matching_kernel_group(self):
+        proc = self.home / "runtime-proc"
+        process = proc / "42"
+        process.mkdir(parents=True)
+        (process / "cmdline").write_bytes(b"orca-ide\0--serve\0--serve-json\0")
+        (process / "exe").symlink_to("/nix/store/" + "a" * 32 + "-orca-ide-unwrapped-1.4.220/app/orca-ide")
+        group = "/app.slice/orca-serve.service"
+        (process / "cgroup").write_text(f"0::{group}\n")
+        service = {"MainPID": "42", "ControlGroup": group}
+        self.assertTrue(server.runtime_identity(42, service, proc)["service_owned"])
+        service["MainPID"] = "41"
+        self.assertTrue(server.runtime_identity(42, service, proc)["verified"])
+        self.assertFalse(server.runtime_identity(42, service, proc)["service_owned"])
+        (process / "cgroup").write_text("0::/app.slice/app-orca-42.scope\n")
+        self.assertTrue(server.runtime_identity(42, service, proc)["verified"])
+        self.assertFalse(server.runtime_identity(42, service, proc)["service_owned"])
+        # Chromium can move the very same service MainPID into a portal scope.
+        # Electron may rewrite argv; the managed live executable remains proof.
+        service["MainPID"] = "42"
+        (process / "cmdline").write_bytes(b"orca\0")
+        self.assertTrue(server.runtime_identity(42, service, proc)["service_owned"])
+        (process / "cgroup").write_text("0::/app.slice/app-orca-99.scope\n")
+        self.assertFalse(server.runtime_identity(42, service, proc)["verified"])
+        (process / "exe").unlink()
+        (process / "exe").symlink_to("/usr/bin/another-program")
+        self.assertFalse(server.runtime_identity(42, service, proc)["verified"])
+
+    def test_chromium_scope_is_healthy_when_runtime_is_the_service_main_pid(self):
+        self.identity = {"verified": True, "service_owned": True, "unit": "app-orca-42.scope"}
+        data = self.probe()
+        self.assertTrue(data["healthy"])
+        self.assertEqual(data["readiness_source"], "app-orca-42.scope")
 
     def test_default_logs_hide_pairing_tokens_and_query_parameters(self):
         for line in (json.dumps(self.ready), 'Pairing URL: orca://pair?code=private-fixture',
@@ -119,8 +173,13 @@ class OrcaServerTests(unittest.TestCase):
         self.assertFalse(server.daemon_scopes(self.home, proc)["verified"])
 
     def test_restart_defers_when_isolation_and_census_are_unverifiable(self):
-        data = {"service": {"ActiveState": "active"}, "runtime": {"reachable": True}, "daemon_scope": {"verified": False}}
+        data = {"service": {"ActiveState": "active"}, "runtime": {"reachable": True}, "service_owns_runtime": True, "daemon_scope": {"verified": False}}
         with patch.object(sys, "argv", ["orca-server", "restart"]), patch.object(server, "probe", return_value=data), patch.object(server, "run", return_value=None), patch.object(server.subprocess, "run", side_effect=AssertionError("Restart must not run")):
+            self.assertEqual(server.main(), 1)
+
+    def test_restart_never_stops_a_legacy_detached_runtime_implicitly(self):
+        data = {"service": {"ActiveState": "active"}, "runtime": {"reachable": True}, "service_owns_runtime": False, "daemon_scope": {"verified": True}}
+        with patch.object(sys, "argv", ["orca-server", "restart"]), patch.object(server, "probe", return_value=data), patch.object(server.subprocess, "run", side_effect=AssertionError("Restart must not run")):
             self.assertEqual(server.main(), 1)
 
     def test_boot_wrapper_waits_for_vpn_clears_display_and_preserves_exit_three(self):
@@ -139,7 +198,7 @@ class OrcaServerTests(unittest.TestCase):
         result = subprocess.run([shutil.which("bash"), "-euo", "pipefail", str(SCRIPTS / "orca-serve-fleet.sh"), str(binary / "orca-ide"), "6768"], env=environment, capture_output=True, text=True, timeout=10)
         self.assertEqual(result.returncode, 3, result.stderr)
         data = json.loads(capture.read_text())
-        self.assertEqual(data["args"], ["serve", "--port", "6768", "--pairing-address", "100.64.1.2", "--json"])
+        self.assertEqual(data["args"], ["--serve-port", "6768", "--serve-pairing-address", "100.64.1.2", "--serve-json"])
         self.assertIsNone(data["display"])
         self.assertIsNone(data["wayland"])
         self.assertEqual(data["software"], "1")

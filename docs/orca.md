@@ -103,7 +103,7 @@ an answer; never fabricate a blocking state or send the digit/Escape sequence
 for a different blocking prompt. True blocking approvals still need their native
 approval/Terminal View path. Record this fallback on the real phone.
 
-Victus and the future Mac remain autonomous. SSH worktrees use the existing
+Victus and the registered Mac remain autonomous. SSH worktrees use the existing
 Tailscale/SSH boundary. Remote acceptance must verify the original host, project
 environment and account context separately.
 
@@ -123,8 +123,11 @@ state; it does not copy credentials into a separate account or the Nix store.
 Provider authentication and encrypted SSH key unlocking remain owned by the user.
 
 `scripts/orca-serve-fleet.sh` waits until Tailscale reports Running/online and a
-valid current tailnet IPv4 address, then runs the pinned absolute `orca-ide`
-CLI with `serve --port 6768 --pairing-address <current-ip> --json`. No address is
+valid current tailnet IPv4 address, then execs the pinned absolute
+`orca-ide-server` with `--serve-port 6768 --serve-pairing-address <current-ip>
+--serve-json`. This launcher execs Electron directly with `--serve`; the unit's
+MainPID must be the live runtime/listener PID. The package checks
+these upstream flags when rebuilding the payload. No address is
 hardcoded. The wrapper clears inherited graphical display/profile overrides,
 provides Xvfb on PATH and uses `LIBGL_ALWAYS_SOFTWARE=1`. Orca owns its virtual
 display lifecycle. The service does not depend on a graphical session target.
@@ -134,7 +137,14 @@ registry. `--pairing-address` advertises an address; it does not constrain the
 listener, which may bind wildcard interfaces. The wrapper refuses an occupied
 port; health requires the current invocation's bound/advertised port to remain
 6768, the advertised address to match Tailscale, and the actual listener PID to
-match the reachable local Orca runtime. An upstream fallback port is unhealthy.
+match the reachable local Orca runtime. Readiness also matches its live runtime
+ID. Chromium can move that same MainPID into `app-orca-<pid>.scope` for
+[desktop portal identity](https://github.com/chromium/chromium/blob/main/components/dbus/xdg/systemd.cc);
+the helper verifies its actual kernel unit and reads readiness there. systemd
+still signals the directly launched MainPID. A different runtime PID or an
+upstream fallback port is unhealthy.
+The server launcher selects `--ozone-platform=x11` for its Xvfb display and
+clears inherited Wayland preferences. It keeps Chromium's sandbox enabled.
 Tailnet policy publication is still a separate operation.
 
 The unit uses `Restart=on-failure`, `RestartSec=5`, `KillMode=mixed`,
@@ -168,8 +178,15 @@ user journal also contains the upstream readiness event and its private link.
 Do not paste raw journal or pairing output into Git, HANDOFF, tickets or chats.
 Client grants remain mutable under the user's Orca profile.
 
-`orca-server-restart` checks live daemon isolation before restarting. Version
-**1.4.220** is the latest pinned release, but its readiness publisher does not
+An older installation can have an active CLI service while the server lives in
+`app-orca-<pid>.scope`. The diagnostic helper recovers that scope's endpoint and
+pairing offer only after checking the same user's managed executable, listener and
+runtime ID; it reports `service_owns_runtime = false`. It refuses an implicit
+restart of the detached runtime. See [the migration and mobile runbook](orca-fleet-continuity.md)
+before deploying the launcher change to that profile.
+
+`orca-server-restart` checks service ownership and live daemon isolation before
+restarting. Pinned version **1.4.220**'s readiness publisher does not
 populate main's optional `health.terminalDaemon` payload. We therefore verify
 the profile's `daemon/daemon-v*.pid` records against `/proc` boot ID, process start
 ticks, user, command and actual `orca-daemon-*.scope` membership. A persisted
@@ -186,6 +203,12 @@ those processes. Repositories, worktrees, handoffs and persisted client grants
 remain local; a new agent resumes through Git plus HANDOFF. Restic remains
 prepared/off as requested. Headless mode does not send renderer-dependent
 agent-completion push notifications to mobile.
+
+Published code can be received automatically by registered clean checkouts on
+Victus/Mac through `workspace-sync`; handoff/docs/assets use Syncthing. The server
+keeps the phone's active execution on Desktop. See
+[workspace-workflow.md](workspace-workflow.md#automatic-git-receivers) for local
+registration, holds and the publication boundary.
 
 Acceptance after deployment: boot without graphical login, current endpoint and
 pairing, tailnet reachability/LAN denial, isolated-daemon restart with a test
