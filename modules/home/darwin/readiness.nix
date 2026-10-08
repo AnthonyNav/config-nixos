@@ -11,9 +11,8 @@
   home.packages = [
     (import ../../../packages/macos-readiness.nix {
       inherit pkgs lib;
-      hostName = hostFeatures.hostName;
-      username = config.home.username;
-      homeDirectory = config.home.homeDirectory;
+      inherit (hostFeatures) hostName;
+      inherit (config.home) username homeDirectory;
     })
   ];
 }
