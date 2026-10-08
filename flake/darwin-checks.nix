@@ -65,9 +65,7 @@ let
     assert home.config.launchd.agents.workspace-sync.enable;
     assert home.config.launchd.agents.workspace-sync.config.StartInterval == 120;
     assert !(home.config.programs.zsh.shellAliases ? pritunl);
-    assert lib.all (
-      name: lib.any (package: lib.getName package == name) home.config.home.packages
-    ) [
+    assert lib.all (name: lib.any (package: lib.getName package == name) home.config.home.packages) [
       "ripgrep"
       "jq"
       "fd"
