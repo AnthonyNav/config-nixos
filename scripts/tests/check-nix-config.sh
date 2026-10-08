@@ -18,7 +18,9 @@ git -C "$seed" config user.name Test
 git -C "$seed" config user.email test@example.com
 printf '{ outputs = _: {}; }\n' >"$seed/flake.nix"
 printf '{}\n' >"$seed/flake.lock"
-git -C "$seed" add flake.nix flake.lock
+mkdir -p "$seed/modules/home"
+printf '{}\n' >"$seed/modules/home/nix-config-packages.nix"
+git -C "$seed" add flake.nix flake.lock modules/home/nix-config-packages.nix
 git -C "$seed" commit -m baseline >/dev/null
 git init --bare "$remote" >/dev/null
 git -C "$seed" remote add origin "$remote"
@@ -26,6 +28,21 @@ git -C "$seed" push -u origin main >/dev/null
 git clone --branch main "$remote" "$repo" >/dev/null
 git -C "$repo" config user.name Test
 git -C "$repo" config user.email test@example.com
+
+# Portable Mac checkout discovery must work outside the repository.
+portable_home="$tmp/portable-home"
+portable_repo="$portable_home/Workspace/personal/repos/config-nixos"
+mkdir -p "$portable_home/Workspace/personal/repos" "$tmp/outside"
+git clone --branch main "$remote" "$portable_repo" >/dev/null
+portable_status="$(cd "$tmp/outside" && env -u NIXOS_CONFIG_DIR HOME="$portable_home" bash "$script" status)"
+[[ "$portable_status" == *"Repository: $portable_repo"* ]]
+
+# Invalid explicit overrides must never select another checkout.
+if (cd "$tmp/outside" && NIXOS_CONFIG_DIR="$tmp/missing" HOME="$portable_home" bash "$script" status >"$tmp/override-out" 2>&1); then
+  printf 'invalid NIXOS_CONFIG_DIR unexpectedly fell back\n' >&2
+  exit 1
+fi
+grep -q 'cannot resolve the configuration repository' "$tmp/override-out"
 
 mkdir -p "$fake_bin"
 cat >"$fake_bin/uname" <<'EOF'

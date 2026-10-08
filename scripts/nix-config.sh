@@ -43,24 +43,33 @@ die() {
 }
 
 resolve_repo() {
-  local candidate current_repo
+  local candidate="" current_repo="" location
 
+  # Prefer the checkout containing PWD, then portable/legacy roots.
+  # An explicit override never silently falls back to a different checkout.
   if [[ -n "${NIXOS_CONFIG_DIR:-}" ]]; then
     candidate="$NIXOS_CONFIG_DIR"
   else
-    candidate="$HOME/nixos-config"
     current_repo="$(git -C "$PWD" rev-parse --show-toplevel 2>/dev/null || true)"
-    if [[ -f "$current_repo/modules/home/nix-config-packages.nix" ]]; then
-      candidate="$current_repo"
-    fi
+    for location in \
+      "$current_repo" \
+      "$HOME/Workspace/personal/repos/config-nixos" \
+      "$HOME/nixos-config"; do
+      if [[ -n "$location" && -f "$location/flake.nix" && -f "$location/modules/home/nix-config-packages.nix" ]]; then
+        candidate="$location"
+        break
+      fi
+    done
   fi
 
+  [[ -n "$candidate" ]] ||
+    die "cannot find config-nixos; set NIXOS_CONFIG_DIR to its checkout path"
   repo="$(git -C "$candidate" rev-parse --show-toplevel 2>/dev/null)" ||
     die "cannot resolve the configuration repository from $candidate"
-  [[ -f "$repo/flake.nix" ]] || die "$repo does not contain flake.nix"
+  [[ -f "$repo/flake.nix" && -f "$repo/modules/home/nix-config-packages.nix" ]] ||
+    die "$repo is not a config-nixos checkout"
   flake="."
 }
-
 resolve_host() {
   local candidate="${1:-}"
   local allowed
