@@ -20,7 +20,10 @@ is a separate output. SSH, Syncthing, input-sharing peers and CI's build matrix
 are inventory-derived. Shared changes require system and Home builds for all
 affected workstations, using a native builder for each platform.
 See [macOS workstation plan](macos-workstation-plan.md) and
-[onboarding](macos-onboarding.md). `nix-check all` builds hosts matching the
+[onboarding](macos-onboarding.md). On the Mac, run
+`nix run .#macos-readiness-MacBook-Pro-de-Antonio -- --preflight` before
+first activation and `fleet-macos-readiness --runtime` afterward. Neither
+diagnostic installs applications or reads session credentials. `nix-check all` builds hosts matching the
 native system; other platforms require their native builder. The full CI gate
 also requires the Darwin fixture job.
 The integrated-GPU fixture verifies the daily environment without development,
