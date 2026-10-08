@@ -24,6 +24,10 @@ let
     path = "${homeDirectory}/${folder.relativePath}";
   }) folderValues;
   localFolders = lib.filter (folder: builtins.elem hostName folder.hosts) folders;
+  legacyFolders = map (folder: {
+    inherit (folder) id relativePath;
+    path = "${homeDirectory}/${folder.relativePath}";
+  }) (lib.filter (folder: builtins.elem hostName folder.hosts) policy.legacyFolders);
   tailscale =
     if pkgs.stdenv.hostPlatform.isDarwin then
       import ./native-tailscale.nix { inherit pkgs; }
@@ -78,6 +82,7 @@ in
       export SYNCTHING_FLEET_HOST=${lib.escapeShellArg hostName}
       export SYNCTHING_FLEET_PEERS_JSON=${lib.escapeShellArg (builtins.toJSON (lib.remove hostName hostNames))}
       export SYNCTHING_FLEET_FOLDERS_JSON=${lib.escapeShellArg (builtins.toJSON localFolders)}
+      export SYNCTHING_FLEET_LEGACY_FOLDERS_JSON=${lib.escapeShellArg (builtins.toJSON legacyFolders)}
       export SYNCTHING_CONFIG_DIR=${lib.escapeShellArg configDirectory}
       export SYNCTHING_API_URL=http://127.0.0.1:8384
       export SYNCTHING_MANAGED_DEVICE_PREFIX=${lib.escapeShellArg policy.managedDevicePrefix}

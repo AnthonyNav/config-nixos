@@ -62,6 +62,8 @@ let
     assert
       home.config.launchd.agents.syncthing.enable
       && home.config.launchd.agents.syncthing-fleet-reconcile.enable;
+    assert home.config.launchd.agents.workspace-sync.enable;
+    assert home.config.launchd.agents.workspace-sync.config.StartInterval == 120;
     assert !(home.config.programs.zsh.shellAliases ? pritunl);
     assert !home.config.fleet.development.legacyJupyterLibraries;
     assert facts.facts.os == "macOS" && facts.facts.platform == "aarch64-darwin";
@@ -109,6 +111,7 @@ in
           nativeBuildInputs = [
             pkgs.python3
             pkgs.git
+            pkgs.lsof
             pkgs.bash
             pkgs.jq
             pkgs.coreutils
@@ -120,6 +123,7 @@ in
           export PYTHONDONTWRITEBYTECODE=1
           python ${../scripts/tests/check-workspace-context.py} ${../scripts/workspace-context.py}
           python ${../scripts/tests/check-portable-workspace.py} ${../scripts}
+          python ${../scripts/tests/check-workspace-receive.py} ${../scripts}
           bash ${../scripts/tests/check-nix-config.sh} ${../scripts/nix-config.sh}
           # Validate the actual package's CLI and initial folder policy without
           # running a daemon or publishing generated keys/configuration.

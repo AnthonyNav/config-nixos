@@ -1,7 +1,9 @@
 # Executed by the user service, never through an interactive shell profile.
 orca_binary=$1
 orca_port=$2
-unset DISPLAY WAYLAND_DISPLAY HYPRLAND_INSTANCE_SIGNATURE ELECTRON_RUN_AS_NODE ORCA_USER_DATA_PATH
+unset DISPLAY WAYLAND_DISPLAY HYPRLAND_INSTANCE_SIGNATURE ELECTRON_RUN_AS_NODE
+unset ORCA_USER_DATA_PATH ORCA_ENVIRONMENT ORCA_PAIRING_CODE ORCA_CLI_CWD ORCA_APP_EXECUTABLE
+unset NIXOS_OZONE_WL ELECTRON_OZONE_PLATFORM_HINT XDG_SESSION_TYPE XDG_CURRENT_DESKTOP
 export LIBGL_ALWAYS_SOFTWARE=1
 
 printf '%s\n' 'Orca: waiting for Tailscale connectivity.'
@@ -25,4 +27,6 @@ if [[ -n "$(ss -H -ltn "sport = :$orca_port")" ]]; then
   printf '%s\n' 'Orca: configured TCP port is already occupied.' >&2
   exit 78
 fi
-exec "$orca_binary" serve --port "$orca_port" --pairing-address "$pairing_ip" --json
+# Exec the packaged Electron server itself: systemd must own the listener PID,
+# with Chromium's portal scope, not a separate node-mode CLI supervisor.
+exec "$orca_binary" --serve-port "$orca_port" --serve-pairing-address "$pairing_ip" --serve-json

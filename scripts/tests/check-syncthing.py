@@ -15,7 +15,7 @@ def fake_tool(tool, args):
     state_path = Path(os.environ["TEST_SYNCTHING_STATE"])
     state = json.loads(state_path.read_text())
     if tool == "tailscale":
-        print(json.dumps({"Peer": {"peer": state.get("tailscalePeer", {"HostName": "victus", "TailscaleIPs": ["100.64.0.2"]})}}))
+        print(json.dumps({"BackendState": "Running", "Peer": state.get("tailscalePeers", {"peer": state.get("tailscalePeer", {"HostName": "victus", "TailscaleIPs": ["100.64.0.2"], "Online": True})})}))
         return 0
     if tool == "xmllint":
         print("test-api-key")
@@ -123,6 +123,7 @@ class ReconcileTests(unittest.TestCase):
         }
         self.folders = [{"id": "fleet-shared", "label": "Fleet Shared", "path": str(self.folder_path), "type": "sendreceive", "hosts": ["desktop", "victus"]}]
         self.peers = ["victus"]
+        self.legacy = []
 
     def run_script(self, *args, expected=0):
         self.state_path.write_text(json.dumps(self.state))
@@ -132,6 +133,7 @@ class ReconcileTests(unittest.TestCase):
             "SYNCTHING_CONFIG_DIR": str(self.root), "SYNCTHING_FLEET_HOST": "desktop",
             "SYNCTHING_FLEET_PEERS_JSON": json.dumps(self.peers),
             "SYNCTHING_FLEET_FOLDERS_JSON": json.dumps(self.folders),
+            "SYNCTHING_FLEET_LEGACY_FOLDERS_JSON": json.dumps(self.legacy),
             "SYNCTHING_FLEET_IGNORE_HELPER": str(Path(RECONCILER).with_name("syncthing-ignores.py")),
         }
         result = subprocess.run(["bash", RECONCILER, *args], env=env, capture_output=True, text=True, timeout=30)
@@ -145,6 +147,7 @@ class ReconcileTests(unittest.TestCase):
             "HostName": "MacBook Pro de Antonio",
             "DNSName": "macbook-pro-de-antonio.tailnet.example.",
             "TailscaleIPs": ["fd7a:115c:a1e0::2", "100.64.0.2"],
+            "Online": True,
         }
         self.state["peerID"] = "MAC"
         self.run_script()
@@ -152,12 +155,16 @@ class ReconcileTests(unittest.TestCase):
         self.assertEqual(peer["name"], "fleet:MacBook-Pro-de-Antonio")
         self.assertEqual(peer["addresses"], ["tcp://100.64.0.2:22000"])
 
-    def test_unrelated_magicdns_peer_leaves_configuration_unchanged(self):
-        self.peers = ["MacBook-Pro-de-Antonio"]
+    def test_new_offline_peer_defers_without_blocking_existing_participants(self):
+        self.peers = ["victus", "MacBook-Pro-de-Antonio"]
         self.folders[0]["hosts"] = ["desktop", *self.peers]
-        before = copy.deepcopy(self.state)
-        self.run_script(expected=75)
-        self.assertEqual(self.state, before)
+        self.run_script()
+        folder = self.state["folders"][0]
+        self.assertEqual({d["deviceId"] for d in folder["devices"]}, {"LOCAL", "VICTUS", "FRIEND"})
+        self.assertNotIn(None, {d["deviceId"] for d in folder["devices"]})
+        self.state["writes"] = []
+        self.run_script()
+        self.assertEqual(self.state["writes"], [])
 
     def test_preserves_local_folder_and_device_settings(self):
         before = copy.deepcopy(self.state)
@@ -177,11 +184,83 @@ class ReconcileTests(unittest.TestCase):
         self.assertNotIn("OLD", [d["deviceID"] for d in self.state["devices"]])
         self.assertEqual((self.folder_path / "keep.txt").read_text(), "personal data")
 
-    def test_offline_peer_leaves_configuration_unchanged(self):
+    def test_unreachable_syncthing_peer_reuses_registered_identity(self):
         self.state["offline"] = True
         before = copy.deepcopy(self.state)
-        self.run_script(expected=75)
+        self.run_script()
+        peer = next(d for d in self.state["devices"] if d["deviceID"] == "VICTUS")
+        self.assertTrue(peer["paused"])
+        self.assertEqual(peer["compression"], before["devices"][0]["compression"])
+        self.assertIn("VICTUS", {d["deviceId"] for d in self.state["folders"][0]["devices"]})
+
+    def test_missing_tailnet_peer_keeps_cached_addresses_and_shares(self):
+        self.state["tailscalePeer"] = {"HostName": "unrelated", "TailscaleIPs": ["100.64.0.9"], "Online": True}
+        self.run_script()
+        peer = next(d for d in self.state["devices"] if d["deviceID"] == "VICTUS")
+        self.assertEqual(peer["addresses"], ["dynamic"])
+        self.assertIn("VICTUS", {d["deviceId"] for d in self.state["folders"][0]["devices"]})
+
+    def test_offline_mac_does_not_prevent_linux_topology_reconciliation(self):
+        self.peers.append("MacBook-Pro-de-Antonio")
+        self.folders[0]["hosts"].append("MacBook-Pro-de-Antonio")
+        mac = {"deviceID": "MAC", "name": "fleet:MacBook-Pro-de-Antonio", "addresses": ["tcp://100.64.0.3:22000"], "paused": False, "compression": "always"}
+        self.state["devices"].append(mac)
+        self.state["folders"][0]["devices"].append({"deviceId": "MAC", "encryptionPassword": "mac-local-fixture"})
+        self.state["tailscalePeers"] = {
+            "linux": {"HostName": "victus", "TailscaleIPs": ["100.64.0.2"], "Online": True},
+            "mac": {"HostName": "MacBook Pro de Antonio", "DNSName": "macbook-pro-de-antonio.example.", "TailscaleIPs": ["100.64.0.3"], "Online": False},
+        }
+        self.run_script()
+        actual = next(d for d in self.state["devices"] if d["deviceID"] == "MAC")
+        for key, value in mac.items():
+            self.assertEqual(actual[key], value)
+        self.assertIn({"deviceId": "MAC", "encryptionPassword": "mac-local-fixture"}, self.state["folders"][0]["devices"])
+        self.assertNotIn("OLD", {d["deviceID"] for d in self.state["devices"]})
+
+    def test_ambiguous_cached_identity_fails_before_any_mutation(self):
+        self.state["devices"].append({"deviceID": "DUPLICATE", "name": "fleet:victus"})
+        before = copy.deepcopy(self.state)
+        self.run_script(expected=78)
         self.assertEqual(self.state, before)
+
+    def legacy_folder(self):
+        path = self.root / "Projects"
+        path.mkdir()
+        (path / "source.txt").write_text("unpublished work")
+        self.legacy = [{"id": "mprez-tcw5e", "path": str(path), "relativePath": "Projects"}]
+        folder = {"id": "mprez-tcw5e", "path": str(path), "paused": False, "type": "sendreceive", "devices": [{"deviceId": "FRIEND"}], "versioning": {"type": "simple"}}
+        self.state["folders"].append(folder)
+        return copy.deepcopy(folder)
+
+    def test_legacy_pause_preserves_data_shares_and_private_snapshot(self):
+        before = self.legacy_folder()
+        self.run_script()
+        folder = next(f for f in self.state["folders"] if f["id"] == before["id"])
+        self.assertEqual(folder, before | {"paused": True})
+        self.assertEqual((Path(before["path"]) / "source.txt").read_text(), "unpublished work")
+        snapshots = list(self.root.glob("fleet-paused-mprez-tcw5e.*.json"))
+        self.assertEqual(len(snapshots), 1)
+        self.assertEqual(json.loads(snapshots[0].read_text()), before)
+        self.assertEqual(snapshots[0].stat().st_mode & 0o777, 0o600)
+        self.state["writes"] = []
+        self.run_script()
+        self.assertEqual(self.state["writes"], [])
+        self.assertEqual(len(list(self.root.glob("fleet-paused-mprez-tcw5e.*.json"))), 1)
+
+    def test_legacy_id_path_mismatch_aborts_before_api_or_file_changes(self):
+        self.legacy_folder()
+        self.legacy[0]["path"] = str(self.root / "unexpected")
+        before = copy.deepcopy(self.state)
+        self.run_script(expected=78)
+        self.assertEqual(self.state, before)
+        self.assertEqual(list(self.root.glob("fleet-paused-*.json")), [])
+
+    def test_legacy_check_creates_no_snapshot_and_does_not_pause(self):
+        self.legacy_folder()
+        before = copy.deepcopy(self.state)
+        self.run_script("--check")
+        self.assertEqual(self.state, before)
+        self.assertEqual(list(self.root.glob("fleet-paused-*.json")), [])
 
     def test_device_identity_rotation(self):
         self.state["peerID"] = "REPLACEMENT"

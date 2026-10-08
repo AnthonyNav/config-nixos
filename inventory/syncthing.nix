@@ -3,6 +3,27 @@
   managedFolderPrefix = "fleet-";
   reconcileInterval = "10m";
 
+  # These manually configured roots transported live Git checkouts. Pause only
+  # the observed ID/path pairs; retain their data, peers and local preferences.
+  legacyFolders = [
+    {
+      id = "mprez-tcw5e";
+      relativePath = "Projects";
+      hosts = [
+        "desktop"
+        "victus"
+      ];
+    }
+    {
+      id = "syf74-ywg9t";
+      relativePath = "kigo";
+      hosts = [
+        "desktop"
+        "victus"
+      ];
+    }
+  ];
+
   # Denials precede user exclusions and the document allowlist. These files
   # are installed locally on BOTH hosts before registering a folder in the API.
   ignorePatterns = [

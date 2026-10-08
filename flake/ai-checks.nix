@@ -171,6 +171,7 @@ in
     assert service.Service.Restart == "on-failure";
     assert service.Service.RestartPreventExitStatus == 3;
     assert service.Service.KillMode == "mixed";
+    assert lib.hasInfix "/bin/orca-ide-server " (builtins.head service.Service.ExecStart);
     assert service.Unit.StartLimitBurst == 5;
     assert service.Unit.StartLimitIntervalSec == 300;
     assert service.Install.WantedBy == [ "default.target" ];

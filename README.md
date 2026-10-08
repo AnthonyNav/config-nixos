@@ -366,6 +366,8 @@ Sus sesiones y skills propios siguen siendo mutables; `orca-skills-sync --dry-ru
 permite revisar una actualización explícita. Los MCPs y Artemis permanecen
 desactivados por defecto. Consulta [docs/ai-environment.md](docs/ai-environment.md)
 y [docs/orca.md](docs/orca.md) para permisos Manual y pruebas con Android.
+La migración del servidor y las pruebas entre Pixel, Desktop, Victus y Mac están
+en [docs/orca-fleet-continuity.md](docs/orca-fleet-continuity.md).
 
 Consulta [docs/maintainer.md](docs/maintainer.md) para actualizar las versiones.
 
@@ -387,13 +389,19 @@ gh-login personal
 gh-whoami personal
 ```
 
-Syncthing administra dos raíces y solo replica `shared/`, con exclusiones para
+Syncthing administra dos raíces y replica HANDOFF, documentos, assets y `shared/`, con exclusiones para
 repositorios, worktrees, cachés, credenciales y bases de datos. La migración
 conserva los archivos anteriores y requiere revisar/copiar los datos elegidos
 manualmente. No hay logins ni movimientos automáticos. Consulta
 [docs/workspace-workflow.md](docs/workspace-workflow.md) para cuentas,
 migración, límites y rollback. Los procesos del mismo usuario no están aislados
 por estas herramientas.
+
+`workspace-sync` recibe automáticamente commits publicados en copias locales
+registradas, cada dos minutos en Linux/macOS. Solo avanza ramas limpias y detiene
+la aplicación con trabajo local, divergencias, procesos activos o una pausa
+explícita. El registro y las credenciales permanecen locales; la publicación y
+la activación de Nix conservan su autorización por separado.
 
 ---
 

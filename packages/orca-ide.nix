@@ -90,6 +90,11 @@ let
     postPatch = ''
       asar extract opt/Orca/resources/app.asar asar-source
       python ${./orca-native-shell.py} asar-source/out/main/index.js ${lib.getExe bash}
+      # The foreground server bypasses the node-mode CLI supervisor. Review
+      # this contract whenever the pinned upstream payload changes.
+      for flag in --serve --serve-json --serve-port --serve-pairing-address; do
+        grep -q -- "$flag" asar-source/out/main/index.js
+      done
       # Unpack all members so autoPatchelf also reaches native modules. Keep
       # Electron's app.asar entry point and packaged-app semantics intact.
       rm -r opt/Orca/resources/app.asar opt/Orca/resources/app.asar.unpacked
@@ -134,6 +139,12 @@ let
     case "$mode" in
       cli) exec ${lib.getExe bash} ${unwrapped}/app/resources/bin/orca-ide "$@" ;;
       gui) exec ${unwrapped}/app/orca-ide "$@" ;;
+      server)
+        unset ELECTRON_RUN_AS_NODE
+        # Headless owns an Xvfb display even when the user manager inherited
+        # Wayland preferences from an earlier graphical login.
+        exec ${unwrapped}/app/orca-ide --serve --ozone-platform=x11 "$@"
+        ;;
       *) exit 64 ;;
     esac
   '';
@@ -148,6 +159,7 @@ stdenvNoCC.mkDerivation {
     mkdir -p "$out/bin" "$out/share/applications"
     makeWrapper ${launcher} "$out/bin/orca-ide" --add-flags cli
     makeWrapper ${launcher} "$out/bin/orca-ide-gui" --add-flags gui
+    makeWrapper ${launcher} "$out/bin/orca-ide-server" --add-flags server
     cp ${unwrapped}/share/applications/orca-ide.desktop "$out/share/applications/"
     substituteInPlace "$out/share/applications/orca-ide.desktop" \
       --replace-fail 'Exec=/opt/Orca/orca-ide' "Exec=$out/bin/orca-ide-gui"

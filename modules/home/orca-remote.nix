@@ -81,7 +81,7 @@ in
       };
       Service = {
         Type = "simple";
-        ExecStart = "${serve}/bin/orca-serve-fleet ${orca}/bin/orca-ide ${toString port}";
+        ExecStart = "${serve}/bin/orca-serve-fleet ${orca}/bin/orca-ide-server ${toString port}";
         WorkingDirectory = config.home.homeDirectory;
         Environment = [
           "HOME=${config.home.homeDirectory}"

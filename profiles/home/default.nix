@@ -25,6 +25,7 @@ in
     ./identities.nix
     ./fleet-access.nix
     ./development/ai.nix
+    ../../modules/home/workspace-sync.nix
   ]
   ++ map (name: profiles.${name} or (throw "Unknown Home profile '${name}'.")) selected;
 

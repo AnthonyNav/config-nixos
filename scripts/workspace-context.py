@@ -302,8 +302,9 @@ def main():
             git_command(config, options.config, args)
         elif action == "git-ssh":
             git_ssh(config, args)
-        elif action == "workspace":
-            spec = importlib.util.spec_from_file_location("portable_workspace", Path(__file__).with_name("workspace.py"))
+        elif action in ("workspace", "workspace-sync"):
+            filename = "workspace.py" if action == "workspace" else "workspace-sync.py"
+            spec = importlib.util.spec_from_file_location("portable_workspace", Path(__file__).with_name(filename))
             module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(module)
             return module.main(config, options.config, args, sys.modules[__name__])

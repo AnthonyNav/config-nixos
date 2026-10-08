@@ -13,12 +13,13 @@ let
         gh = "${pkgs.gh}/bin/gh";
         aws = "${pkgs.awscli2}/bin/aws";
         ssh = "${pkgs.openssh}/bin/ssh";
+        lsof = "${pkgs.lsof}/bin/lsof";
       };
     }
   );
   wrappers = pkgs.runCommand "workspace-tools" { nativeBuildInputs = [ pkgs.makeWrapper ]; } ''
     mkdir -p "$out/bin"
-    for command in git gh aws workspace workspace-context work-context identity-doctor \
+    for command in git gh aws workspace workspace-sync workspace-context work-context identity-doctor \
       aws-work aws-personal aws-login aws-profile-setup aws-whoami gh-login gh-whoami; do
       makeWrapper ${pkgs.python3}/bin/python3 "$out/bin/$command" \
         --add-flags "-B" \
