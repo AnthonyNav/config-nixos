@@ -26,19 +26,25 @@ nix why-depends <target> <dependency>
 ## 2. Separate System, Home, And Project Needs
 
 Put root-required services, drivers, boot options, networking, and systemd
-units in NixOS modules. Put user programs, shell configuration, desktop files,
-and dotfiles in Home Manager. Put project-specific SDKs in each project's own
-flake and enter them with `nix develop`.
+units in NixOS modules. On macOS, nix-darwin owns system policy and declared
+native applications; services use launchd. Put user programs, shell configuration,
+desktop files and dotfiles in Home Manager. Put project-specific SDKs in each
+project's own flake and enter them with `nix develop`.
 
 Do not add a project dependency to this repository's shared profile unless all
 workstations need it regularly.
 
-From a Flutter project root, run `flutter-stop` after finishing Android builds
-to stop Gradle daemons for the wrapper's Gradle version and release their memory.
+On NixOS, from a Flutter project root, run `flutter-stop` after finishing Android
+builds to stop Gradle daemons for the wrapper's Gradle version and release their
+memory.
 The alias supplies Android Studio's bundled Java even when `JAVA_HOME` is unset,
 and preserves the current directory and shell environment. Finish other Android
 builds using that Gradle version first: the stop command is not project-scoped.
 It does not delete APKs or build caches; the next build starts a daemon again.
+On macOS, use the project's compatible JDK when stopping its wrapper instead
+of assuming Android Studio's newest bundled Java is compatible. The
+[macOS development workflow](macos-development-workflow.md) covers this boundary,
+Xcode, FVM, containers and local credentials.
 
 This repository composes one daily base, a selected desktop style and explicit
 functional profiles under `profiles/home/`. Desktop and Victus select the same
@@ -54,19 +60,29 @@ SDKs or native-library workarounds. For a project, create a `flake.nix` and `.en
 {
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
   outputs = { nixpkgs, ... }:
-    let pkgs = nixpkgs.legacyPackages.x86_64-linux;
+    let systems = [ "x86_64-linux" "aarch64-darwin" ];
     in {
-      devShells.x86_64-linux.default = pkgs.mkShell {
-        packages = [ pkgs.nodejs_22 pkgs.go ];
-      };
+      devShells = nixpkgs.lib.genAttrs systems (system:
+        let pkgs = nixpkgs.legacyPackages.${system};
+        in {
+          default = pkgs.mkShell {
+            packages = [ pkgs.nodejs_22 pkgs.go ];
+          };
+        });
     };
 }
 ```
 
 ```sh
-echo 'use flake' > .envrc
-direnv allow
+cat .envrc              # review an existing file before changing or approving it
+direnv allow           # only after reviewing its code and referenced setup
 ```
+
+For a new file, put `use flake` in `.envrc`; preserve existing project setup.
+The package versions above are examples: select SDKs against that project's
+requirements and lockfile. Commit the flake, its lock and the reviewed `.envrc`
+in the project repository, excluding caches and credentials. Test builds on
+both platforms if both are supported; evaluation does not prove runtime health.
 
 Use `nix develop` for an interactive shell, `nix run nixpkgs#tool` for a
 one-off executable, and `nix shell nixpkgs#tool` for a temporary package set.
@@ -121,11 +137,22 @@ For a Home Manager-only change, build the matching activation package:
 nix-config build home victus
 ```
 
-Changes to shared desktop or shell modules must cover all workstations:
+For the registered Mac, build both Darwin system and Home without activation:
+
+```sh
+nix-config build all MacBook-Pro-de-Antonio
+```
+
+Changes to shared desktop or shell modules must cover every affected workstation.
+The native host matrix can be built with:
 
 ```sh
 nix-check all
 ```
+
+This covers hosts matching the local CPU/OS. Obtain build results from compatible
+Linux and Darwin builders when both platforms are affected; a skipped host is
+not a passed build.
 
 Do not activate a feature branch. Once the PR is merged, each workstation
 receives it with `nix-update`. If activation goes wrong, inspect candidates with
@@ -148,7 +175,7 @@ Caelestia and Hyprland in a real graphical session after their inputs change.
 
 ## 7. Debug The Running System
 
-Use systemd logs instead of guessing:
+On NixOS, use systemd logs instead of guessing:
 
 ```sh
 systemctl --user status <unit>
@@ -156,9 +183,17 @@ journalctl --user -u <unit> -b
 journalctl -u <unit> -b
 ```
 
+On macOS, use `launchctl list`, `launchctl print gui/$(id -u)/<label>` for
+user agents, and macOS Console/`log show` for runtime evidence. Inspect a
+LaunchAgent's configured output/error files; a scheduled oneshot can have no
+PID between runs while its last exit status is successful.
+
 Compare the declared configuration, the evaluated option, and the active
 generation. Check `nixos-rebuild list-generations` or
 `home-manager generations` before deleting generations.
+On Darwin, compare the declared build with `/run/current-system` and
+`/nix/var/nix/profiles/system` separately from the user profile. A Linux build
+cannot validate Darwin activation or an Apple SDK workload.
 
 ## 8. Keep Exceptions Visible
 

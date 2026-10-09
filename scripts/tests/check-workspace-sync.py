@@ -24,6 +24,19 @@ blocked = ["cello/repos/backend/README.md", "cello/worktrees/task/main.py", "rep
            "cello/docs/repos/secondary/README.md", "cello/docs/.env", "cello/docs/secret.txt",
            "cello/.orca/state.json", "cello/.fleet-workspace.lock", "cello/unshared.md",
            "cello/docs/private-notes.md", "cello/assets/.aws/credentials"]
+# Exercise the mandatory denials before every document allowlist, including
+# nested paths and mixed case on case-sensitive peers. Contents are text fixtures,
+# never actual signing keys, passwords or provisioning data.
+signing_names = ["release.jks", "upload.keystore", "distribution.p12", "distribution.pfx",  # gitleaks:allow - harmless fixture filenames
+                 "App.mobileprovision", "App.provisionprofile", "key.properties",
+                 "AuthKey_fixture.p8", "service.pem", "service.key"]
+for scope in ("shared", "cello/docs", "cello/assets"):
+    blocked.extend(f"{scope}/signing-fixtures/{name}" for name in signing_names)
+    blocked.extend(f"{scope}/signing-fixtures/nested/{name.upper()}" for name in signing_names)
+    # Public service configuration and signing instructions are not private keys.
+    # Do not exclude all JSON, certificates, or files named after provisioning.
+    allowed.extend(f"{scope}/signing-fixtures/{name}" for name in
+                   ("google-services.json", "certificate.cer", "provisioning.md", "key.properties.example"))
 
 
 def port():
@@ -56,7 +69,9 @@ def wait_for(predicate, processes, description):
 
 
 with tempfile.TemporaryDirectory(prefix="fleet-sync-check-") as temporary:
-    root = Path(temporary)
+    # macOS exposes its temporary directory through /var -> /private/var. Keep
+    # the fixture canonical so the production workspace symlink guard still runs.
+    root = Path(temporary).resolve()
     environment = os.environ | {"HOME": str(root), "STNOUPGRADE": "1", "STNORESTART": "1", "GOMAXPROCS": "2"}
     peers = [{"config": root / name / "config", "folder": root / name / "workspace", "api": port(), "listen": port()} for name in ("a", "b")]
     for peer in peers:
@@ -123,7 +138,7 @@ with tempfile.TemporaryDirectory(prefix="fleet-sync-check-") as temporary:
         wait_for(lambda: request(peers[0], "db/completion?folder=fixture&device=" + peers[1]["id"])["completion"] == 100,
                  processes, "Syncthing transfer did not reach completion")
         assert all(not (peers[1]["folder"] / relative).exists() for relative in blocked)
-        print("Real Syncthing peers synchronized handoff/docs/assets/legacy documents and excluded code, credentials and agent state.")
+        print("Real Syncthing peers synchronized public docs/assets/configuration and excluded code, credentials, signing material and agent state.")
     finally:
         for process in processes:
             process.terminate()
