@@ -66,6 +66,14 @@ nix-config build all victus
 
 Receive the reviewed configuration from `main`, validate it, and apply it:
 
+Before any Darwin system activation, complete the
+[native client preflight](macos-onboarding.md#native-client-preflight). Existing
+manual or inconsistent installations require a separately reviewed local
+migration; activation must not auto-adopt, reinstall/force clients, replace
+helpers or disconnect/restart VPN services. Preserve sessions and local profiles.
+`autoUpdate = false`, `upgrade = false` and `cleanup = "none"` do not guarantee
+that a required native package installer preserves connectivity.
+
 ```sh
 nix-update
 ```
@@ -113,7 +121,9 @@ normal command that modifies Git before deployment. See `docs/nix-config.md`.
   `colors:_var:_type` and `colors:_var:expr` options. Hyprland has safe static
   defaults overridden by the Caelestia-rendered colour and preset sources.
 - Kitty control sockets are PID-suffixed. Reload code must glob `/tmp/kitty-*`.
-- Pritunl is a system module because its daemon needs root.
+- Pritunl belongs in the system layer because its daemon needs root. On Darwin,
+  only the authorized Mac's `systemModule` declares its native cask; generic
+  Darwin hosts and fixtures must remain opted out.
 - The creative suite is imported only by NVIDIA hosts. The Blender launcher and
   desktop entry require `LD_LIBRARY_PATH=/run/opengl-driver/lib`.
 - Creative profiles require declared NVIDIA capabilities; the daily base must
@@ -186,8 +196,12 @@ upstream's externally-managed-install guard. Mutable application state is local.
 
 DbGate Community is pinned in `packages/dbgate.nix` for `victus` and `desktop` and exposed
 as `.#dbgate`. On Darwin, the development profile selects the native `dbgate`
-Homebrew cask through `modules/darwin/default.nix`. Pritunl uses its native
-Darwin cask and privileged helper; do not install a second Nix VPN daemon.
+Homebrew cask through `modules/darwin/default.nix`. Pritunl is declared only in
+`hosts/MacBook-Pro-de-Antonio/default.nix`, selected by that host's inventory
+`systemModule`; it uses its native cask and privileged helper. Do not install a
+second Nix VPN daemon. Check existing ownership and preserve VPN sessions using
+the [native client preflight](macos-onboarding.md#native-client-preflight) before
+system activation. VPN profiles and credentials remain local.
 Database connections and credentials stay in local application
 state, never in this repository. DBeaver remains pinned in `packages/dbeaver.nix`
 and exposed as `.#dbeaver` for optional use through `nix run`.
