@@ -28,7 +28,8 @@ blocked = ["cello/repos/backend/README.md", "cello/worktrees/task/main.py", "rep
 # nested paths and mixed case on case-sensitive peers. Contents are text fixtures,
 # never actual signing keys, passwords or provisioning data.
 signing_names = ["release.jks", "upload.keystore", "distribution.p12", "distribution.pfx",  # gitleaks:allow - harmless fixture filenames
-                 "App.mobileprovision", "App.provisionprofile", "key.properties"]
+                 "App.mobileprovision", "App.provisionprofile", "key.properties",
+                 "AuthKey_fixture.p8", "service.pem", "service.key"]
 for scope in ("shared", "cello/docs", "cello/assets"):
     blocked.extend(f"{scope}/signing-fixtures/{name}" for name in signing_names)
     blocked.extend(f"{scope}/signing-fixtures/nested/{name.upper()}" for name in signing_names)

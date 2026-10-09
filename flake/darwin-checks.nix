@@ -73,12 +73,15 @@ let
     assert darwin.config.homebrew.masApps.Tailscale == 1475387142;
     assert !lib.any (c: c.name == "tailscale-app") darwin.config.homebrew.casks;
     assert lib.any (c: c.name == "stablyai/orca/orca") darwin.config.homebrew.casks;
+    assert !lib.any (c: c.name == "pritunl") darwin.config.homebrew.casks;
+    assert lib.any (
+      c: c.name == "pritunl"
+    ) outputs.darwinConfigurations.MacBook-Pro-de-Antonio.config.homebrew.casks;
     assert lib.all (name: lib.any (c: c.name == name) darwin.config.homebrew.casks) [
       "kitty"
       "hammerspoon"
       "karabiner-elements"
       "aerospace"
-      "pritunl"
       "dbgate"
     ];
     assert lib.getName home.config.fleet.interaction.backend == "fleet-ui-backend";

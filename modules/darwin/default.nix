@@ -62,7 +62,6 @@ in
       "hammerspoon"
       "karabiner-elements"
       "aerospace"
-      "pritunl"
     ]
     ++ lib.optional development "visual-studio-code"
     ++ lib.optional development "dbgate"
