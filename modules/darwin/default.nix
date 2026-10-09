@@ -62,8 +62,10 @@ in
       "hammerspoon"
       "karabiner-elements"
       "aerospace"
+      "pritunl"
     ]
     ++ lib.optional development "visual-studio-code"
+    ++ lib.optional development "dbgate"
     ++ lib.optional mobile "android-studio";
     brews = lib.optionals development [ "colima" ];
   };

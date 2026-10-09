@@ -59,6 +59,16 @@
     "hosts.yml"
     "*.pem"
     "*.key"
+    # Signing stores, provisioning profiles and their local password properties
+    # stay on each device, including inside shared/docs/assets allowlisted paths.
+    # Explicit case folding also protects case-sensitive Linux workspaces.
+    "(?i)*.jks"
+    "(?i)*.keystore"
+    "(?i)*.p12"
+    "(?i)*.pfx"
+    "(?i)*.mobileprovision"
+    "(?i)*.provisionprofile"
+    "(?i)key.properties"
     "id_*"
     "*credentials*"
     "*token*"

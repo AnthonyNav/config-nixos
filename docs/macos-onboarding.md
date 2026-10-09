@@ -23,7 +23,7 @@ Command Line Tools and built executables were checked again after the update.
 The selected profiles are `development`,
 `platform` and `mobile`; Nix builds use two jobs and two suggested cores.
 
-The standalone Tailscale app is already joined to the existing tailnet. Native
+The App Store Tailscale app is already joined to the existing tailnet. Native
 Remote Login permits `anthonynav`, using a locally authorized public key.
 Connect with `ssh anthonynav@macbook-pro-de-antonio.tail88c098.ts.net`.
 The template keeps `connectivity.ssh = false`: `fleet-ssh` targets Tailscale SSH
@@ -146,7 +146,8 @@ repository flake. The implementation should document the exact host selector.
 
 Install Homebrew using its official installer before activation. The Darwin
 module manages native casks but does not bootstrap Homebrew or erase unrelated
-applications. Use exactly one standalone Tailscale app.
+applications. Keep the existing **App Store** Tailscale variant; do not add a
+second standalone variant.
 
 From clean published `main`, bootstrap with the repository's locked runner:
 
@@ -176,6 +177,22 @@ Expected first activation:
 
 macOS may request permissions for native applications. Grant only permissions
 required by the documented workflow.
+
+### Native VPN and database clients
+
+The Darwin policy also installs the native Pritunl client through the `pritunl`
+Homebrew cask. Import the authorized VPN profile locally in Pritunl after
+installation; profiles, certificates and VPN credentials are not managed by Nix
+or synchronized between machines. The native package owns its privileged
+launchd service. Validate the connection to a required internal service before
+accepting the work VPN as ready.
+
+Development Macs also include the native DbGate Community client through the
+`dbgate` cask. Database connections and credentials remain in local application
+state, outside this repository and synchronized workspace documents.
+
+See [the macOS development workflow](macos-development-workflow.md) for
+project SDKs, private configuration and daily acceptance checks.
 
 ### Keyboard-first Fleet interaction
 
@@ -432,7 +449,7 @@ git pull --ff-only
 nix flake check --no-build --no-write-lock-file
 
 # then activate reviewed main
-sudo darwin-rebuild switch --flake .#macbook
+sudo darwin-rebuild switch --flake .#MacBook-Pro-de-Antonio
 ```
 
 Once the host is registered and activated, use the shared workflow:

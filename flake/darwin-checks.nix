@@ -78,6 +78,8 @@ let
       "hammerspoon"
       "karabiner-elements"
       "aerospace"
+      "pritunl"
+      "dbgate"
     ];
     assert lib.getName home.config.fleet.interaction.backend == "fleet-ui-backend";
     assert builtins.elem "${darwin.config.homebrew.prefix}/bin" (
@@ -105,6 +107,19 @@ in
     assert builtins.deepSeq policy true;
     builderPkgs.runCommand "darwin-evaluation-check" { } ''touch "$out"'';
   native = {
+    workspace-sync =
+      pkgs.runCommand "darwin-workspace-sync-check"
+        {
+          nativeBuildInputs = [
+            pkgs.python3
+            pkgs.syncthing
+          ];
+        }
+        ''
+          export PYTHONDONTWRITEBYTECODE=1
+          python ${../scripts/tests/check-workspace-sync.py} ${../scripts/syncthing-ignores.py} ${pkgs.writeText "workspace-sync-policy.json" (builtins.toJSON (import ../inventory/syncthing.nix))} ${pkgs.syncthing}/bin/syncthing
+          touch "$out"
+        '';
     portable-contracts =
       pkgs.runCommand "darwin-portable-contracts-check"
         {

@@ -185,7 +185,10 @@ Update the package version/hash through review and revalidate
 upstream's externally-managed-install guard. Mutable application state is local.
 
 DbGate Community is pinned in `packages/dbgate.nix` for `victus` and `desktop` and exposed
-as `.#dbgate`. Database connections and credentials stay in local application
+as `.#dbgate`. On Darwin, the development profile selects the native `dbgate`
+Homebrew cask through `modules/darwin/default.nix`. Pritunl uses its native
+Darwin cask and privileged helper; do not install a second Nix VPN daemon.
+Database connections and credentials stay in local application
 state, never in this repository. DBeaver remains pinned in `packages/dbeaver.nix`
 and exposed as `.#dbeaver` for optional use through `nix run`.
 
