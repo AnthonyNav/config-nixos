@@ -35,7 +35,7 @@ class Contract(unittest.TestCase):
         self.log = self.directory / "log"
         # Real jq parses fake compositor responses; no real IPC is contacted.
         hyprctl = self.directory / "hyprctl"
-        hyprctl.write_text('#!/usr/bin/env python3\nimport os,sys\nif sys.argv[1:]==["-j","activewindow"]: print(os.environ["WINDOW"])\nelse:\n with open(os.environ["LOG"],"a") as f: f.write(repr(sys.argv[1:])+"\\n")\n')
+        hyprctl.write_text(f'#!{sys.executable}\n' + 'import os,sys\nif sys.argv[1:]==["-j","activewindow"]: print(os.environ["WINDOW"])\nelse:\n with open(os.environ["LOG"],"a") as f: f.write(repr(sys.argv[1:])+"\\n")\n')
         hyprctl.chmod(0o700)
         self.env = dict(os.environ, PATH=str(self.directory) + ":" + os.environ["PATH"], LOG=str(self.log))
 
