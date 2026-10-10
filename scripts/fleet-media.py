@@ -42,7 +42,8 @@ def run_json(argv):
 
 
 def checked_run(argv):
-    result = subprocess.run(argv, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    # Native capture may replace the reserved inode; its child must create private files.
+    result = subprocess.run(argv, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, umask=0o077)
     if result.returncode:
         raise MediaError("Capture failed or was cancelled; check capture permissions and selected target")
 
@@ -489,6 +490,10 @@ def worker(platform, session, home):
     recorder = None
     identity = None
     value = None
+    staging_name = None
+    staging_fd = None
+    destination_fd = None
+    reserved_identity = None
     try:
         with state.lock():
             value = state.read()
@@ -498,7 +503,31 @@ def worker(platform, session, home):
             if not value["supervisor"]:
                 raise MediaError("Cannot verify recording supervisor")
             state.write(value)
-        recorder = subprocess.Popen([*value["command"], value["path"]], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        capture_path = value["path"]
+        if platform == "darwin":
+            # Native video refuses an existing file. Keep the final reservation,
+            # record into a fresh private directory, then publish only after validation.
+            destination_fd = directory(Path(value["path"]).parent)
+            reserved = private_file(destination_fd, Path(value["path"]).name, os.O_RDONLY)
+            try:
+                metadata = os.fstat(reserved)
+                if metadata.st_size:
+                    raise MediaError("Reserved recording destination changed")
+                reserved_identity = (metadata.st_dev, metadata.st_ino)
+            finally:
+                os.close(reserved)
+            name = ".fleet-record-" + uuid.uuid4().hex
+            os.mkdir(name, 0o700, dir_fd=destination_fd)
+            staging_name = name
+            staging_fd = os.open(name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=destination_fd)
+            capture_path = str(Path(value["path"]).parent / name / "capture.mp4")
+            with state.lock():
+                current = state.read()
+                if current.get("session") != session:
+                    raise MediaError("Recording ownership changed")
+                current["staging_path"] = capture_path
+                state.write(current)
+        recorder = subprocess.Popen([*value["command"], capture_path], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, umask=0o077)
         # The child belongs to this supervisor and cannot have its PID reused until reaped.
         # Let exec/interpreter wrappers settle before persisting kernel identity.
         time.sleep(0.2)
@@ -529,12 +558,22 @@ def worker(platform, session, home):
             time.sleep(0.1)
         if recorder.returncode != 0:
             raise MediaError("Recorder exited unsuccessfully; check Screen/Audio permissions and selected device")
-        verify_video(value["path"], value["audio"])
+        verify_video(capture_path, value["audio"])
         with state.lock():
             current = state.read()
             if current.get("session") != session:
                 raise MediaError("Recording ownership changed")
+            if staging_fd is not None:
+                reserved = private_file(destination_fd, Path(value["path"]).name, os.O_RDONLY)
+                try:
+                    metadata = os.fstat(reserved)
+                    if metadata.st_size or (metadata.st_dev, metadata.st_ino) != reserved_identity:
+                        raise MediaError("Reserved recording destination changed")
+                finally:
+                    os.close(reserved)
+                os.replace("capture.mp4", Path(value["path"]).name, src_dir_fd=staging_fd, dst_dir_fd=destination_fd)
             current["status"] = "finished"
+            current.pop("staging_path", None)
             current.pop("command", None)
             state.write(current)
     except Exception as error:
@@ -549,16 +588,29 @@ def worker(platform, session, home):
         if not live and value:
             with contextlib.suppress(OSError, KeyError):
                 output = Path(value["path"])
-                if not output.is_symlink() and output.is_file() and output.stat().st_size == 0:
-                    output.unlink()
+                if not output.is_symlink() and output.is_file():
+                    metadata = output.stat()
+                    if metadata.st_size == 0 and (platform != "darwin" or (reserved_identity is not None and (metadata.st_dev, metadata.st_ino) == reserved_identity)):
+                        output.unlink()
         with state.lock():
             current = state.read()
             if current and current.get("session") == session:
                 current.update(status="orphaned" if live else "failed", error=str(error) if isinstance(error, MediaError) else "Media supervisor failed")
                 current.pop("command", None)
+                if not live:
+                    current.pop("staging_path", None)
                 state.write(current)
         return 1
     finally:
+        if staging_fd is not None:
+            if recorder is None or recorder.poll() is not None:
+                with contextlib.suppress(FileNotFoundError):
+                    os.unlink("capture.mp4", dir_fd=staging_fd)
+                with contextlib.suppress(FileNotFoundError):
+                    os.rmdir(staging_name, dir_fd=destination_fd)
+            os.close(staging_fd)
+        if destination_fd is not None:
+            os.close(destination_fd)
         state.close()
     return 0
 

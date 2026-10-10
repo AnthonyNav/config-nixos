@@ -135,7 +135,7 @@ local function run(args)
     elseif status and stdout ~= "" then
       alert(stdout)
     end
-  end, nil, args)
+  end, args)
   if not task then alert("Fleet: no se pudo crear la tarea"); return end
   M.tasks[id] = task -- hs.task requires a strong reference until completion.
   if not task:start() then
@@ -227,8 +227,8 @@ function M.show(kind)
   M.canvas, M.mode, M.target = canvas, kind, frontApp()
   local modal = hs.hotkey.modal.new()
   M.modal = modal
-  modal:bind({}, "escape", nil, M.close)
-  modal:bind({}, "return", nil, M.close)
+  modal:bind({}, "escape", M.close)
+  modal:bind({}, "return", M.close)
   for _, entry in ipairs(entries) do
     local function act()
       if not sameApp(M.target) then M.close(); return end
@@ -238,7 +238,7 @@ function M.show(kind)
       run(entry.args)
     end
     local repeatable = (kind == "move" or kind == "resize") and keyLabels[entry.key] ~= nil
-    modal:bind({}, entry.key, nil, act, nil, repeatable and act or nil)
+    modal:bind({}, entry.key, act, nil, repeatable and act or nil)
   end
   modal:enter()
 end
@@ -255,7 +255,7 @@ function M.edit(action)
   hs.eventtap.keyStroke(chord[1], chord[2], 0, app)
 end
 
-trigger = hs.hotkey.new({ "cmd", "alt" }, "return", nil, function() inspectShortcut(true) end)
+trigger = hs.hotkey.new({ "cmd", "alt" }, "return", function() inspectShortcut(true) end)
 M.trigger = trigger
 local urlMenus = {
   ["fleet-menu"] = "main", ["fleet-capture-menu"] = "capture", ["fleet-record-menu"] = "record",
