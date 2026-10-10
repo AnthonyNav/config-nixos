@@ -38,10 +38,11 @@ VSCode: sólo el contexto correspondiente recibe cada atajo.
 Terminal: M+C copia selección; M+V pega. Ctrl+C interrumpe, Ctrl+Z suspende y Ctrl+D conserva su función.
 Super+Z nunca se traduce a Ctrl+Z en una terminal. TUI y SSH conservan sus controles.
 
-Abre el menú con M+Alt+Enter o `fleet-menu`; suelta los modificadores antes de elegir.
-En Mac, una aplicación con ese atajo nativo conserva prioridad.
+En Linux, abre el menú con Super+Alt+Enter o `fleet-menu`; suelta los modificadores antes de elegir.
+Mac usa controles nativos: Fleet no registra un atajo global ni administra ventanas.
+En Mac, `fleet-shortcuts` muestra la guía nativa; los menús siguientes sólo corresponden a Linux.
 
-| Tecla del menú | Acción |
+| Tecla del menú Linux | Acción |
 |---|---|
 | left | Enfocar a la izquierda |
 | right | Enfocar a la derecha |
@@ -71,13 +72,13 @@ En Mac, una aplicación con ese atajo nativo conserva prioridad.
 | K | Guía de atajos |
 | Escape | Cancelar |
 
-Mover: flechas mueven; 1–9/0 envían al escritorio 1–10. Redimensionar: flechas cambian tamaño.
+Linux: flechas mueven; 1–9/0 envían al escritorio 1–10. Redimensionar: flechas cambian tamaño.
 Enter/Escape termina el modo y retira su indicador. Las demás acciones cierran el menú.
 
 M+Shift+3: pantalla; M+Shift+4: área; M+Shift+5: opciones de captura/grabación.
-Mac conserva sus capturas nativas. El menú permite archivo o portapapeles sin una cuarta tecla.
+Mac conserva sus capturas nativas y los comandos Fleet de captura/grabación. El menú Linux permite archivo o portapapeles sin una cuarta tecla.
 
-Captura:
+Captura (menú Linux):
 
 | Tecla | Acción |
 |---|---|
@@ -88,7 +89,7 @@ Captura:
 | A | Área → portapapeles |
 | C | Ventana → portapapeles |
 
-Grabación:
+Grabación (menú Linux):
 
 | Tecla | Acción |
 |---|---|

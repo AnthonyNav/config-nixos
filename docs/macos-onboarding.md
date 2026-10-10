@@ -239,18 +239,23 @@ state, outside this repository and synchronized workspace documents.
 See [the macOS development workflow](macos-development-workflow.md) for
 project SDKs, private configuration and daily acceptance checks.
 
-### Keyboard-first Fleet interaction
+### Native keyboard and window controls
 
-The workstation installs Kitty, Hammerspoon, Karabiner-Elements and AeroSpace
-as native Homebrew applications. Home Manager supplies the cross-platform
-`fleet-ui`, `fleet-menu` and `fleet-shortcuts` commands plus the Darwin
-adapter.
+The workstation keeps Kitty and Karabiner-Elements as native Homebrew
+applications. Fleet does not install Hammerspoon or AeroSpace, manage their
+configuration, register global shortcuts or tile windows on Mac. Command,
+Caps Lock, Option/AltGr and native macOS window controls retain their normal
+behavior. Existing user-owned Karabiner profiles remain local.
 
-After the first reviewed-main activation, complete the one-time macOS consent
-steps in [Fleet keyboard interaction](fleet-interaction.md): approve the
-required Accessibility and Screen/System Audio Recording permissions. Disable
-any previously enabled Fleet Key Caps/F18 rule in the local Karabiner profile.
-Quit Rectangle while validating AeroSpace as the sole window manager.
+When migrating from the Fleet desktop layer, turn off Hammerspoon's
+Launch Hammerspoon at login preference and quit it. Run `aerospace enable off`,
+quit AeroSpace, and remove AeroSpace from System Settings → General → Login
+Items → Open at Login before activating reviewed main. Home Manager then
+removes its managed Hammerspoon and AeroSpace files. Homebrew's existing
+`cleanup = "none"` policy leaves previously installed apps available; removing
+a declaration does not uninstall them or remove their local login registrations.
+Keep unrelated login items and user-owned Karabiner rules. Disable any old
+Fleet Caps/F18 rule still enabled in the local Karabiner profile.
 
 Then validate:
 
@@ -259,13 +264,16 @@ fleet-ui doctor
 fleet-shortcuts
 ```
 
-Caps Lock remains Caps Lock. Command shortcuts and native captures remain
-available. Command+Option+Enter opens the menu across apps, including ChatGPT,
-after checking their exposed menus on demand for a native conflict. VSCode and
-Orca keep their controls; `fleet-menu` is always available by command. See the
-interaction guide for hidden-binding and inspection-timeout limits.
-Mac recording requires the local probe described in the interaction guide.
-Visual macOS personalization remains user-owned.
+`fleet-shortcuts` shows the native Mac guide. `fleet-ui` retains application
+launchers and capture/recording commands. Old Fleet menu, editing and window
+commands return an explicit unsupported-action error without starting
+Hammerspoon or AeroSpace. Command+Option+Enter has no Fleet binding.
+
+Native Command+Shift+3/4/5 captures remain available. Fleet capture/recording
+commands still need Screen/System Audio Recording consent for the invoking
+application. Mac recording requires the local probe described in
+[Fleet interaction](fleet-interaction.md). macOS owns these permissions;
+builds cannot grant them. Visual personalization remains user-owned.
 
 ### Flutter and iOS
 

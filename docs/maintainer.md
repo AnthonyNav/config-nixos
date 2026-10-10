@@ -37,9 +37,9 @@ Caelestia. New desktop variants belong there, not in permanent branches.
 
 The shared [Fleet keyboard interaction](fleet-interaction.md) is an intent-level
 interface, not a desktop style. Portable commands must remain free of
-Hyprland/AeroSpace dependencies; Linux and Darwin adapters own their respective
-window-manager/input integrations. macOS visual personalization remains
-user-owned.
+Hyprland dependencies; the Linux adapter owns its window-manager/input
+integration. Darwin keeps native keyboard/window controls and exposes launchers
+and media commands. macOS visual personalization remains user-owned.
 
 ## Commands
 

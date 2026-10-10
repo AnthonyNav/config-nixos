@@ -50,7 +50,6 @@ in
     };
     taps = [
       "stablyai/orca"
-      "nikitabobko/tap"
     ];
     # Keep the existing App Store variant; the standalone cask cannot replace
     # it safely during a remote activation.
@@ -59,9 +58,7 @@ in
     casks = [
       "stablyai/orca/orca"
       "kitty"
-      "hammerspoon"
       "karabiner-elements"
-      "aerospace"
     ]
     ++ lib.optional development "visual-studio-code"
     ++ lib.optional development "dbgate"

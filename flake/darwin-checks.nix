@@ -79,11 +79,21 @@ let
     ) outputs.darwinConfigurations.MacBook-Pro-de-Antonio.config.homebrew.casks;
     assert lib.all (name: lib.any (c: c.name == name) darwin.config.homebrew.casks) [
       "kitty"
-      "hammerspoon"
       "karabiner-elements"
-      "aerospace"
       "dbgate"
     ];
+    assert
+      !lib.any (
+        c:
+        builtins.elem c.name [
+          "hammerspoon"
+          "aerospace"
+        ]
+      ) darwin.config.homebrew.casks;
+    assert !lib.any (t: t.name == "nikitabobko/tap") darwin.config.homebrew.taps;
+    assert !(home.config.home.file ? ".hammerspoon/init.lua");
+    assert !(home.config.home.file ? ".hammerspoon/fleet.lua");
+    assert !(home.config.home.file ? ".aerospace.toml");
     assert lib.getName home.config.fleet.interaction.backend == "fleet-ui-backend";
     assert builtins.elem "${darwin.config.homebrew.prefix}/bin" (
       lib.splitString ":" darwin.config.environment.systemPath
@@ -110,6 +120,50 @@ in
     assert builtins.deepSeq policy true;
     builderPkgs.runCommand "darwin-evaluation-check" { } ''touch "$out"'';
   native = {
+    native-controls =
+      pkgs.runCommand "darwin-native-controls-check"
+        {
+          nativeBuildInputs = [
+            pkgs.bash
+            pkgs.coreutils
+            pkgs.shellcheck
+          ];
+        }
+        ''
+          shellcheck ${../modules/home/darwin/fleet-ui-native.sh}
+          backend=${home.config.fleet.interaction.backend}/bin/fleet-ui-backend
+          for action in menu capture-menu record-menu media-menu move-mode resize-mode resize focus move workspace move-workspace fullscreen toggle-floating resize-step mode-exit edit lock; do
+            status=0
+            "$backend" "$action" >output 2>error || status=$?
+            test "$status" = 64
+            test ! -s output
+            grep -q 'retired on macOS' error
+          done
+          "$backend" --help >help
+          grep -q 'native keyboard and window controls' help
+          ! grep -Eq 'focus|workspace|move-mode|resize-mode|edit|menu' help
+          "$backend" shortcuts >guide
+          grep -q 'macOS: controles nativos' guide
+          ! grep -q 'Cmd+Option+Enter' guide
+          status=0
+          "$backend" shortcuts --hold extra >/dev/null 2>&1 || status=$?
+          test "$status" = 2
+          mkdir mock
+          cat >mock/fleet-media <<'EOF'
+          #!/usr/bin/env bash
+          printf '%s\n' "$@" >"$FLEET_NATIVE_MEDIA_CALL"
+          EOF
+          chmod +x mock/fleet-media
+          export PATH="$PWD/mock:$PATH"
+          export FLEET_NATIVE_MEDIA_CALL="$PWD/media-call"
+          "$backend" screenshot area --clipboard
+          printf '%s\n' --platform darwin screenshot area --clipboard >expected
+          cmp expected media-call
+          "$backend" record status
+          printf '%s\n' --platform darwin record status >expected
+          cmp expected media-call
+          touch "$out"
+        '';
     fleet-interaction = import ./fleet-interaction-check.nix {
       inherit pkgs;
       source = ../.;
