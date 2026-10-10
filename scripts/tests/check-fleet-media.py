@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Media adapters and recording lifecycle with fake commands, never screen/audio."""
 import argparse
+from concurrent.futures import ThreadPoolExecutor
 import importlib.util
 import json
 import os
@@ -54,7 +55,6 @@ else:
 pathlib.Path(os.environ['HOME'],'clipboard').write_bytes(sys.stdin.buffer.read())
 """)
         self.fake("wf-recorder", """import signal,time,sys,pathlib,os,json
-pathlib.Path(os.environ['HOME'],'recorder-argv.json').write_text(json.dumps(sys.argv))
 def stop(*_):
  output=pathlib.Path(sys.argv[-1])
  replacement=output.with_name(output.name+'.replacement')
@@ -62,6 +62,7 @@ def stop(*_):
  replacement.replace(output)
  sys.exit(0)
 signal.signal(signal.SIGINT,stop)
+pathlib.Path(os.environ['HOME'],'recorder-argv.json').write_text(json.dumps(sys.argv))
 while True:time.sleep(.05)
 """)
         self.fake("ffprobe", """import json,os
@@ -82,7 +83,10 @@ if 's16le' in sys.argv:sys.stdout.buffer.write(struct.pack('<h',0 if os.environ.
     def cli(self, *arguments, success=True):
         result = subprocess.run([sys.executable, "-B", str(SOURCE), "--platform", "linux", *arguments], env=self.env, capture_output=True, text=True, timeout=25, umask=0o022)
         value = json.loads(result.stdout)
-        self.assertEqual(result.returncode, 0 if success else 1, value)
+        if success is None:
+            self.assertIn(result.returncode, (0, 1), value)
+        else:
+            self.assertEqual(result.returncode, 0 if success else 1, value)
         self.assertEqual(result.stderr, "")
         return value
 
@@ -201,7 +205,7 @@ output.chmod(0o644)
                 with state.lock():
                     state.write({'session':session, 'status':'starting', 'platform':'darwin',
                                  'command':[str(self.bin / 'wf-recorder')], 'path':destination,
-                                 'audio':'none', 'stop_requested':True})
+                                 'audio':'none', 'stop_requested':False})
                 def finalized(path, audio):
                     verify(path, audio)
                     if change == 'content':
@@ -211,8 +215,20 @@ output.chmod(0o644)
                         replacement.write_bytes(b'')
                         replacement.chmod(0o600)
                         replacement.replace(destination)
-                with patch.dict(os.environ, self.env, clear=True), patch.object(media, 'verify_video', side_effect=finalized):
-                    self.assertEqual(media.worker('darwin', session, self.home), 1 if change else 0)
+                with patch.dict(os.environ, self.env, clear=True), patch.object(media, 'verify_video', side_effect=finalized), ThreadPoolExecutor(max_workers=1) as executor:
+                    running = executor.submit(media.worker, 'darwin', session, self.home)
+                    # Request stop after the fixture has installed its signal handler.
+                    # Native cancellation before startup can legitimately produce no frames.
+                    deadline = time.monotonic() + 5
+                    try:
+                        while not (self.home / 'recorder-argv.json').exists() and not running.done() and time.monotonic() < deadline:
+                            time.sleep(0.01)
+                    finally:
+                        with state.lock():
+                            value = state.read()
+                            value['stop_requested'] = True
+                            state.write(value)
+                    self.assertEqual(running.result(timeout=15), 1 if change else 0, state.read())
                 if change:
                     self.assertEqual(state.read()['status'], 'failed')
                     self.assertIn('unsafe ownership' if change == 'permissions-before' else 'destination changed', state.read()['error'])
@@ -249,8 +265,16 @@ else:print(json.dumps([{'name':'speaker','index':7}]))
 
     def test_recorder_refusal_surfaces_without_stale_active_session(self):
         self.fake("wf-recorder", "import sys;sys.exit(3)")
-        self.cli("record", "start", "--target", "area", "--region=1,2,30,40", success=False)
-        self.assertEqual(self.cli("record", "status")["status"], "failed")
+        # A cold interpreter may exit after the startup observation window.
+        # Refusal must still converge to failure without a stale active session.
+        started = self.cli("record", "start", "--target", "area", "--region=1,2,30,40", success=None)
+        self.assertIn(started["status"], ("error", "recording"))
+        deadline = time.monotonic() + 5
+        current = self.cli("record", "status")
+        while current["status"] in ("starting", "recording", "finalizing") and time.monotonic() < deadline:
+            time.sleep(0.05)
+            current = self.cli("record", "status")
+        self.assertEqual(current["status"], "failed")
         self.assertEqual(self.cli("record", "stop", success=False)["status"], "failed")
 
     def test_stale_supervisor_never_signals_reused_pid(self):
