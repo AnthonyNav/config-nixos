@@ -44,7 +44,11 @@ print(json.dumps([{'name':'DP-1','focused':True}] if 'monitors' in sys.argv else
         self.fake("grim", """import sys,pathlib
 data=b'\\x89PNG\\r\\n\\x1a\\n'+b'\\0\\0\\0\\rIHDR'+b'\\0\\0\\0\\1'*2+b'\\x08\\x06\\0\\0\\0'+b'\\0'*4
 if sys.argv[-1]=='-':sys.stdout.buffer.write(data)
-else:pathlib.Path(sys.argv[-1]).write_bytes(data)
+else:
+ output=pathlib.Path(sys.argv[-1])
+ replacement=output.with_name(output.name+'.replacement')
+ replacement.write_bytes(data)
+ replacement.replace(output)
 """)
         self.fake("wl-copy", """import sys,pathlib,os
 pathlib.Path(os.environ['HOME'],'clipboard').write_bytes(sys.stdin.buffer.read())
@@ -52,7 +56,10 @@ pathlib.Path(os.environ['HOME'],'clipboard').write_bytes(sys.stdin.buffer.read()
         self.fake("wf-recorder", """import signal,time,sys,pathlib,os,json
 pathlib.Path(os.environ['HOME'],'recorder-argv.json').write_text(json.dumps(sys.argv))
 def stop(*_):
- pathlib.Path(sys.argv[-1]).write_bytes(b'finalized fake video')
+ output=pathlib.Path(sys.argv[-1])
+ replacement=output.with_name(output.name+'.replacement')
+ replacement.write_bytes(b'finalized fake video')
+ replacement.replace(output)
  sys.exit(0)
 signal.signal(signal.SIGINT,stop)
 while True:time.sleep(.05)
@@ -73,7 +80,7 @@ if 's16le' in sys.argv:sys.stdout.buffer.write(struct.pack('<h',0 if os.environ.
         path.chmod(0o755)
 
     def cli(self, *arguments, success=True):
-        result = subprocess.run([sys.executable, "-B", str(SOURCE), "--platform", "linux", *arguments], env=self.env, capture_output=True, text=True, timeout=25)
+        result = subprocess.run([sys.executable, "-B", str(SOURCE), "--platform", "linux", *arguments], env=self.env, capture_output=True, text=True, timeout=25, umask=0o022)
         value = json.loads(result.stdout)
         self.assertEqual(result.returncode, 0 if success else 1, value)
         self.assertEqual(result.stderr, "")
@@ -99,6 +106,17 @@ if 's16le' in sys.argv:sys.stdout.buffer.write(struct.pack('<h',0 if os.environ.
         self.cli("screenshot", "window", "--file", str(destination))
         self.assertTrue(destination.is_file())
         self.assertEqual(destination.stat().st_mode & 0o777, 0o600)
+
+    def test_backend_explicitly_unsafe_permissions_are_rejected(self):
+        self.fake("grim", """import pathlib,sys
+output=pathlib.Path(sys.argv[-1])
+output.write_bytes(b'unsafe capture')
+output.chmod(0o644)
+""")
+        destination = self.home / "unsafe.png"
+        result = self.cli("screenshot", "screen", "--file", str(destination), success=False)
+        self.assertIn("unsafe ownership, links or permissions", result["error"])
+        self.assertFalse(destination.exists())
 
     def test_cancel_preserves_clipboard_and_creates_no_file(self):
         clipboard = self.home / "clipboard"
@@ -158,6 +176,7 @@ if 's16le' in sys.argv:sys.stdout.buffer.write(struct.pack('<h',0 if os.environ.
         self.assertEqual(finished["status"], "finished")
         self.assertEqual(Path(finished['path']).parent, self.home / 'Movies/ScreenRecordings')
         self.assertEqual(Path(finished["path"]).read_bytes(), b"finalized fake video")
+        self.assertEqual(Path(finished["path"]).stat().st_mode & 0o777, 0o600)
         self.assertEqual(self.cli("record", "stop"), finished)
         self.assertEqual(self.cli("record", "status"), finished)
         state = media.State(self.home)
@@ -165,6 +184,50 @@ if 's16le' in sys.argv:sys.stdout.buffer.write(struct.pack('<h',0 if os.environ.
             self.assertNotIn("command", state.read())
         finally:
             state.close()
+
+    def test_darwin_recorder_requires_absent_private_staging_destination(self):
+        recorder = (self.bin / "wf-recorder").read_text()
+        self.fake("wf-recorder", "import pathlib,sys\nif pathlib.Path(sys.argv[-1]).exists(): sys.exit(3)\nif pathlib.Path(sys.argv[-1]).parent.stat().st_mode & 0o777 != 0o700: sys.exit(4)\n" + recorder.split("\n", 1)[1])
+        verify = media.verify_video
+        for change in (None, 'content', 'inode', 'permissions-before'):
+            with self.subTest(destination_change=change):
+                destination = media.reserve_output(self.home, "record")
+                if change == 'permissions-before':
+                    Path(destination).chmod(0o644)
+                (self.home / 'recorder-argv.json').unlink(missing_ok=True)
+                session = 'fixture-native-video'
+                state = media.State(self.home)
+                self.addCleanup(state.close)
+                with state.lock():
+                    state.write({'session':session, 'status':'starting', 'platform':'darwin',
+                                 'command':[str(self.bin / 'wf-recorder')], 'path':destination,
+                                 'audio':'none', 'stop_requested':True})
+                def finalized(path, audio):
+                    verify(path, audio)
+                    if change == 'content':
+                        Path(destination).write_bytes(b'user content')
+                    elif change == 'inode':
+                        replacement = Path(destination).with_suffix('.replacement')
+                        replacement.write_bytes(b'')
+                        replacement.chmod(0o600)
+                        replacement.replace(destination)
+                with patch.dict(os.environ, self.env, clear=True), patch.object(media, 'verify_video', side_effect=finalized):
+                    self.assertEqual(media.worker('darwin', session, self.home), 1 if change else 0)
+                if change:
+                    self.assertEqual(state.read()['status'], 'failed')
+                    self.assertIn('unsafe ownership' if change == 'permissions-before' else 'destination changed', state.read()['error'])
+                else:
+                    self.assertEqual(state.read()['status'], 'finished')
+                self.assertEqual(Path(destination).read_bytes(), b'user content' if change == 'content' else b'' if change else b'finalized fake video')
+                self.assertEqual(Path(destination).stat().st_mode & 0o777, 0o644 if change == 'permissions-before' else 0o600)
+                if change == 'permissions-before':
+                    self.assertFalse((self.home / 'recorder-argv.json').exists())
+                    continue
+                staging = Path(json.loads((self.home / 'recorder-argv.json').read_text())[-1])
+                self.assertNotEqual(str(staging), destination)
+                self.assertEqual(staging.parent.parent, Path(destination).parent)
+                self.assertFalse(staging.parent.exists())
+                self.assertFalse(any(Path(destination).parent.glob('.fleet-record-*')))
 
     def test_default_output_without_monitor_fails_before_start(self):
         self.fake("pactl", """import json,sys
@@ -286,16 +349,21 @@ while True:time.sleep(.05)
 
     def test_mac_clipboard_uses_private_validated_png_then_removes_it(self):
         args = argparse.Namespace(platform='darwin', target='area', region='1,2,30,40', file=None, monitor='focused', window_id=None)
-        png = b'\x89PNG\r\n\x1a\n' + b'\0\0\0\rIHDR' + struct.pack('>II',1,1) + b'\x08\x06\0\0\0' + b'\0'*4
-        def capture(argv):
-            Path(argv[-1]).write_bytes(png)
+        original_run = subprocess.run
+        def capture(argv, **kwargs):
+            self.assertEqual(argv[0], '/usr/sbin/screencapture')
+            return original_run([str(self.bin / 'grim'), *argv[1:]], env=self.env, **kwargs)
         paths = []
         def copy(path):
             paths.append(path)
             self.assertEqual(Path(path).stat().st_mode & 0o777, 0o600)
             media.verify_png(path)
-        with patch.object(media, 'checked_run', side_effect=capture), patch.object(media, 'darwin_clipboard', side_effect=copy):
-            self.assertEqual(media.screenshot(args, self.home), {'status':'captured','destination':'clipboard'})
+        caller_umask = os.umask(0o022)
+        try:
+            with patch.object(subprocess, 'run', side_effect=capture), patch.object(media, 'darwin_clipboard', side_effect=copy):
+                self.assertEqual(media.screenshot(args, self.home), {'status':'captured','destination':'clipboard'})
+        finally:
+            os.umask(caller_umask)
         self.assertEqual(len(paths), 1)
         self.assertFalse(Path(paths[0]).exists())
 

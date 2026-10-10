@@ -90,6 +90,10 @@ active Fleet recording. Stop requests are scoped to the session; the supervisor
 uses SIGINT on its own child and verifies final video/audio with ffprobe. It does
 not signal a PID loaded from mutable state, use killall, or force-kill a recorder.
 A failed stop stays diagnosable and never claims the video is finalized.
+Capture and recording children create private files even when their caller uses
+a permissive umask. Native Mac video records in a unique private directory beside
+the final destination, then moves the validated video over its unchanged empty
+reservation. A destination modified during recording is preserved.
 
 Mac recording is gated per OS/build and recorder fingerprint. Before enabling it,
 use a small public test window, play a synthetic sound through the system output,
