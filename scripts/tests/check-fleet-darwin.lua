@@ -39,6 +39,16 @@ local function count(tableValue)
   return n
 end
 
+-- Match Hammerspoon's optional message overload: nil in slot three means
+-- a missing pressed callback, rather than an empty message placeholder.
+local function hotkeyCallbacks(message, pressed, released, repeated)
+  if message == nil or type(message) == "function" then
+    return message, pressed, released
+  end
+  assert(type(message) == "string", "hotkey message must be a string")
+  return pressed, released, repeated
+end
+
 hs = {
   alert = { show = function(message) alerts[#alerts + 1] = message end },
   fs = { attributes = function() return executableAvailable and { mode = "file" } or nil end },
@@ -65,8 +75,11 @@ hs = {
     return canvas
   end },
   hotkey = { modal = {} },
-  task = { new = function(path, callback, stream, args)
-    check(stream == nil and path:match("/fleet%-ui$") ~= nil, "tasks invoke the CLI directly")
+  task = { new = function(path, callback, args, extra)
+    -- With no stream callback, native hs.task.new expects the argument table
+    -- in slot three and rejects a nil placeholder before that table.
+    check(type(args) == "table" and extra == nil, "non-streaming task arguments occupy slot three")
+    check(type(callback) == "function" and path:match("/fleet%-ui$") ~= nil, "tasks invoke the CLI directly")
     local task = { callback = callback, args = args }
     function task:start() self.started = not failTaskStart; return self.started and self or nil end
     function task:finish(code, stdout, stderr) self.callback(code or 0, stdout or "", stderr or "") end
@@ -80,8 +93,10 @@ function hs.application.watcher.new(callback)
   function watcher:stop() self.stopped = true end
   return watcher
 end
-function hs.hotkey.new(mods, key, message, pressed)
+function hs.hotkey.new(mods, key, message, pressed, released, repeated)
+  pressed, released, repeated = hotkeyCallbacks(message, pressed, released, repeated)
   check(table.concat(mods, "+") == "cmd+alt" and key == "return", "only Cmd+Alt+Enter is global")
+  check(type(pressed) == "function" and released == nil and repeated == nil, "global menu runs on key press")
   globalHotkey = { callback = pressed, enabled = false }
   function globalHotkey:enable() self.enabled = true; return self end
   function globalHotkey:disable() self.enabled = false; return self end
@@ -91,7 +106,9 @@ end
 function hs.hotkey.modal.new()
   local modal = { bindings = {} }
   function modal:bind(mods, key, message, pressed, released, repeated)
+    pressed, released, repeated = hotkeyCallbacks(message, pressed, released, repeated)
     check(#mods == 0, "modal does not remap native Cmd or Ctrl chords")
+    check(type(pressed) == "function" and released == nil, "modal actions run on key press")
     assert(not self.bindings[key], "duplicate modal key")
     self.bindings[key] = { pressed = pressed, repeated = repeated }
     return self
