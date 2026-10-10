@@ -162,7 +162,10 @@ local function catalogEntries(kind)
         args = { "move-workspace", args[2] }
       else args = nil end
     end
-    if args then result[#result + 1] = { key = key, label = entry.label, args = args } end
+    if args then
+      local label = type(entry.modes) == "table" and entry.modes[kind] or entry.label
+      result[#result + 1] = { key = key, label = label or entry.label, args = args }
+    end
   end
   if #result > 0 then return result end
 end

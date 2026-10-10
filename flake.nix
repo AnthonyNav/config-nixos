@@ -268,6 +268,15 @@
             ;
           pkgs = pkgsFor;
         })
+        // (import ./flake/linux-interaction-checks.nix {
+          inherit
+            lib
+            self
+            username
+            workstationNames
+            ;
+          pkgs = pkgsFor;
+        })
         // {
           darwin-evaluation = darwinChecks.evaluation pkgsFor;
           maintenance-lint =

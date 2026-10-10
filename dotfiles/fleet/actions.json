@@ -7,7 +7,11 @@
       "args": [
         "focus",
         "left"
-      ]
+      ],
+      "modes": {
+        "move": "Mover a la izquierda",
+        "resize": "Redimensionar a la izquierda"
+      }
     },
     {
       "key": "right",
@@ -15,7 +19,11 @@
       "args": [
         "focus",
         "right"
-      ]
+      ],
+      "modes": {
+        "move": "Mover a la derecha",
+        "resize": "Redimensionar a la derecha"
+      }
     },
     {
       "key": "up",
@@ -23,7 +31,11 @@
       "args": [
         "focus",
         "up"
-      ]
+      ],
+      "modes": {
+        "move": "Mover arriba",
+        "resize": "Redimensionar arriba"
+      }
     },
     {
       "key": "down",
@@ -31,7 +43,11 @@
       "args": [
         "focus",
         "down"
-      ]
+      ],
+      "modes": {
+        "move": "Mover abajo",
+        "resize": "Redimensionar abajo"
+      }
     },
     {
       "key": "1",
@@ -39,7 +55,10 @@
       "args": [
         "workspace",
         "1"
-      ]
+      ],
+      "modes": {
+        "move": "Enviar al escritorio 1"
+      }
     },
     {
       "key": "2",
@@ -47,7 +66,10 @@
       "args": [
         "workspace",
         "2"
-      ]
+      ],
+      "modes": {
+        "move": "Enviar al escritorio 2"
+      }
     },
     {
       "key": "3",
@@ -55,7 +77,10 @@
       "args": [
         "workspace",
         "3"
-      ]
+      ],
+      "modes": {
+        "move": "Enviar al escritorio 3"
+      }
     },
     {
       "key": "4",
@@ -63,7 +88,10 @@
       "args": [
         "workspace",
         "4"
-      ]
+      ],
+      "modes": {
+        "move": "Enviar al escritorio 4"
+      }
     },
     {
       "key": "5",
@@ -71,7 +99,10 @@
       "args": [
         "workspace",
         "5"
-      ]
+      ],
+      "modes": {
+        "move": "Enviar al escritorio 5"
+      }
     },
     {
       "key": "6",
@@ -79,7 +110,10 @@
       "args": [
         "workspace",
         "6"
-      ]
+      ],
+      "modes": {
+        "move": "Enviar al escritorio 6"
+      }
     },
     {
       "key": "7",
@@ -87,7 +121,10 @@
       "args": [
         "workspace",
         "7"
-      ]
+      ],
+      "modes": {
+        "move": "Enviar al escritorio 7"
+      }
     },
     {
       "key": "8",
@@ -95,7 +132,10 @@
       "args": [
         "workspace",
         "8"
-      ]
+      ],
+      "modes": {
+        "move": "Enviar al escritorio 8"
+      }
     },
     {
       "key": "9",
@@ -103,7 +143,10 @@
       "args": [
         "workspace",
         "9"
-      ]
+      ],
+      "modes": {
+        "move": "Enviar al escritorio 9"
+      }
     },
     {
       "key": "0",
@@ -111,7 +154,10 @@
       "args": [
         "workspace",
         "10"
-      ]
+      ],
+      "modes": {
+        "move": "Enviar al escritorio 10"
+      }
     },
     {
       "key": "T",
