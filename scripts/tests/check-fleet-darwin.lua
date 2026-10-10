@@ -148,6 +148,15 @@ check(#pending == 0, "unknown apps are not inspected or intercepted")
 local code = app("com.microsoft.VSCode", 30)
 changeApp(code); flush()
 check(not globalHotkey.enabled and #pending == 0, "VSCode hidden native Replace All shortcut is never intercepted")
+for _, destination in ipairs({ unknown, code }) do
+  changeApp(known); flush()
+  check(globalHotkey.enabled, "known app enables trigger before activation race")
+  current = destination -- No activation callback has arrived yet.
+  local before = #strokes
+  globalHotkey.callback()
+  check(fleet.mode == nil and not globalHotkey.enabled and #pending == 0, "activation race preserves excluded app ownership")
+  check(#strokes == before + 1 and strokes[#strokes].app == destination and strokes[#strokes].key == "return", "activation race forwards consumed chord to current app")
+end
 urls["fleet-menu"]()
 check(fleet.mode == "main", "VSCode can open the explicit command menu")
 fleet.close(); flush()

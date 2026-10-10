@@ -80,7 +80,13 @@ local function inspectShortcut(onPressed)
   trigger:disable()
   queryPending = false
   local app = frontApp()
-  if stopped or not app or not knownApps[app:bundleID()] then return end
+  if stopped or not app then return end
+  if not knownApps[app:bundleID()] then
+    -- Activation notifications may arrive after this keypress. Preserve the
+    -- chord if the frontmost app changed while the old trigger was enabled.
+    if onPressed then hs.eventtap.keyStroke({ "cmd", "alt" }, "return", 0, app) end
+    return
+  end
   queryPending = true
   local ok = pcall(function()
     app:getMenuItems(function(items)
