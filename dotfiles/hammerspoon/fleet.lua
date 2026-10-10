@@ -3,20 +3,16 @@ local M = { tasks = {} }
 local home = os.getenv("HOME")
 local generation, taskID = 0, 0
 local stopped, queryPending = false, false
-local trigger, watcher, timer
+local trigger, watcher
+local queryDeadline, rearmTimer
 
--- Unknown applications keep Cmd+Alt+Enter. An inspected menu only describes
--- exposed menu shortcuts, not hidden/context-dependent application bindings.
-local knownApps = {
-  ["com.apple.finder"] = true,
-  ["com.apple.Safari"] = true,
-  ["com.apple.Terminal"] = true,
-  ["com.google.Chrome"] = true,
-  ["org.mozilla.firefox"] = true,
-  ["org.dbgate"] = true,
-  -- VSCode owns Cmd+Alt+Enter in its find widget, outside exposed menus.
-  -- Its Fleet menu remains available explicitly through fleet-menu.
-  ["net.kovidgoyal.kitty"] = true,
+-- The menu is available across applications, including ChatGPT. Exposed menus
+-- cannot reveal hidden/context-dependent bindings; reserve known exceptions.
+local nativeShortcutApps = {
+  ["com.microsoft.VSCode"] = true, -- Replace All in the find widget.
+  ["com.microsoft.VSCodeInsiders"] = true,
+  ["com.vscodium"] = true,
+  ["com.stablyai.orca"] = true, -- Preserve controls until separately verified.
 }
 local terminalApps = {
   ["com.apple.Terminal"] = true,
@@ -41,7 +37,7 @@ end
 
 local function sameApp(app)
   local current = frontApp()
-  return app and current and app:pid() == current:pid()
+  return app and current and app:pid() == current:pid() and app:bundleID() == current:bundleID()
 end
 
 local function alert(message)
@@ -72,43 +68,61 @@ local function nativeMenuShortcut(node)
   return false
 end
 
--- Disable immediately, then inspect asynchronously. A late callback for a
--- previous application can neither enable the trigger nor open a menu.
-local function inspectShortcut(onPressed)
+local function cancelInspection()
   generation = generation + 1
-  local request = generation
-  trigger:disable()
   queryPending = false
+  if queryDeadline then queryDeadline:stop(); queryDeadline = nil end
+end
+
+local function updateTrigger()
+  cancelInspection()
+  if rearmTimer then rearmTimer:stop(); rearmTimer = nil end
   local app = frontApp()
-  if stopped or not app then return end
-  if not knownApps[app:bundleID()] then
-    -- Activation notifications may arrive after this keypress. Preserve the
-    -- chord if the frontmost app changed while the old trigger was enabled.
-    if onPressed then hs.eventtap.keyStroke({ "cmd", "alt" }, "return", 0, app) end
-    return
-  end
-  queryPending = true
-  local ok = pcall(function()
-    app:getMenuItems(function(items)
-      if request ~= generation or stopped then return end
-      queryPending = false
-      if not sameApp(app) or M.mode then return end
-      local safe = type(items) == "table" and not nativeMenuShortcut(items)
-      if safe then
-        if onPressed then M.show("main") else trigger:enable() end
-      elseif onPressed then
-        -- The menu changed after the last inspection: forward the consumed
-        -- chord with our hotkey disabled so the application can handle it.
-        hs.eventtap.keyStroke({ "cmd", "alt" }, "return", 0, app)
-      end
+  if not stopped and not M.mode and app and not nativeShortcutApps[app:bundleID()] then
+    trigger:enable()
+  else trigger:disable() end
+end
+
+-- Inspect only on demand: getMenuItems uses Hammerspoon's main queue and slow
+-- native AX calls cannot be interrupted by a Lua timer. Discard late results,
+-- avoid background polling, and never replay into a different application.
+local function inspectShortcut()
+  if stopped or M.mode or queryPending then return end
+  cancelInspection()
+  if rearmTimer then rearmTimer:stop(); rearmTimer = nil end
+  local request = generation
+  local app = frontApp()
+  trigger:disable()
+  if not app then return end
+  local function replay()
+    if not sameApp(app) then updateTrigger(); return end
+    hs.eventtap.keyStroke({ "cmd", "alt" }, "return", 0, app)
+    -- Re-enable on the next run loop, after our synthesized chord has passed.
+    rearmTimer = hs.timer.doAfter(0, function()
+      if request == generation and not stopped then updateTrigger() end
     end)
-  end)
-  if not ok then
+  end
+  if nativeShortcutApps[app:bundleID()] then replay(); return end
+  queryPending = true
+  local started, finished = hs.timer.absoluteTime(), false
+  local function finish(items, expired)
+    if finished or request ~= generation or stopped then return end
+    finished = true
     queryPending = false
-    if onPressed and sameApp(app) then
-      hs.eventtap.keyStroke({ "cmd", "alt" }, "return", 0, app)
+    if queryDeadline then queryDeadline:stop(); queryDeadline = nil end
+    if not sameApp(app) or M.mode then updateTrigger(); return end
+    local late = expired or (hs.timer.absoluteTime() - started) >= 1e9
+    local ok, conflict = pcall(nativeMenuShortcut, items)
+    local safe = not late and type(items) == "table" and ok and not conflict
+    if safe then M.show("main")
+    else
+      replay()
+      if late then alert("Fleet: la aplicación no responde; abre el menú con fleet-menu") end
     end
   end
+  queryDeadline = hs.timer.doAfter(1, function() finish(nil, true) end)
+  local ok = pcall(function() app:getMenuItems(finish) end)
+  if not ok then finish(nil) end
 end
 
 local function executable()
@@ -181,7 +195,7 @@ function M.close()
   if M.modal then M.modal:exit(); M.modal:delete(); M.modal = nil end
   if M.canvas then M.canvas:delete(); M.canvas = nil end
   M.mode, M.target = nil, nil
-  if trigger and not stopped then inspectShortcut() end
+  if trigger and not stopped then updateTrigger() end
 end
 
 local titles = {
@@ -197,13 +211,12 @@ local modeActions = {
 function M.show(kind)
   if stopped then return end
   M.close()
-  generation = generation + 1
-  queryPending = false
+  cancelInspection()
   trigger:disable()
   local entries = catalogEntries(kind)
-  if not entries then alert("Fleet: catálogo de acciones ausente o inválido"); return end
+  if not entries then alert("Fleet: catálogo de acciones ausente o inválido"); updateTrigger(); return end
   local screen = hs.screen.mainScreen()
-  if not screen then alert("Fleet: no hay pantalla disponible"); return end
+  if not screen then alert("Fleet: no hay pantalla disponible"); updateTrigger(); return end
   local frame = screen:frame()
   local font = math.min(17, math.max(10, math.floor((frame.h - 130) / (#entries + 5) / 1.4)))
   local lines = { titles[kind], "" }
@@ -216,7 +229,7 @@ function M.show(kind)
   local width, height = math.min(620, frame.w - 40), (#lines * font * 1.4 + 40)
   local canvas = hs.canvas.new({ x = frame.x + (frame.w - width) / 2,
     y = frame.y + (frame.h - height) / 2, w = width, h = height })
-  if not canvas then alert("Fleet: no se pudo mostrar el menú"); return end
+  if not canvas then alert("Fleet: no se pudo mostrar el menú"); updateTrigger(); return end
   canvas:appendElements(
     { type = "rectangle", action = "fill", fillColor = { white = 0.08, alpha = 0.96 },
       roundedRectRadii = { xRadius = 12, yRadius = 12 } },
@@ -255,7 +268,7 @@ function M.edit(action)
   hs.eventtap.keyStroke(chord[1], chord[2], 0, app)
 end
 
-trigger = hs.hotkey.new({ "cmd", "alt" }, "return", function() inspectShortcut(true) end)
+trigger = hs.hotkey.new({ "cmd", "alt" }, "return", inspectShortcut)
 M.trigger = trigger
 local urlMenus = {
   ["fleet-menu"] = "main", ["fleet-capture-menu"] = "capture", ["fleet-record-menu"] = "record",
@@ -275,19 +288,16 @@ watcher = hs.application.watcher.new(function(_, event)
   if event == hs.application.watcher.activated then M.close() end
 end)
 watcher:start()
-timer = hs.timer.doEvery(3, function()
-  if not M.mode and not queryPending then inspectShortcut() end
-end)
 
 function M.stop()
   stopped = true
-  generation = generation + 1
+  cancelInspection()
   M.close()
   trigger:disable():delete()
   watcher:stop()
-  timer:stop()
+  if rearmTimer then rearmTimer:stop(); rearmTimer = nil end
   -- Running media tasks retain their callbacks and are not killed on reload.
 end
 
-inspectShortcut()
+updateTrigger()
 return M

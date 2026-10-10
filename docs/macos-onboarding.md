@@ -260,8 +260,10 @@ fleet-shortcuts
 ```
 
 Caps Lock remains Caps Lock. Command shortcuts and native captures remain
-available. Command+Option+Enter opens the menu in supported apps when it does not
-conflict with a native shortcut; `fleet-menu` is always available by command.
+available. Command+Option+Enter opens the menu across apps, including ChatGPT,
+after checking their exposed menus on demand for a native conflict. VSCode and
+Orca keep their controls; `fleet-menu` is always available by command. See the
+interaction guide for hidden-binding and inspection-timeout limits.
 Mac recording requires the local probe described in the interaction guide.
 Visual macOS personalization remains user-owned.
 
