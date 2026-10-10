@@ -248,8 +248,9 @@ adapter.
 
 After the first reviewed-main activation, complete the one-time macOS consent
 steps in [Fleet keyboard interaction](fleet-interaction.md): approve the
-required Accessibility/Input Monitoring permissions and enable the supplied
-Karabiner **Fleet Key** Complex Modification.
+required Accessibility and Screen/System Audio Recording permissions. Disable
+any previously enabled Fleet Key Caps/F18 rule in the local Karabiner profile.
+Quit Rectangle while validating AeroSpace as the sole window manager.
 
 Then validate:
 
@@ -258,8 +259,11 @@ fleet-ui doctor
 fleet-shortcuts
 ```
 
-Caps Lock becomes the Fleet Key. Visual macOS personalization remains entirely
-user-owned; this layer manages keyboard/workspace behavior only.
+Caps Lock remains Caps Lock. Command shortcuts and native captures remain
+available. Command+Option+Enter opens the menu in supported apps when it does not
+conflict with a native shortcut; `fleet-menu` is always available by command.
+Mac recording requires the local probe described in the interaction guide.
+Visual macOS personalization remains user-owned.
 
 ### Flutter and iOS
 

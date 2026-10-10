@@ -33,6 +33,19 @@ _:
       cursor_blink_interval = "0.5";
     };
 
+    # App actions use Super like Command on macOS. Native Ctrl+C/Ctrl+Z keep
+    # reaching the foreground terminal program; no global modifier swap.
+    keybindings = {
+      "super+c" = "copy_to_clipboard";
+      "super+v" = "paste_from_clipboard";
+      "super+t" = "new_tab";
+      "super+n" = "new_os_window";
+      "super+w" = "close_tab";
+      "super+q" = "quit";
+      "super+shift+c" = "copy_to_clipboard";
+      "super+shift+v" = "paste_from_clipboard";
+    };
+
     # Al final del archivo (gana sobre `settings` si hubiera solapamiento):
     # incluye los colores generados dinámicamente por el esquema activo de
     # Caelestia. Se regenera cada vez que corres `caelestia scheme set ...`.
