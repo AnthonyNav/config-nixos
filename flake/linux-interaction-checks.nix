@@ -75,7 +75,7 @@ in
           pkgs.xremap.hyprland
           (pkgs.python3.withPackages (ps: [ ps.pygobject3 ]))
         ];
-        GI_TYPELIB_PATH = lib.makeSearchPath "lib/girepository-1.0" [
+        GI_TYPELIB_PATH = lib.makeSearchPathOutput "lib" "lib/girepository-1.0" [
           pkgs.gtk3
           pkgs.gtk-layer-shell
           pkgs.glib
@@ -83,6 +83,7 @@ in
           pkgs.atk
           pkgs.gdk-pixbuf
           pkgs.gobject-introspection
+          pkgs.harfbuzz
         ];
         LD_LIBRARY_PATH = lib.makeLibraryPath [
           pkgs.gtk3
@@ -92,6 +93,7 @@ in
           pkgs.atk
           pkgs.gdk-pixbuf
           pkgs.gobject-introspection
+          pkgs.harfbuzz
         ];
       }
       ''

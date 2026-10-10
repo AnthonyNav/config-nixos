@@ -10,12 +10,13 @@ let
     atk
     gdk-pixbuf
     gobject-introspection
+    harfbuzz
   ];
   modeIndicator = pkgs.writeShellApplication {
     name = "fleet-mode-indicator";
     runtimeInputs = [ (pkgs.python3.withPackages (ps: [ ps.pygobject3 ])) ];
     text = ''
-      export GI_TYPELIB_PATH=${lib.makeSearchPath "lib/girepository-1.0" giPackages}
+      export GI_TYPELIB_PATH=${lib.makeSearchPathOutput "lib" "lib/girepository-1.0" giPackages}
       export LD_LIBRARY_PATH=${lib.makeLibraryPath giPackages}
       exec python3 ${../../../scripts/fleet-mode-indicator.py} "$@"
     '';
