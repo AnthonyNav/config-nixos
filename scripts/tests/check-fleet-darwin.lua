@@ -182,6 +182,9 @@ check(lastTask().args[1] == "resize-step" and lastTask().args[2] == "up", "resiz
 check(fleet.modal.bindings["0"] == nil, "resize does not bind workspace numbers")
 fleet.modal.bindings.escape.pressed()
 check(fleet.mode == nil, "Esc leaves resize mode")
+urls["fleet-move-mode"]()
+urls["fleet-mode-exit"]()
+check(fleet.mode == nil and fleet.canvas == nil, "CLI mode-exit retires its indicator")
 
 for event, kind in pairs({ ["fleet-capture-menu"] = "capture", ["fleet-record-menu"] = "record",
   ["fleet-media-menu"] = "combined", ["fleet-menu"] = "main" }) do

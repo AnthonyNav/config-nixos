@@ -259,6 +259,7 @@ for event, kind in pairs(urlMenus) do
   hs.urlevent.bind(event, function() M.show(kind) end)
 end
 hs.urlevent.bind("fleet-edit", function(_, params) M.edit(params and params.action) end)
+hs.urlevent.bind("fleet-mode-exit", function() M.close() end)
 hs.urlevent.bind("fleet-lock", function()
   if stopped then return end
   M.close()

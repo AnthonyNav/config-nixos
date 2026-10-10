@@ -153,6 +153,8 @@ case "$action" in
     hyprctl dispatch togglefloating
     ;;
   move-mode|resize|resize-mode)
+    hyprctl dispatch submap reset >/dev/null
+    fleet-mode-indicator stop
     mode=resize
     [ "$action" != move-mode ] || mode=move
     fleet-mode-indicator start "$mode" >/dev/null 2>&1 &
@@ -167,8 +169,10 @@ case "$action" in
     hyprctl dispatch submap "fleet-$mode" || { fleet-mode-indicator stop; exit 1; }
     ;;
   mode-exit)
-    hyprctl dispatch submap reset
+    status=0
+    hyprctl dispatch submap reset || status=$?
     fleet-mode-indicator stop
+    exit "$status"
     ;;
   resize-step)
     case "${1:-}" in

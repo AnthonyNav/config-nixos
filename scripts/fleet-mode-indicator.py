@@ -41,7 +41,9 @@ def main():
     if not args.mode:
         parser.error("start requires a mode")
     lock = os.open(path / "lock", os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600)
-    fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    # The caller requests the previous indicator to stop before starting this
+    # one. Waiting for its lock avoids a race while GTK processes the request.
+    fcntl.flock(lock, fcntl.LOCK_EX)
     for name in ["stop", "ready"]:
         (path / name).unlink(missing_ok=True)
     import gi
