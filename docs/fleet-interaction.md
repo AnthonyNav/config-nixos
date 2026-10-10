@@ -7,13 +7,21 @@ catalogue changes. CI rejects a stale guide.
 
 Command remains native on Mac. Linux adds Super aliases for supported
 applications alongside their existing Ctrl shortcuts. Caps Lock and AltGr are
-not remapped. Unknown applications retain their controls. The desktop menu uses
+not remapped. Unknown Linux applications retain their controls. The desktop menu uses
 Command+Option+Enter on Mac and Super+Alt+Enter on Linux, then single keys.
 `fleet-menu` opens the same menu from a command. Native Mac application shortcuts
-have priority; only known applications with a successfully inspected menu are
-eligible for the global menu shortcut. VSCode on Mac retains its native
+have priority. On Mac the shortcut is available across applications, including
+ChatGPT. Fleet inspects exposed menus only when pressed and forwards the original
+chord if a native conflict is found or inspection fails. It does not poll menus
+in the background. Lost callbacks can recover, and results arriving after one
+second are discarded. Native accessibility enumeration can still block
+Hammerspoon's main queue; the Lua timer cannot interrupt those calls. Use
+`fleet-menu` to open the menu explicitly without inspecting application menus.
+VSCode (including Insiders and VSCodium) on Mac retains its native
 Command+Option+Enter Replace All action (including its hidden find-widget binding);
-use `fleet-menu` there. Commands remain available in other apps.
+use `fleet-menu` there and in Orca, whose controls await separate verification.
+Menu inspection cannot detect hidden bindings in other applications. Commands
+remain available independently of shortcut eligibility.
 
 ## Ownership and activation
 
@@ -109,7 +117,7 @@ the invoking terminal after consent.
 Test integrated and external keyboards with US and Spanish layouts: Caps Lock,
 AltGr symbols, copy/paste/cut/undo/redo, save/find and browser tabs. Test VSCode
 editor, input fields and integrated terminal separately; Ctrl+C/Z/D and Neovim/
-SSH controls must remain available. Unknown apps and Orca retain their controls.
+SSH controls must remain available. Unknown Linux apps and Orca retain their controls.
 
 Test native Mac shortcut precedence, menu keys/cancellation, moving and resizing
 with visible indicators, all ten workspaces and graceful app quit. Test captures

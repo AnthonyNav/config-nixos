@@ -2,7 +2,9 @@
 local modulePath, fixturePath = arg[1], arg[2]
 local catalog = dofile(fixturePath)
 local current, pending, urls, strokes, tasks, alerts = nil, {}, {}, {}, {}, {}
-local watcher, timer, globalHotkey
+local watcher, globalHotkey
+local now = 0
+local deadlines = {}
 local executableAvailable, failTaskStart = true, false
 local tests = 0
 local function check(condition, message)
@@ -25,6 +27,11 @@ local function flush()
   local queue = pending
   pending = {}
   for _, request in ipairs(queue) do request.callback(request.app.menus) end
+  for _, deadline in ipairs(deadlines) do
+    if deadline.seconds == 0 and not deadline.stopped and not deadline.fired then
+      deadline.fired = true; deadline.callback()
+    end
+  end
 end
 local function changeApp(value)
   current = value
@@ -57,13 +64,18 @@ hs = {
     return { frame = function() return { x = 0, y = 0, w = 1440, h = 900 } end }
   end },
   eventtap = { keyStroke = function(mods, key, delay, target)
+    if key == "return" then check(not globalHotkey.enabled, "native chord replay cannot reenter Fleet") end
     strokes[#strokes + 1] = { mods = mods, key = key, app = target }
   end },
   urlevent = { bind = function(event, callback) urls[event] = callback end },
   application = { frontmostApplication = function() return current end, watcher = { activated = 1 } },
-  timer = { doEvery = function(seconds, callback)
-    timer = { callback = callback, stop = function(self) self.stopped = true end }
-    return timer
+  timer = { absoluteTime = function() return now end, doEvery = function()
+    error("menu enumeration must not poll applications in the background")
+  end, doAfter = function(seconds, callback)
+    check(seconds == 0 or seconds == 1, "timers only guard callbacks or defer native replay rearming")
+    local deadline = { seconds = seconds, callback = callback, stop = function(self) self.stopped = true end }
+    deadlines[#deadlines + 1] = deadline
+    return deadline
   end },
   canvas = { new = function(frame)
     local canvas = { frame = frame }
@@ -122,21 +134,19 @@ end
 local known = app("org.dbgate", 10)
 current = known
 local fleet = dofile(modulePath)
-check(not globalHotkey.enabled and #pending == 1, "initial trigger waits for inspection")
-flush()
-check(globalHotkey.enabled, "known application with inspected menus is eligible")
+check(globalHotkey.enabled and #pending == 0, "initial trigger is available without background enumeration")
 
 for _, special in ipairs({ 4, 11, 12, 13, "\r", "\n", "return", "enter", "↩" }) do
   local glyph = type(special) == "number" and special or ""
   local char = type(special) == "string" and special or ""
   known.menus = { { { AXEnabled = false, AXMenuItemCmdModifiers = { "cmd", "alt" },
     AXMenuItemCmdChar = char, AXMenuItemCmdGlyph = glyph } } }
-  timer.callback(); flush()
-  check(not globalHotkey.enabled, "native Cmd+Alt+Enter remains owned by the application")
+  local before = #strokes
+  globalHotkey.callback(); flush()
+  check(fleet.mode == nil and #strokes == before + 1, "native Cmd+Alt+Enter remains owned by the application")
 end
 known.menus = {}
-timer.callback(); flush()
-check(globalHotkey.enabled, "trigger can recover after a menu changes")
+check(globalHotkey.enabled, "trigger remains available after native replay")
 globalHotkey.callback()
 check(not globalHotkey.enabled, "keypress rechecks current menu before opening")
 flush()
@@ -154,18 +164,29 @@ flush()
 -- A newly exposed shortcut gets the original key event, not a Fleet menu.
 known.menus = { { AXMenuItemCmdModifiers = { "command", "option" }, AXMenuItemCmdChar = "\r" } }
 globalHotkey.callback(); flush()
-check(fleet.mode == nil and not globalHotkey.enabled, "new native conflict does not open menu")
+check(fleet.mode == nil and globalHotkey.enabled, "new native conflict forwards the chord without opening Fleet")
 check(strokes[#strokes].key == "return" and strokes[#strokes].app == known, "consumed chord is forwarded natively")
 known.menus = {}
-timer.callback()
+globalHotkey.callback() -- Query pending when the foreground app changes.
 local unknown = app("example.uninspected", 20)
 changeApp(unknown); flush()
-check(not globalHotkey.enabled, "late inspection cannot enable trigger for an unknown app")
-check(#pending == 0, "unknown apps are not inspected or intercepted")
+check(globalHotkey.enabled, "new applications are eligible without an allowlist or background query")
+globalHotkey.callback(); flush()
+check(fleet.mode == "main", "new application can open the menu without an allowlist")
+fleet.close(); flush()
+local chatgpt = app("com.openai.codex", 21)
+changeApp(chatgpt); flush()
+check(globalHotkey.enabled, "ChatGPT is eligible for the desktop shortcut")
+globalHotkey.callback(); flush()
+check(fleet.mode == "main" and fleet.target == chatgpt, "ChatGPT opens the visible menu")
+fleet.modal.bindings.escape.pressed(); flush()
 local code = app("com.microsoft.VSCode", 30)
-changeApp(code); flush()
-check(not globalHotkey.enabled and #pending == 0, "VSCode hidden native Replace All shortcut is never intercepted")
-for _, destination in ipairs({ unknown, code }) do
+local orca = app("com.stablyai.orca", 31)
+for _, destination in ipairs({ code, orca, app("com.microsoft.VSCodeInsiders", 32), app("com.vscodium", 33) }) do
+  changeApp(destination); flush()
+  check(not globalHotkey.enabled and #pending == 0, "known hidden shortcuts retain native ownership")
+end
+for _, destination in ipairs({ code, orca }) do
   changeApp(known); flush()
   check(globalHotkey.enabled, "known app enables trigger before activation race")
   current = destination -- No activation callback has arrived yet.
@@ -174,24 +195,66 @@ for _, destination in ipairs({ unknown, code }) do
   check(fleet.mode == nil and not globalHotkey.enabled and #pending == 0, "activation race preserves excluded app ownership")
   check(#strokes == before + 1 and strokes[#strokes].app == destination and strokes[#strokes].key == "return", "activation race forwards consumed chord to current app")
 end
+changeApp(code)
 urls["fleet-menu"]()
 check(fleet.mode == "main", "VSCode can open the explicit command menu")
 fleet.close(); flush()
 changeApp(known); flush()
 known.menus = nil
-timer.callback(); flush()
-check(not globalHotkey.enabled, "missing menu result is conservative")
-known.failMenus = true
-timer.callback()
-check(not globalHotkey.enabled, "inspection exception is conservative")
-known.failMenus, known.menus = false, {}
-timer.callback(); flush()
-known.failMenus = true
 local failedStrokeCount = #strokes
+globalHotkey.callback(); flush()
+check(fleet.mode == nil and globalHotkey.enabled and #strokes == failedStrokeCount + 1,
+  "missing menu result preserves native chord and rearms for future use")
+known.failMenus = true
+failedStrokeCount = #strokes
 globalHotkey.callback()
-check(#strokes == failedStrokeCount + 1 and strokes[#strokes].app == known, "keypress inspection exception forwards native chord")
-known.failMenus = false
-timer.callback(); flush()
+check(not globalHotkey.enabled and #strokes == failedStrokeCount + 1,
+  "inspection exception forwards natively while trigger is disabled")
+flush()
+check(globalHotkey.enabled, "exception does not leave trigger disabled")
+known.failMenus, known.menus = false, {}
+
+-- A missing callback cannot permanently disable the trigger. Repeated calls
+-- while pending coalesce, and stale timers/results cannot affect a later query.
+globalHotkey.callback()
+local pressedRequest = pending[#pending]
+local pressedDeadline = deadlines[#deadlines]
+local timeoutStrokes = #strokes
+for _ = 1, 10 do globalHotkey.callback() end
+check(#pending == 1, "only one on-demand inspection is active")
+pressedDeadline.callback()
+check(fleet.mode == nil and #strokes == timeoutStrokes + 1 and not globalHotkey.enabled,
+  "keypress timeout forwards exactly once before deferred rearming")
+pressedRequest.callback({})
+pressedDeadline.callback()
+check(fleet.mode == nil and #strokes == timeoutStrokes + 1, "late callback or timeout cannot reopen or replay twice")
+flush()
+check(globalHotkey.enabled, "trigger recovers after a lost keypress callback")
+globalHotkey.callback()
+pressedRequest.callback(nil); pressedDeadline.callback()
+check(not globalHotkey.enabled and fleet.mode == nil, "expired request cannot change the newer query")
+flush()
+check(fleet.mode == "main", "a fresh query succeeds after a timeout")
+fleet.close()
+
+-- Native AX enumeration may block the main queue beyond the timer deadline.
+-- Measure monotonic time rather than treating a delayed callback as timely.
+globalHotkey.callback()
+now = now + 1100000000
+timeoutStrokes = #strokes
+flush()
+check(fleet.mode == nil and globalHotkey.enabled and #strokes == timeoutStrokes + 1,
+  "late native result is discarded even if its Lua timeout has not run")
+
+globalHotkey.callback()
+local switchedRequest = pending[#pending]
+local switchedDeadline = deadlines[#deadlines]
+timeoutStrokes = #strokes
+changeApp(chatgpt)
+switchedDeadline.callback(); switchedRequest.callback({}); flush()
+check(fleet.mode == nil and #strokes == timeoutStrokes and globalHotkey.enabled,
+  "late callback after focus change cannot open a menu or replay into another app")
+changeApp(known)
 
 urls["fleet-move-mode"]()
 check(fleet.mode == "move" and fleet.canvas.showing, "move URL opens a visible mode")
@@ -279,10 +342,14 @@ check(fleet.mode == nil and active.deleted, "switching applications exits visibl
 local savedCatalog = catalog
 catalog = { version = 2, menu = {} }
 urls["fleet-menu"]()
-check(fleet.mode == nil, "unsupported catalog fails without interception")
+check(fleet.mode == nil and globalHotkey.enabled, "unsupported catalog fails without leaving the shortcut disabled")
 catalog = savedCatalog
+fleet.close()
+globalHotkey.callback()
+local stoppedDeadline = deadlines[#deadlines]
 fleet.stop()
-check(globalHotkey.deleted and watcher.stopped and timer.stopped, "module cleanup disables its resources")
+check(globalHotkey.deleted and watcher.stopped and stoppedDeadline.stopped, "module cleanup disables its resources")
+stoppedDeadline.callback()
 flush()
 check(not globalHotkey.enabled, "late callback after stop cannot enable a shortcut")
 urls["fleet-menu"]()
