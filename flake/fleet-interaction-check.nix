@@ -18,5 +18,6 @@ pkgs.runCommand "fleet-interaction-check"
     python ${source}/scripts/tests/check-fleet-interaction.py ${source}
     python ${source}/scripts/tests/check-fleet-media.py ${source}/scripts/fleet-media.py
     python ${source}/scripts/tests/check-fleet-darwin.py ${source} ${pkgs.lua}/bin/lua
+    python ${source}/scripts/tests/check-editor-bindings.py ${source}/scripts/editor-bindings.py ${source}/scripts/ai-opencode.py ${source}/dotfiles/vscode/fleet-linux-keybindings.json
     touch "$out"
   ''

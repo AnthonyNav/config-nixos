@@ -22,6 +22,13 @@ class Contract(unittest.TestCase):
         self.assertEqual(next(e["args"] for e in data["menu"] if e["key"] == "T"), ["terminal"])
         self.assertEqual(next(e["args"] for e in data["menu"] if e["key"] == "A"), ["files"])
 
+    def test_menu_fits_normal_terminal(self):
+        data = catalog.load(ROOT / "dotfiles/fleet/actions.json")
+        layout = catalog.menu_layout(data["menu"], 24, 80)
+        self.assertEqual(len(layout), len(data["menu"]))
+        self.assertTrue(all(row < 23 and column < 80 for row, column, _ in layout))
+        self.assertTrue(any(line.startswith("    K") for _, _, line in layout))
+
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.directory = Path(self.tmp.name)
@@ -46,6 +53,12 @@ class Contract(unittest.TestCase):
     def test_unknown_app_is_not_sent(self):
         self.assertNotEqual(self.edit("unknown", "copy").returncode, 0)
         self.assertFalse(self.log.exists())
+
+    def test_unknown_app_keeps_menu_hotkey(self):
+        self.env["WINDOW"] = json.dumps({"class": "unknown", "address": "0x123"})
+        result = subprocess.run(["bash", str(ROOT / "scripts/fleet-ui-linux.sh"), "menu-hotkey"], env=self.env, capture_output=True)
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("SUPER ALT,Return,address:0x123", self.log.read_text())
 
     def test_terminal_copy(self):
         self.assertEqual(self.edit("kitty", "copy").returncode, 0)

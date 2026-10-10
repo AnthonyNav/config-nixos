@@ -3,8 +3,10 @@
 import argparse
 import curses
 import json
+import math
 import os
 from pathlib import Path
+import subprocess
 
 
 def load(path):
@@ -52,6 +54,15 @@ def guide(data):
     return "\n".join(lines)
 
 
+def menu_layout(entries, height, width):
+    available = max(1, height - 4)
+    columns = math.ceil(len(entries) / available)
+    cell_width = max(1, width // columns)
+    return [(3 + index % available, (index // available) * cell_width,
+             f'{entry["key"]:>5}  {entry["label"]}'[:max(0, cell_width - 1)])
+            for index, entry in enumerate(entries)]
+
+
 def menu(screen, entries):
     curses.curs_set(0)
     screen.keypad(True)
@@ -61,16 +72,28 @@ def menu(screen, entries):
         screen.erase()
         height, width = screen.getmaxyx()
         rows = ["Fleet — suelta los modificadores y elige una tecla", "Escape: cancelar", ""]
-        rows += [f'{e["key"]:>5}  {e["label"]}' for e in entries]
         for index, line in enumerate(rows[:max(0, height - 1)]):
             screen.addstr(index, 0, line[:max(0, width - 1)])
+        for row, column, line in menu_layout(entries, height, width):
+            if row < height - 1:
+                screen.addstr(row, column, line)
         screen.refresh()
         key = screen.getch()
         if key in (27, 3):
             return None
         name = arrows.get(key, chr(key).lower() if 0 <= key < 256 else "")
         if name in mapping:
-            return mapping[name]
+            action = mapping[name]
+            if action == ["record", "status"]:
+                result = subprocess.run([os.environ.get("FLEET_UI_BIN", "fleet-ui"), *action], capture_output=True, text=True)
+                screen.erase()
+                text = (result.stdout or result.stderr).splitlines() + ["", "Cualquier tecla para cerrar"]
+                for index, line in enumerate(text[:max(0, height - 1)]):
+                    screen.addstr(index, 0, line[:max(0, width - 1)])
+                screen.refresh()
+                screen.getch()
+                return None
+            return action
 
 
 def main():

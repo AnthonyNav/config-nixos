@@ -65,6 +65,24 @@ action="${1:-}"
 }
 shift || true
 
+if [ "$action" = menu-hotkey ]; then
+  window="$(hyprctl -j activewindow)"
+  app="$(jq -r '.class // empty' <<<"$window")"
+  target="$(jq -r '.address // empty' <<<"$window")"
+  preserve=0
+  case "${app,,}" in
+    ''|firefox|firefox-esr|firefoxesr|org.mozilla.firefox|thunar|org.xfce.thunar|dbgate|kitty) ;;
+    code)
+      if ! have fleet-editor-bindings || ! fleet-editor-bindings menu-available >/dev/null; then preserve=1; fi ;;
+    *) preserve=1 ;;
+  esac
+  if [ "$preserve" = 1 ]; then
+    hyprctl dispatch sendshortcut "SUPER ALT,Return,address:$target"
+    exit
+  fi
+  action=menu
+fi
+
 case "$action" in
   terminal)
     have kitty || die "kitty is not installed"
@@ -168,9 +186,9 @@ case "$action" in
     app="$(jq -r '.class // empty' <<<"$window")"
     target="$(jq -r '.address // empty' <<<"$window")"
     modifier=CTRL
-    case "$app" in
-      firefox|firefox-esr|org.mozilla.firefox|thunar|Thunar|dbgate|DbGate) ;;
-      code|Code) modifier=SUPER ;;
+    case "${app,,}" in
+      firefox|firefox-esr|firefoxesr|org.mozilla.firefox|thunar|org.xfce.thunar|dbgate) ;;
+      code) modifier=SUPER ;;
       kitty)
         case "$edit_action" in
           copy|paste) modifier='CTRL SHIFT' ;;

@@ -93,7 +93,7 @@ case "$action" in
     ;;
   menu|capture-menu|record-menu|media-menu|move-mode|resize-mode|resize)
     [ "$action" != resize ] || action=resize-mode
-    /usr/bin/open "hammerspoon://fleet-$action"
+    /usr/bin/open -g "hammerspoon://fleet-$action"
     ;;
   browser)
     darwin_open_first Firefox Safari || die "no supported browser found"
@@ -105,7 +105,7 @@ case "$action" in
     darwin_open_first Orca || die "Orca is not installed"
     ;;
   lock)
-    /usr/bin/open "hammerspoon://fleet-lock"
+    /usr/bin/open -g "hammerspoon://fleet-lock"
     ;;
   focus)
     direction="${1:-}"
@@ -143,7 +143,7 @@ case "$action" in
     "$(aerospace_bin)" resize "$axis" "$delta"
     ;;
   mode-exit)
-    /usr/bin/open "hammerspoon://fleet-mode-exit"
+    /usr/bin/open -g "hammerspoon://fleet-mode-exit"
     ;;
   screenshot|record)
     exec fleet-media --platform darwin "$action" "$@"
@@ -151,7 +151,7 @@ case "$action" in
   edit)
     case "${1:-}" in
       copy|paste|cut|undo|redo|select-all|save|find|open|new|new-tab|close|quit|location|reload)
-        /usr/bin/open "hammerspoon://fleet-edit?action=$1" ;;
+        /usr/bin/open -g "hammerspoon://fleet-edit?action=$1" ;;
       *) die "invalid editing action" ;;
     esac
     ;;

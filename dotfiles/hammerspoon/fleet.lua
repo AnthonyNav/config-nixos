@@ -13,6 +13,7 @@ local knownApps = {
   ["com.apple.Terminal"] = true,
   ["com.google.Chrome"] = true,
   ["org.mozilla.firefox"] = true,
+  ["org.dbgate"] = true,
   ["com.microsoft.VSCode"] = true,
   ["net.kovidgoyal.kitty"] = true,
 }

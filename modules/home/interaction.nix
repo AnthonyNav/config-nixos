@@ -58,7 +58,13 @@ in
   # Shared human-interface contract. Platform modules provide the backend;
   # this module contains no Linux or Darwin implementation details.
   config = {
-    home.packages = [ fleetUi fleetMenu fleetShortcuts fleetCatalog fleetMedia ];
+    home.packages = [
+      fleetUi
+      fleetMenu
+      fleetShortcuts
+      fleetCatalog
+      fleetMedia
+    ];
     xdg.configFile."fleet/actions.json".source = catalogue;
   };
 }
