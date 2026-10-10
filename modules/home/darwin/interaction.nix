@@ -1,4 +1,4 @@
-{ pkgs, ... }:
+{ lib, pkgs, ... }:
 let
   backend = pkgs.writeShellApplication {
     name = "fleet-ui-backend";
@@ -7,32 +7,19 @@ let
       pkgs.python3
       pkgs.ffmpeg
     ];
-    text = builtins.readFile ../../../scripts/fleet-ui-darwin.sh;
+    text = builtins.readFile ./fleet-ui-native.sh;
+  };
+  nativeShortcuts = pkgs.writeShellApplication {
+    name = "fleet-shortcuts";
+    runtimeInputs = [ backend ];
+    text = ''exec fleet-ui-backend shortcuts "$@"'';
   };
 in
 {
   fleet.interaction.backend = backend;
 
-  # Fleet owns its Hammerspoon module, not Karabiner's mutable user profile.
-  # Caps Lock keeps its native function; the menu uses an inspected app shortcut.
-  home.file.".hammerspoon/fleet.lua".source = ../../../dotfiles/hammerspoon/fleet.lua;
-  home.file.".hammerspoon/init.lua".text = ''
-    hs.autoLaunch(true)
-    fleetInteraction = require("fleet")
-  '';
-
-  # AeroSpace supplies the keyboard-oriented window/workspace backend. No
-  # appearance, gaps, wallpaper, borders or other visual preferences are owned
-  # here.
-  home.file.".aerospace.toml".text = ''
-    config-version = 2
-    start-at-login = true
-    auto-reload-config = true
-    enable-normalization-flatten-containers = true
-    enable-normalization-opposite-orientation-for-nested-containers = true
-    default-root-container-layout = 'tiles'
-    default-root-container-orientation = 'auto'
-
-    [mode.main.binding]
-  '';
+  # The Mac uses native keyboard/window controls. Existing login registrations
+  # are removed locally during migration; Home Manager retires the old files.
+  # The shared catalogue still supplies the Linux guide.
+  home.packages = [ (lib.hiPrio nativeShortcuts) ];
 }
