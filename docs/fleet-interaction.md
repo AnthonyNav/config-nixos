@@ -11,7 +11,9 @@ not remapped. Unknown applications retain their controls. The desktop menu uses
 Command+Option+Enter on Mac and Super+Alt+Enter on Linux, then single keys.
 `fleet-menu` opens the same menu from a command. Native Mac application shortcuts
 have priority; only known applications with a successfully inspected menu are
-eligible for the global menu shortcut. Commands remain available in other apps.
+eligible for the global menu shortcut. VSCode on Mac retains its native
+Command+Option+Enter Replace All action (including its hidden find-widget binding);
+use `fleet-menu` there. Commands remain available in other apps.
 
 ## Ownership and activation
 

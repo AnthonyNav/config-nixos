@@ -14,7 +14,8 @@ local knownApps = {
   ["com.google.Chrome"] = true,
   ["org.mozilla.firefox"] = true,
   ["org.dbgate"] = true,
-  ["com.microsoft.VSCode"] = true,
+  -- VSCode owns Cmd+Alt+Enter in its find widget, outside exposed menus.
+  -- Its Fleet menu remains available explicitly through fleet-menu.
   ["net.kovidgoyal.kitty"] = true,
 }
 local terminalApps = {
@@ -124,7 +125,7 @@ local function run(args)
   local task = hs.task.new(path, function(code, stdout, stderr)
     M.tasks[id] = nil
     if code ~= 0 then
-      alert("Fleet: " .. (stderr ~= "" and stderr or ("error " .. tostring(code))))
+      alert("Fleet: " .. (stderr ~= "" and stderr or (stdout ~= "" and stdout or ("error " .. tostring(code)))))
     elseif status and stdout ~= "" then
       alert(stdout)
     end

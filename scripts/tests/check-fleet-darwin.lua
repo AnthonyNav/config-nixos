@@ -102,8 +102,8 @@ function hs.hotkey.modal.new()
   return modal
 end
 
-local vscode = app("com.microsoft.VSCode", 10)
-current = vscode
+local known = app("org.dbgate", 10)
+current = known
 local fleet = dofile(modulePath)
 check(not globalHotkey.enabled and #pending == 1, "initial trigger waits for inspection")
 flush()
@@ -112,12 +112,12 @@ check(globalHotkey.enabled, "known application with inspected menus is eligible"
 for _, special in ipairs({ 4, 11, 12, 13, "\r", "\n", "return", "enter", "↩" }) do
   local glyph = type(special) == "number" and special or ""
   local char = type(special) == "string" and special or ""
-  vscode.menus = { { { AXEnabled = false, AXMenuItemCmdModifiers = { "cmd", "alt" },
+  known.menus = { { { AXEnabled = false, AXMenuItemCmdModifiers = { "cmd", "alt" },
     AXMenuItemCmdChar = char, AXMenuItemCmdGlyph = glyph } } }
   timer.callback(); flush()
   check(not globalHotkey.enabled, "native Cmd+Alt+Enter remains owned by the application")
 end
-vscode.menus = {}
+known.menus = {}
 timer.callback(); flush()
 check(globalHotkey.enabled, "trigger can recover after a menu changes")
 globalHotkey.callback()
@@ -135,30 +135,36 @@ check(count(fleet.tasks) == 0, "completed task is released")
 flush()
 
 -- A newly exposed shortcut gets the original key event, not a Fleet menu.
-vscode.menus = { { AXMenuItemCmdModifiers = { "command", "option" }, AXMenuItemCmdChar = "\r" } }
+known.menus = { { AXMenuItemCmdModifiers = { "command", "option" }, AXMenuItemCmdChar = "\r" } }
 globalHotkey.callback(); flush()
 check(fleet.mode == nil and not globalHotkey.enabled, "new native conflict does not open menu")
-check(strokes[#strokes].key == "return" and strokes[#strokes].app == vscode, "consumed chord is forwarded natively")
-vscode.menus = {}
+check(strokes[#strokes].key == "return" and strokes[#strokes].app == known, "consumed chord is forwarded natively")
+known.menus = {}
 timer.callback()
 local unknown = app("example.uninspected", 20)
 changeApp(unknown); flush()
 check(not globalHotkey.enabled, "late inspection cannot enable trigger for an unknown app")
 check(#pending == 0, "unknown apps are not inspected or intercepted")
-changeApp(vscode); flush()
-vscode.menus = nil
+local code = app("com.microsoft.VSCode", 30)
+changeApp(code); flush()
+check(not globalHotkey.enabled and #pending == 0, "VSCode hidden native Replace All shortcut is never intercepted")
+urls["fleet-menu"]()
+check(fleet.mode == "main", "VSCode can open the explicit command menu")
+fleet.close(); flush()
+changeApp(known); flush()
+known.menus = nil
 timer.callback(); flush()
 check(not globalHotkey.enabled, "missing menu result is conservative")
-vscode.failMenus = true
+known.failMenus = true
 timer.callback()
 check(not globalHotkey.enabled, "inspection exception is conservative")
-vscode.failMenus, vscode.menus = false, {}
+known.failMenus, known.menus = false, {}
 timer.callback(); flush()
-vscode.failMenus = true
+known.failMenus = true
 local failedStrokeCount = #strokes
 globalHotkey.callback()
-check(#strokes == failedStrokeCount + 1 and strokes[#strokes].app == vscode, "keypress inspection exception forwards native chord")
-vscode.failMenus = false
+check(#strokes == failedStrokeCount + 1 and strokes[#strokes].app == known, "keypress inspection exception forwards native chord")
+known.failMenus = false
 timer.callback(); flush()
 
 urls["fleet-move-mode"]()
@@ -226,7 +232,7 @@ for _, action in ipairs({ "copy", "paste", "close", "new-tab", "quit" }) do
 end
 check(#strokes == strokeCount + 5 and strokes[#strokes].key == "q", "terminal allowed actions include graceful Cmd+Q")
 check(table.concat(strokes[#strokes].mods, "+") == "cmd", "quit uses normal application command")
-changeApp(vscode); flush()
+changeApp(known); flush()
 for _, action in ipairs({ "copy", "paste", "cut", "undo", "redo", "select-all", "save", "find", "open", "new", "new-tab", "close", "quit", "location", "reload" }) do
   urls["fleet-edit"]("fleet-edit", { action = action })
 end
