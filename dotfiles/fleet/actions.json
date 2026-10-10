@@ -1,0 +1,438 @@
+{
+  "version": 1,
+  "menu": [
+    {
+      "key": "left",
+      "label": "Left",
+      "args": [
+        "focus",
+        "left"
+      ]
+    },
+    {
+      "key": "right",
+      "label": "Right",
+      "args": [
+        "focus",
+        "right"
+      ]
+    },
+    {
+      "key": "up",
+      "label": "Up",
+      "args": [
+        "focus",
+        "up"
+      ]
+    },
+    {
+      "key": "down",
+      "label": "Down",
+      "args": [
+        "focus",
+        "down"
+      ]
+    },
+    {
+      "key": "1",
+      "label": "Escritorio 1",
+      "args": [
+        "workspace",
+        "1"
+      ]
+    },
+    {
+      "key": "2",
+      "label": "Escritorio 2",
+      "args": [
+        "workspace",
+        "2"
+      ]
+    },
+    {
+      "key": "3",
+      "label": "Escritorio 3",
+      "args": [
+        "workspace",
+        "3"
+      ]
+    },
+    {
+      "key": "4",
+      "label": "Escritorio 4",
+      "args": [
+        "workspace",
+        "4"
+      ]
+    },
+    {
+      "key": "5",
+      "label": "Escritorio 5",
+      "args": [
+        "workspace",
+        "5"
+      ]
+    },
+    {
+      "key": "6",
+      "label": "Escritorio 6",
+      "args": [
+        "workspace",
+        "6"
+      ]
+    },
+    {
+      "key": "7",
+      "label": "Escritorio 7",
+      "args": [
+        "workspace",
+        "7"
+      ]
+    },
+    {
+      "key": "8",
+      "label": "Escritorio 8",
+      "args": [
+        "workspace",
+        "8"
+      ]
+    },
+    {
+      "key": "9",
+      "label": "Escritorio 9",
+      "args": [
+        "workspace",
+        "9"
+      ]
+    },
+    {
+      "key": "0",
+      "label": "Escritorio 10",
+      "args": [
+        "workspace",
+        "10"
+      ]
+    },
+    {
+      "key": "T",
+      "label": "Terminal",
+      "args": [
+        "terminal"
+      ]
+    },
+    {
+      "key": "B",
+      "label": "Navegador",
+      "args": [
+        "browser"
+      ]
+    },
+    {
+      "key": "A",
+      "label": "Archivos",
+      "args": [
+        "files"
+      ]
+    },
+    {
+      "key": "O",
+      "label": "Orca",
+      "args": [
+        "orca"
+      ]
+    },
+    {
+      "key": "F",
+      "label": "Pantalla completa",
+      "args": [
+        "fullscreen"
+      ]
+    },
+    {
+      "key": "E",
+      "label": "Mosaico / flotante",
+      "args": [
+        "toggle-floating"
+      ]
+    },
+    {
+      "key": "M",
+      "label": "Modo mover: flechas y escritorios",
+      "args": [
+        "move-mode"
+      ]
+    },
+    {
+      "key": "R",
+      "label": "Modo redimensionar: flechas",
+      "args": [
+        "resize-mode"
+      ]
+    },
+    {
+      "key": "C",
+      "label": "Opciones de captura",
+      "args": [
+        "capture-menu"
+      ]
+    },
+    {
+      "key": "G",
+      "label": "Opciones de grabación",
+      "args": [
+        "record-menu"
+      ]
+    },
+    {
+      "key": "L",
+      "label": "Bloquear",
+      "args": [
+        "lock"
+      ]
+    },
+    {
+      "key": "K",
+      "label": "Guía de atajos",
+      "args": [
+        "shortcuts"
+      ]
+    }
+  ],
+  "edit": [
+    {
+      "key": "C",
+      "action": "copy",
+      "label": "Copiar",
+      "frequency": "Muy alta"
+    },
+    {
+      "key": "V",
+      "action": "paste",
+      "label": "Pegar",
+      "frequency": "Muy alta"
+    },
+    {
+      "key": "X",
+      "action": "cut",
+      "label": "Cortar",
+      "frequency": "Alta"
+    },
+    {
+      "key": "Z",
+      "action": "undo",
+      "label": "Deshacer",
+      "frequency": "Muy alta"
+    },
+    {
+      "key": "Shift+Z",
+      "action": "redo",
+      "label": "Rehacer",
+      "frequency": "Alta"
+    },
+    {
+      "key": "A",
+      "action": "select-all",
+      "label": "Seleccionar todo",
+      "frequency": "Alta"
+    },
+    {
+      "key": "S",
+      "action": "save",
+      "label": "Guardar",
+      "frequency": "Muy alta"
+    },
+    {
+      "key": "F",
+      "action": "find",
+      "label": "Buscar",
+      "frequency": "Alta"
+    },
+    {
+      "key": "O",
+      "action": "open",
+      "label": "Abrir archivo",
+      "frequency": "Media"
+    },
+    {
+      "key": "N",
+      "action": "new",
+      "label": "Nuevo documento",
+      "frequency": "Media"
+    },
+    {
+      "key": "T",
+      "action": "new-tab",
+      "label": "Nueva pestaña",
+      "frequency": "Alta"
+    },
+    {
+      "key": "W",
+      "action": "close",
+      "label": "Cerrar pestaña/documento",
+      "frequency": "Alta"
+    },
+    {
+      "key": "Q",
+      "action": "quit",
+      "label": "Salir normalmente de la aplicación",
+      "frequency": "Media"
+    },
+    {
+      "key": "L",
+      "action": "location",
+      "label": "Dirección/búsqueda del navegador",
+      "frequency": "Alta"
+    },
+    {
+      "key": "R",
+      "action": "reload",
+      "label": "Recargar navegador",
+      "frequency": "Alta"
+    }
+  ],
+  "vscode": [
+    {
+      "key": "P",
+      "label": "Abrir archivo rápidamente"
+    },
+    {
+      "key": "Shift+P",
+      "label": "Paleta de comandos"
+    },
+    {
+      "key": "Shift+F",
+      "label": "Buscar en proyecto"
+    },
+    {
+      "key": "J",
+      "label": "Panel inferior"
+    },
+    {
+      "key": "← / →",
+      "label": "Inicio/final de línea (editor)"
+    },
+    {
+      "key": "Shift+← / →",
+      "label": "Seleccionar hasta inicio/final de línea (editor)"
+    }
+  ],
+  "media": {
+    "capture": [
+      {
+        "key": "3",
+        "label": "Pantalla → archivo",
+        "args": [
+          "screenshot",
+          "screen",
+          "--file",
+          "auto"
+        ]
+      },
+      {
+        "key": "4",
+        "label": "Área → archivo",
+        "args": [
+          "screenshot",
+          "area",
+          "--file",
+          "auto"
+        ]
+      },
+      {
+        "key": "W",
+        "label": "Ventana → archivo",
+        "args": [
+          "screenshot",
+          "window",
+          "--file",
+          "auto"
+        ]
+      },
+      {
+        "key": "S",
+        "label": "Pantalla → portapapeles",
+        "args": [
+          "screenshot",
+          "screen",
+          "--clipboard"
+        ]
+      },
+      {
+        "key": "A",
+        "label": "Área → portapapeles",
+        "args": [
+          "screenshot",
+          "area",
+          "--clipboard"
+        ]
+      },
+      {
+        "key": "C",
+        "label": "Ventana → portapapeles",
+        "args": [
+          "screenshot",
+          "window",
+          "--clipboard"
+        ]
+      }
+    ],
+    "record": [
+      {
+        "key": "A",
+        "label": "Iniciar área, audio del equipo",
+        "args": [
+          "record",
+          "start",
+          "--target",
+          "area",
+          "--audio",
+          "system"
+        ]
+      },
+      {
+        "key": "S",
+        "label": "Iniciar pantalla, audio del equipo",
+        "args": [
+          "record",
+          "start",
+          "--target",
+          "screen",
+          "--audio",
+          "system"
+        ]
+      },
+      {
+        "key": "T",
+        "label": "Detener mi grabación Fleet",
+        "args": [
+          "record",
+          "stop"
+        ]
+      },
+      {
+        "key": "E",
+        "label": "Estado de la grabación",
+        "args": [
+          "record",
+          "status"
+        ]
+      }
+    ],
+    "combined": [
+      {
+        "key": "C",
+        "label": "Captura",
+        "args": [
+          "capture-menu"
+        ]
+      },
+      {
+        "key": "G",
+        "label": "Grabación",
+        "args": [
+          "record-menu"
+        ]
+      }
+    ]
+  }
+}

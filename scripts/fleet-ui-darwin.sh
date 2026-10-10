@@ -19,7 +19,14 @@ Actions:
   move-workspace <1-10>
   fullscreen
   toggle-floating
-  resize
+  move-mode
+  resize-mode
+  resize-step <left|right|up|down>
+  mode-exit
+  capture-menu | record-menu | media-menu
+  screenshot <area|window|screen> [--clipboard|--file auto] [--region X,Y,W,H]
+  record <start|status|stop|probe> [options]
+  edit <copy|paste|cut|undo|redo|select-all|save|find|open|new|new-tab|close|quit|location|reload>
   shortcuts
   doctor
 EOF
@@ -84,10 +91,9 @@ case "$action" in
       /usr/bin/open -a Terminal
     fi
     ;;
-  menu)
-    darwin_app kitty || die "kitty is required for the managed Fleet menu"
-    have fleet-menu || die "fleet-menu is not installed"
-    /Applications/kitty.app/Contents/MacOS/kitty -e fleet-menu >/dev/null 2>&1 &
+  menu|capture-menu|record-menu|media-menu|move-mode|resize-mode|resize)
+    [ "$action" != resize ] || action=resize-mode
+    /usr/bin/open "hammerspoon://fleet-$action"
     ;;
   browser)
     darwin_open_first Firefox Safari || die "no supported browser found"
@@ -128,8 +134,26 @@ case "$action" in
   toggle-floating)
     "$(aerospace_bin)" layout floating tiling
     ;;
-  resize)
-    "$(aerospace_bin)" mode resize
+  resize-step)
+    case "${1:-}" in
+      left) axis=width; delta=-50 ;; right) axis=width; delta=+50 ;;
+      up) axis=height; delta=-50 ;; down) axis=height; delta=+50 ;;
+      *) die "resize-step requires a direction" ;;
+    esac
+    "$(aerospace_bin)" resize "$axis" "$delta"
+    ;;
+  mode-exit)
+    /usr/bin/open "hammerspoon://fleet-mode-exit"
+    ;;
+  screenshot|record)
+    exec fleet-media --platform darwin "$action" "$@"
+    ;;
+  edit)
+    case "${1:-}" in
+      copy|paste|cut|undo|redo|select-all|save|find|open|new|new-tab|close|quit|location|reload)
+        /usr/bin/open "hammerspoon://fleet-edit?action=$1" ;;
+      *) die "invalid editing action" ;;
+    esac
     ;;
   shortcuts)
     darwin_app kitty || die "kitty is required for the managed shortcut guide"
@@ -146,7 +170,7 @@ case "$action" in
         fail=1
       fi
     done
-    for app in kitty Hammerspoon Karabiner-Elements AeroSpace; do
+    for app in kitty Hammerspoon AeroSpace; do
       if darwin_app "$app"; then
         printf 'OK   app: %s\n' "$app"
       else
@@ -160,19 +184,18 @@ case "$action" in
       printf 'MISS command: aerospace\n'
       fail=1
     fi
-    if [ -f "$HOME/.config/karabiner/assets/complex_modifications/fleet-key.json" ]; then
-      printf 'OK   Karabiner Fleet Key rule installed\n'
-    else
-      printf 'MISS Karabiner Fleet Key rule\n'
-      fail=1
-    fi
     if [ -f "$HOME/.hammerspoon/init.lua" ]; then
       printf 'OK   Hammerspoon Fleet bindings installed\n'
     else
       printf 'MISS Hammerspoon Fleet bindings\n'
       fail=1
     fi
-    printf 'INFO macOS Accessibility/Input Monitoring permissions require manual approval.\n'
+    if pgrep -x Rectangle >/dev/null; then
+      printf 'WARN Rectangle is running; AeroSpace must be the only window manager during validation.\n'
+      fail=1
+    fi
+    printf 'INFO Presence does not prove runtime health. Check Hammerspoon Accessibility and Screen/System Audio Recording permissions locally.\n'
+    fleet-media --platform darwin record status
     exit "$fail"
     ;;
   -h|--help|help)

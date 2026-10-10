@@ -158,26 +158,10 @@
         touch "$out"
       '';
   formatting = treefmtEval.config.build.check self;
-  fleet-interaction =
-    pkgsFor.runCommand "fleet-interaction-check"
-      {
-        nativeBuildInputs = [
-          pkgsFor.bash
-          pkgsFor.shellcheck
-        ];
-      }
-      ''
-        shellcheck \
-          ${../scripts/fleet-ui.sh} \
-          ${../scripts/fleet-ui-linux.sh} \
-          ${../scripts/fleet-ui-darwin.sh} \
-          ${../scripts/fleet-menu.sh} \
-          ${../scripts/fleet-shortcuts.sh}
-        bash ${../scripts/fleet-ui-linux.sh} --help >/dev/null
-        bash ${../scripts/fleet-ui-darwin.sh} --help >/dev/null
-        ! grep -Eiq 'darwin|linux|hyprland|aerospace' ${../scripts/fleet-ui.sh}
-        touch "$out"
-      '';
+  fleet-interaction = import ./fleet-interaction-check.nix {
+    pkgs = pkgsFor;
+    source = self;
+  };
   ci-workflows =
     pkgsFor.runCommand "ci-workflows-check"
       {

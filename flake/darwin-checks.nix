@@ -110,6 +110,10 @@ in
     assert builtins.deepSeq policy true;
     builderPkgs.runCommand "darwin-evaluation-check" { } ''touch "$out"'';
   native = {
+    fleet-interaction = import ./fleet-interaction-check.nix {
+      inherit pkgs;
+      source = ../.;
+    };
     workspace-sync =
       pkgs.runCommand "darwin-workspace-sync-check"
         {
