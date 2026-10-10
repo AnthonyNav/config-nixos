@@ -43,10 +43,10 @@ En Mac, una aplicación con ese atajo nativo conserva prioridad.
 
 | Tecla del menú | Acción |
 |---|---|
-| left | Left |
-| right | Right |
-| up | Up |
-| down | Down |
+| left | Enfocar a la izquierda |
+| right | Enfocar a la derecha |
+| up | Enfocar arriba |
+| down | Enfocar abajo |
 | 1 | Escritorio 1 |
 | 2 | Escritorio 2 |
 | 3 | Escritorio 3 |
