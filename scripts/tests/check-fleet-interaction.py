@@ -75,7 +75,7 @@ class Contract(unittest.TestCase):
     def test_quit_uses_graceful_app_shortcut(self):
         self.assertEqual(self.edit("kitty", "quit").returncode, 0)
         log = self.log.read_text()
-        self.assertIn("CTRL SHIFT,q,address:0x123", log)
+        self.assertIn("SUPER,q,address:0x123", log)
         self.assertNotIn("kill", log)
 
 

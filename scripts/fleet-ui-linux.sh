@@ -196,7 +196,7 @@ case "$action" in
       kitty)
         case "$edit_action" in
           copy|paste) modifier='CTRL SHIFT' ;;
-          quit) modifier='CTRL SHIFT' ;;
+          quit) modifier=SUPER ;;
           *) die "terminal action is reserved; use its native controls" ;;
         esac ;;
       *) die "application has no verified Fleet editing adapter" ;;
